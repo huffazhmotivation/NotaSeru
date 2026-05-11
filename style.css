@@ -43,24 +43,6 @@
 [data-color="lime"]   {--primary:#65A30D;--primary-dark:#3F6212;--primary-soft:#F7FEE7;--primary-glow:rgba(101,163,13,.18);}
 [data-color="sky"]    {--primary:#0284C7;--primary-dark:#075985;--primary-soft:#F0F9FF;--primary-glow:rgba(2,132,199,.18);}
 
-/* â”€â”€ DARK MODE: paksa primary-soft ke transparan untuk semua color theme â”€â”€
-   HARUS di bawah [data-color] agar menang di cascade (same specificity, order matters).
-   Tanpa ini, [data-color] yg datang setelah [data-theme="dark"] akan override --primary-soft
-   ke warna terang (#EEF2FF dll), sehingga card selected di dark mode punya bg terang
-   dan teks jadi invisible. â”€â”€ */
-[data-theme="dark"][data-color="blue"]   { --primary-soft: rgba(59,130,246,.15);  --primary-glow: rgba(59,130,246,.25); }
-[data-theme="dark"][data-color="green"]  { --primary-soft: rgba(5,150,105,.15);   --primary-glow: rgba(5,150,105,.25); }
-[data-theme="dark"][data-color="orange"] { --primary-soft: rgba(234,88,12,.15);   --primary-glow: rgba(234,88,12,.25); }
-[data-theme="dark"][data-color="indigo"] { --primary-soft: rgba(99,102,241,.15);  --primary-glow: rgba(99,102,241,.25); }
-[data-theme="dark"][data-color="yellow"] { --primary-soft: rgba(245,197,24,.15);  --primary-glow: rgba(245,197,24,.25); }
-[data-theme="dark"][data-color="pink"]   { --primary-soft: rgba(236,72,153,.15);  --primary-glow: rgba(236,72,153,.25); }
-[data-theme="dark"][data-color="purple"] { --primary-soft: rgba(139,92,246,.15);  --primary-glow: rgba(139,92,246,.25); }
-[data-theme="dark"][data-color="teal"]   { --primary-soft: rgba(13,148,136,.15);  --primary-glow: rgba(13,148,136,.25); }
-[data-theme="dark"][data-color="rose"]   { --primary-soft: rgba(244,63,94,.15);   --primary-glow: rgba(244,63,94,.25); }
-[data-theme="dark"][data-color="amber"]  { --primary-soft: rgba(217,119,6,.15);   --primary-glow: rgba(217,119,6,.25); }
-[data-theme="dark"][data-color="lime"]   { --primary-soft: rgba(101,163,13,.15);  --primary-glow: rgba(101,163,13,.25); }
-[data-theme="dark"][data-color="sky"]    { --primary-soft: rgba(2,132,199,.15);   --primary-glow: rgba(2,132,199,.25); }
-
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
 html{font-size:16px;-webkit-text-size-adjust:100%;}
 body{font-family:var(--font);background:var(--bg);color:var(--txt-1);min-height:100vh;min-height:-webkit-fill-available;overflow-x:hidden;-webkit-font-smoothing:antialiased;}
@@ -487,38 +469,9 @@ img{max-width:100%;display:block;}
 /* Select bar bg-base fallback */
 [data-theme="dark"] .select-bar { background: var(--bg) !important; }
 
-/* â”€â”€ Select Mode â€” Dark Mode Fix Menyeluruh â”€â”€ */
-
-/* 1. Lingkaran check sebelum dicentang â€” border lebih terang supaya keliatan */
+/* Select check circle â€” visible in dark mode before selected */
 [data-theme="dark"] .select-check { border-color: #4B5563 !important; background: #1E2536 !important; }
-
-/* 2. Lingkaran check setelah dicentang */
 [data-theme="dark"] .inv-card.selected .select-check { background: var(--primary) !important; border-color: var(--primary) !important; }
-
-/* 3. Card selected â€” background pakai var(--primary-soft) yg sudah di-fix ke transparan di dark mode */
-[data-theme="dark"] .inv-card.selected { background: var(--primary-soft) !important; border-color: var(--primary) !important; border-left-width: 3px !important; }
-
-/* 4. Teks di dalam card selected tetap terbaca */
-[data-theme="dark"] .inv-card.selected .inv-card-name   { color: #F9FAFB !important; }
-[data-theme="dark"] .inv-card.selected .inv-card-meta   { color: #9CA3AF !important; }
-[data-theme="dark"] .inv-card.selected .inv-card-amount { color: #F9FAFB !important; }
-
-/* 4b. Teks di card UNSELECTED di dark mode selalu terbaca (terutama saat select mode aktif) */
-[data-theme="dark"] .inv-card .inv-card-name   { color: var(--txt-1); }
-[data-theme="dark"] .inv-card .inv-card-amount { color: var(--txt-1); }
-[data-theme="dark"] .inv-card .inv-card-meta   { color: var(--txt-3); }
-
-/* 5. Card selected yang juga berstatus lunas/dp â€” selected menang */
-[data-theme="dark"] .inv-card.selected.status-lunas,
-[data-theme="dark"] .inv-card.selected.status-dp { background: var(--primary-soft) !important; border-color: var(--primary) !important; }
-
-/* 6. Badge status di dalam card selected */
-[data-theme="dark"] .inv-card.selected .badge-belum { background: rgba(239,68,68,0.2) !important; color: #fca5a5 !important; }
-[data-theme="dark"] .inv-card.selected .badge-dp    { background: rgba(245,158,11,0.2) !important; color: #fcd34d !important; }
-[data-theme="dark"] .inv-card.selected .badge-lunas { background: rgba(16,185,129,0.2) !important; color: #6ee7b7 !important; }
-
-/* 7. Icon card saat selected di dark â€” pakai var(--primary-soft) bukan hardcode indigo */
-[data-theme="dark"] .inv-card.selected .inv-card-ic { background: var(--primary-soft) !important; color: var(--primary) !important; }
 
 /* finOmsetNote â€” warna teks nota count di finance */
 [data-theme="dark"] #finOmsetNote { color: #4ade80 !important; }
