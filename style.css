@@ -609,3 +609,13 @@ img{max-width:100%;display:block;}
 [data-theme="dark"] .grup-block-profit.negative{color:#FB7185;}
 [data-theme="dark"] input,[data-theme="dark"] textarea,[data-theme="dark"] select{color:var(--txt-1);background:var(--bg-input);border-color:var(--border);}
 [data-theme="dark"] input::placeholder,[data-theme="dark"] textarea::placeholder{color:var(--txt-3);}
+
+/* ── Dark Mode Swipe Actions Fix ── */
+[data-theme="dark"] .inv-card{background:var(--bg-card);}
+[data-theme="dark"] .inv-card.status-lunas{background:rgba(16,185,129,.12);}
+[data-theme="dark"] .inv-card.status-dp{background:rgba(245,158,11,.1);}
+[data-theme="dark"] .inv-card.status-belum{background:var(--bg-card);}
+[data-theme="dark"] .swipe-btn-belum{background:#B91C1C;}
+[data-theme="dark"] .swipe-btn-dp{background:#B45309;}
+[data-theme="dark"] .swipe-btn-lunas{background:#047857;}
+
