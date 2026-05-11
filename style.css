@@ -127,7 +127,7 @@ img{max-width:100%;display:block;}
 .inv-cards{display:flex;flex-direction:column;gap:10px;}
 
 /* ── Swipe wrapper ── */
-.inv-swipe-wrap{position:relative;border-radius:var(--r-md);overflow:hidden;}
+.inv-swipe-wrap{position:relative;border-radius:var(--r-md);overflow:hidden;transform:translateZ(0);-webkit-transform:translateZ(0);}
 .inv-swipe-actions{position:absolute;right:0;top:0;bottom:0;display:flex;align-items:stretch;border-radius:0 var(--r-md) var(--r-md) 0;overflow:hidden;z-index:1;}
 .inv-swipe-actions-left{position:absolute;left:0;top:0;bottom:0;display:flex;align-items:stretch;border-radius:var(--r-md) 0 0 var(--r-md);overflow:hidden;z-index:1;}
 .inv-swipe-btn{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;padding:0 16px;cursor:pointer;min-width:68px;border:none;font-size:10px;font-weight:700;letter-spacing:.05em;color:#fff;transition:filter .12s,opacity .2s;}
