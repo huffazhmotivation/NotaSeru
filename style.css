@@ -1,9 +1,9 @@
 /* NotaSeru - System font, no external dependencies */
-/* Poppins embedded â€” no external request, canvas-safe */
+/* Poppins embedded — no external request, canvas-safe */
 
 /* ============================================
-   NOTASERU v3 â€” Minimalist Premium PWA
-   Font: Poppins â€” Icons: SVG line only
+   NOTASERU v3 — Minimalist Premium PWA
+   Font: Poppins — Icons: SVG line only
    ============================================ */
 
 
@@ -126,7 +126,7 @@ img{max-width:100%;display:block;}
 /* Invoice card */
 .inv-cards{display:flex;flex-direction:column;gap:10px;}
 
-/* â”€â”€ Swipe wrapper â”€â”€ */
+/* ── Swipe wrapper ── */
 .inv-swipe-wrap{position:relative;border-radius:var(--r-md);overflow:hidden;}
 .inv-swipe-actions{position:absolute;right:0;top:0;bottom:0;display:flex;align-items:stretch;border-radius:0 var(--r-md) var(--r-md) 0;overflow:hidden;z-index:1;}
 .inv-swipe-actions-left{position:absolute;left:0;top:0;bottom:0;display:flex;align-items:stretch;border-radius:var(--r-md) 0 0 var(--r-md);overflow:hidden;z-index:1;}
@@ -353,13 +353,13 @@ img{max-width:100%;display:block;}
 .hidden{display:none!important;} .flex{display:flex;} .items-center{align-items:center;} .justify-between{justify-content:space-between;} .gap-2{gap:8px;}
 .text-danger{color:var(--danger);} .text-success{color:var(--success);} .text-pri{color:var(--primary);}
 
-/* â”€â”€ Discount Toggle Pills â”€â”€ */
+/* ── Discount Toggle Pills ── */
 .disc-toggle{display:flex;background:var(--bg-input);border-radius:var(--r-xs);border:1px solid var(--border);overflow:hidden;}
 .disc-btn{padding:5px 12px;font-size:12px;font-weight:700;border:none;cursor:pointer;font-family:var(--font);background:transparent;color:var(--txt-3);transition:var(--ease);}
 .disc-btn.active{background:var(--primary);color:#fff;}
 .disc-btn:active{transform:scale(.94);}
 
-/* â”€â”€ Template Picker â”€â”€ */
+/* ── Template Picker ── */
 .template-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;}
 .tpl-color-dot.active{border-color:var(--txt-1)!important;transform:scale(1.25);box-shadow:0 0 0 2px var(--bg-card),0 0 0 4px var(--txt-1);}
 .tpl-color-dot:active{transform:scale(.92);}
@@ -410,11 +410,11 @@ img{max-width:100%;display:block;}
 [data-theme="dark"] .fin-card-teal  { background: rgba(20,184,166,0.15) !important; box-shadow: 0 4px 18px rgba(20,184,166,0.15) !important; border-left-color: rgba(20,184,166,0.45) !important; }
 [data-theme="dark"] .fin-card-red   { background: rgba(244,63,94,0.15)  !important; box-shadow: 0 4px 18px rgba(244,63,94,0.15)  !important; border-left-color: rgba(244,63,94,0.45) !important; }
 
-/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-   DARK MODE â€” Fix semua elemen hardcoded
-   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
+/* ══════════════════════════════════════════════
+   DARK MODE — Fix semua elemen hardcoded
+   ══════════════════════════════════════════════ */
 
-/* Nota card status â€” lunas & dp pakai warna soft biar tetap terbaca */
+/* Nota card status — lunas & dp pakai warna soft biar tetap terbaca */
 [data-theme="dark"] .inv-card.status-lunas { background: rgba(16,185,129,0.12) !important; border-color: rgba(16,185,129,0.35) !important; }
 [data-theme="dark"] .inv-card.status-dp    { background: rgba(245,158,11,0.12) !important; border-color: rgba(245,158,11,0.35) !important; }
 [data-theme="dark"] .inv-card.status-lunas .inv-card-ic { background: rgba(16,185,129,0.18); color: #34d399; }
@@ -429,10 +429,10 @@ img{max-width:100%;display:block;}
 /* Signature canvas */
 [data-theme="dark"] .sign-canvas-wrap { background: #1a2030 !important; }
 
-/* Template preview background â€” ini tetap putih karena simulasi kertas */
+/* Template preview background — ini tetap putih karena simulasi kertas */
 /* tidak perlu diubah, sudah dibungkus di .tpl-preview */
 
-/* Template line previews di dark â€” pakai border lebih terang */
+/* Template line previews di dark — pakai border lebih terang */
 [data-theme="dark"] .tpl-classic .tpl-lines div,
 [data-theme="dark"] .tpl-modern .tpl-lines div,
 [data-theme="dark"] .tpl-minimal .tpl-lines div,
@@ -446,7 +446,7 @@ img{max-width:100%;display:block;}
 [data-theme="dark"] .profit-saved-badge.pos { background: rgba(16,185,129,0.2) !important; color: #34d399 !important; }
 [data-theme="dark"] .profit-saved-badge.neg { background: rgba(244,63,94,0.2)  !important; color: #fb7185 !important; }
 
-/* Grup block â€” hover/active overlay */
+/* Grup block — hover/active overlay */
 [data-theme="dark"] .grup-block-profit         { background: rgba(0,0,0,.35) !important; }
 [data-theme="dark"] .grup-block-profit.positive { color: #34d399 !important; }
 [data-theme="dark"] .grup-block-profit.negative { color: #fb7185 !important; }
@@ -455,7 +455,7 @@ img{max-width:100%;display:block;}
 [data-theme="dark"] .grup-block-footer          { background: rgba(0,0,0,.2) !important; }
 [data-theme="dark"] .grup-block-footer:active   { opacity: .6; }
 
-/* BUG FIX: Dark mode â€” grup block pakai background gelap agar nama item terbaca */
+/* BUG FIX: Dark mode — grup block pakai background gelap agar nama item terbaca */
 [data-theme="dark"] .grup-block              { background: rgba(0,0,0,.45) !important; border-color: rgba(255,255,255,.08) !important; }
 [data-theme="dark"] .grup-block-header       { border-bottom-color: rgba(255,255,255,.08) !important; }
 [data-theme="dark"] .grup-block-name         { color: #F9FAFB !important; }
@@ -469,22 +469,22 @@ img{max-width:100%;display:block;}
 /* Select bar bg-base fallback */
 [data-theme="dark"] .select-bar { background: var(--bg) !important; }
 
-/* â”€â”€ Select Mode â€” Dark Mode Fix Menyeluruh â”€â”€ */
+/* ── Select Mode — Dark Mode Fix Menyeluruh ── */
 
-/* 1. Lingkaran check sebelum dicentang â€” border lebih terang supaya keliatan */
+/* 1. Lingkaran check sebelum dicentang — border lebih terang supaya keliatan */
 [data-theme="dark"] .select-check { border-color: #4B5563 !important; background: #1E2536 !important; }
 
-/* 3. Card selected â€” background biru muda soft, bukan putih */
-[data-theme="dark"] .inv-card.selected { background: rgba(56,189,248,0.13) !important; border-color: #38bdf8 !important; border-left-width: 3px !important; }
+/* 3. Card selected — background biru muda solid, tidak transparan */
+[data-theme="dark"] .inv-card.selected { background: #0e3a52 !important; border-color: #38bdf8 !important; border-left-width: 3px !important; }
 
 /* 4. Teks di dalam card selected tetap terbaca */
 [data-theme="dark"] .inv-card.selected .inv-card-name   { color: #E0F2FE !important; }
 [data-theme="dark"] .inv-card.selected .inv-card-meta   { color: #7DD3FC !important; }
 [data-theme="dark"] .inv-card.selected .inv-card-amount { color: #E0F2FE !important; }
 
-/* 5. Card selected yang juga berstatus lunas/dp â€” selected menang */
+/* 5. Card selected yang juga berstatus lunas/dp — selected menang */
 [data-theme="dark"] .inv-card.selected.status-lunas,
-[data-theme="dark"] .inv-card.selected.status-dp { background: rgba(56,189,248,0.13) !important; border-color: #38bdf8 !important; }
+[data-theme="dark"] .inv-card.selected.status-dp { background: #0e3a52 !important; border-color: #38bdf8 !important; }
 
 /* 6. Badge status di dalam card selected */
 [data-theme="dark"] .inv-card.selected .badge-belum { background: rgba(239,68,68,0.2) !important; color: #fca5a5 !important; }
@@ -494,13 +494,13 @@ img{max-width:100%;display:block;}
 /* 7. Icon card saat selected di dark */
 [data-theme="dark"] .inv-card.selected .inv-card-ic { background: rgba(56,189,248,0.2) !important; color: #38bdf8 !important; }
 
-/* 8. Lingkaran check setelah dicentang â€” ikut warna biru muda */
+/* 8. Lingkaran check setelah dicentang — ikut warna biru muda */
 [data-theme="dark"] .inv-card.selected .select-check { background: #38bdf8 !important; border-color: #38bdf8 !important; }
 
-/* finOmsetNote â€” warna teks nota count di finance */
+/* finOmsetNote — warna teks nota count di finance */
 [data-theme="dark"] #finOmsetNote { color: #4ade80 !important; }
 
-/* â”€â”€ Profit Drawer (swipe down from nota) â”€â”€ */
+/* ── Profit Drawer (swipe down from nota) ── */
 .profit-drawer{background:var(--bg-card);border:1px solid var(--border-soft);border-radius:0 0 var(--r-md) var(--r-md);overflow:hidden;max-height:0;transition:max-height .35s cubic-bezier(.4,0,.2,1),opacity .25s;opacity:0;margin-top:-2px;}
 .profit-drawer.open{max-height:600px;opacity:1;}
 .profit-drawer-inner{padding:16px;}
@@ -535,7 +535,7 @@ img{max-width:100%;display:block;}
 .profit-saved-badge.neg{background:#FEE2E2;color:#991B1B;}
 .profit-saved-badge.zero{background:var(--bg-input);color:var(--txt-3);}
 
-/* â”€â”€ Select / Grup Mode â”€â”€ */
+/* ── Select / Grup Mode ── */
 .inv-card.selectable{cursor:pointer;}
 .inv-card.selected{background:var(--primary-soft)!important;border-left:3px solid var(--primary);padding-left:13px;}
 .inv-card.selected .inv-card-ic{color:var(--primary);}
@@ -553,7 +553,7 @@ img{max-width:100%;display:block;}
 .select-bar-cancel{padding:5px 12px;border:1px solid var(--border);background:var(--bg-card);border-radius:var(--r-sm);font-size:12px;font-weight:600;cursor:pointer;color:var(--txt-2);}
 .select-bar-group{padding:5px 14px;background:var(--primary);color:#fff;border:none;border-radius:var(--r-sm);font-size:12px;font-weight:700;cursor:pointer;}
 
-/* â”€â”€ Grup Sheet â”€â”€ */
+/* ── Grup Sheet ── */
 .grup-summary{background:var(--bg-input);border-radius:var(--r-md);padding:14px;margin-bottom:16px;}
 .grup-summary-row{display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px;}
 .grup-summary-label{color:var(--txt-2);}
@@ -568,7 +568,7 @@ img{max-width:100%;display:block;}
 .export-fmt-btn.active{border-color:var(--primary);background:var(--primary-soft);color:var(--primary);}
 .export-fmt-btn:active{opacity:.7;}
 
-/* â”€â”€ Grup Block Visual â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* ── Grup Block Visual ─────────────────────── */
 .grup-block {
   border-radius: 14px;
   border: 2px solid var(--gc-border);
@@ -645,7 +645,7 @@ img{max-width:100%;display:block;}
 .grup-block-footer { cursor: pointer; }
 .grup-block-footer:active { opacity: .7; }
 
-/* â”€â”€ Auth Page â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* ── Auth Page ─────────────────────────────── */
 #authPage{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:24px 20px;background:rgba(0,0,0,.55);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);position:fixed;inset:0;z-index:9999;overflow-y:auto;}
 #authPage .auth-box{animation:authPop .28s cubic-bezier(.34,1.56,.64,1) both;}
 @keyframes authPop{from{opacity:0;transform:scale(.92) translateY(16px)}to{opacity:1;transform:scale(1) translateY(0)}}
@@ -668,7 +668,7 @@ img{max-width:100%;display:block;}
 .auth-err{color:var(--danger,#DC2626);font-size:12px;font-weight:600;text-align:center;margin-top:10px;min-height:18px;}
 #authSpinner{text-align:center;margin-top:8px;color:var(--txt-3);font-size:13px;display:none;}
 
-/* â”€â”€ Sync Badge & User Info â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* ── Sync Badge & User Info ─────────────────── */
 #syncBadge{display:none;align-items:center;gap:4px;font-size:11px;font-weight:600;color:var(--primary);background:var(--primary-soft,#EEF2FF);padding:3px 9px;border-radius:var(--r-full);}
 #logoutBtn{display:none;background:var(--danger-soft,#FEE2E2);border:none;cursor:pointer;font-size:12px;font-weight:700;color:var(--danger,#DC2626);padding:5px 12px;border-radius:20px;font-family:var(--font);}
 #logoutBtn:hover{background:var(--danger,#DC2626);color:#fff;}
