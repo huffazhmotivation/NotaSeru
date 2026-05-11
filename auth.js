@@ -182,13 +182,13 @@ function stopRealtimeSync() {
 function _reRenderForKey(key) {
   try {
     if (key === 'invoices') {
-      // BUG FIX #1: fungsi yang benar adalah renderInvList (bukan renderInvoiceList)
       if (typeof renderInvList      === 'function') renderInvList();
       if (typeof renderDashboard    === 'function') renderDashboard();
+      if (typeof renderIncomePage   === 'function') renderIncomePage();
     } else if (key === 'expenses') {
       if (typeof renderDashboard    === 'function') renderDashboard();
-      // BUG FIX #7: render list pengeluaran juga kalau ada
       if (typeof renderExpenseList  === 'function') renderExpenseList();
+      if (typeof renderIncomePage   === 'function') renderIncomePage();
     } else if (key === 'settings') {
       if (typeof loadSettingsUI        === 'function') loadSettingsUI();
       if (typeof applyAppearance       === 'function') applyAppearance();
