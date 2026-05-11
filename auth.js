@@ -355,6 +355,7 @@ function doGuestMode() {
   document.getElementById('app').style.display = '';
   loadSettingsUI();
   renderDashboard();
+  if (typeof renderInvList === 'function') renderInvList();
   updateSettAkunRow();
   toast('Mode offline — data tersimpan di perangkat ini', 'ok');
 }
@@ -424,10 +425,12 @@ async function doLogout() {
   if (el) { el.textContent = ''; el.style.display = 'none'; }
   const lb = document.getElementById('logoutBtn');
   if (lb) lb.style.display = 'none';
-  if (typeof loadSettingsUI === 'function') loadSettingsUI(); // bersihkan DOM field info toko
+  if (typeof loadSettingsUI  === 'function') loadSettingsUI();
+  if (typeof renderDashboard === 'function') renderDashboard();
+  if (typeof renderInvList   === 'function') renderInvList();
   updateSettAkunRow();
-  resetAuthModal(); // reset popup ke form login/daftar dulu
-  showAuthPage();   // baru tampilkan popup
+  resetAuthModal();
+  showAuthPage();
   toast('Keluar berhasil', 'ok');
 }
 
