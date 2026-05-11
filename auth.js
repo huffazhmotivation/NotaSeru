@@ -44,12 +44,27 @@ const CloudDB = {
   },
   async _push(k, v) {
     const sb = getSB(); if (!sb || !_authUser) return;
-    try {
-      await sb.from('userdata').upsert(
-        { user_id: _authUser.id, key: k, value: v, updated_at: new Date().toISOString() },
-        { onConflict: 'user_id,key' }
-      );
-    } catch(e) { console.warn('CloudDB push err', k, e); }
+    const now = new Date().toISOString();
+    const rows = [];
+
+    if (k === 'settings') {
+      // Pisahkan logo & signature ke row terpisah agar tidak melebihi batas JSONB Supabase
+      const slim = Object.assign({}, v);
+      const logo      = slim.logo;      delete slim.logo;
+      const signature = slim.signature; delete slim.signature;
+      rows.push({ user_id: _authUser.id, key: 'settings', value: slim, updated_at: now });
+      if (logo      !== undefined) rows.push({ user_id: _authUser.id, key: 'logo',          value: logo,      updated_at: now });
+      if (signature !== undefined) rows.push({ user_id: _authUser.id, key: 'signature',     value: signature, updated_at: now });
+    } else {
+      rows.push({ user_id: _authUser.id, key: k, value: v, updated_at: now });
+    }
+
+    for (const row of rows) {
+      try {
+        const { error } = await sb.from('userdata').upsert(row, { onConflict: 'user_id,key' });
+        if (error) console.warn('CloudDB push err', row.key, error);
+      } catch(e) { console.warn('CloudDB push err', row.key, e); }
+    }
   },
   async pullAll() {
     const sb = getSB(); if (!sb || !_authUser) return;
@@ -68,6 +83,19 @@ const CloudDB = {
           changed = true;
         }
       }
+      // Gabungkan kembali ns3_logo & ns3_signature ke dalam object settings di localStorage
+      // agar kode render nota tetap bisa akses via DB.get('settings').logo / .signature
+      const settingsRaw = localStorage.getItem('ns3_settings');
+      const logoRaw     = localStorage.getItem('ns3_logo');
+      const signRaw     = localStorage.getItem('ns3_signature');
+      if (settingsRaw && (logoRaw || signRaw)) {
+        try {
+          const s = JSON.parse(settingsRaw);
+          if (logoRaw)  { const logo = JSON.parse(logoRaw);  if (logo)  s.logo      = logo;  else delete s.logo; }
+          if (signRaw)  { const sign = JSON.parse(signRaw);  if (sign)  s.signature = sign;  else delete s.signature; }
+          localStorage.setItem('ns3_settings', JSON.stringify(s));
+        } catch {}
+      }
       console.log('[NS] pulled', data.length, 'keys, changed:', changed);
       // BUG FIX: render UI kalau ada data yang berubah
       if (changed) {
@@ -84,7 +112,7 @@ const CloudDB = {
   },
   async pushAll() {
     const sb = getSB(); if (!sb || !_authUser) return;
-    const SYNC_KEYS = ['invoices','expenses','settings','products','ekspedisi'];
+    const SYNC_KEYS = ['invoices','expenses','settings','products','ekspedisi','logo','signature'];
     const rows = [];
     for (const k of SYNC_KEYS) {
       const v = DB.get(k, null);
@@ -140,8 +168,15 @@ function startRealtimeSync() {
           const current = DB.get(k, null);
           if (JSON.stringify(current) === JSON.stringify(v)) return;
           // BUG FIX #3: Tulis langsung ke localStorage (bypass patched DB.set)
-          // agar tidak trigger push balik ke cloud
           try { localStorage.setItem('ns3_' + k, JSON.stringify(v)); } catch {}
+          // Gabungkan logo/signature ke dalam settings object agar render nota tetap jalan
+          if (k === 'logo' || k === 'signature') {
+            try {
+              const s = JSON.parse(localStorage.getItem('ns3_settings') || '{}');
+              if (v) s[k] = v; else delete s[k];
+              localStorage.setItem('ns3_settings', JSON.stringify(s));
+            } catch {}
+          }
           // Re-render UI yang relevan
           _reRenderForKey(k);
           showSyncBadge('Tersinkron ✓');
@@ -189,7 +224,7 @@ function _reRenderForKey(key) {
       if (typeof renderDashboard    === 'function') renderDashboard();
       if (typeof renderExpenseList  === 'function') renderExpenseList();
       if (typeof renderIncomePage   === 'function') renderIncomePage();
-    } else if (key === 'settings') {
+    } else if (key === 'settings' || key === 'logo' || key === 'signature') {
       if (typeof loadSettingsUI        === 'function') loadSettingsUI();
       if (typeof applyAppearance       === 'function') applyAppearance();
       if (typeof renderCatalogList     === 'function') renderCatalogList();
