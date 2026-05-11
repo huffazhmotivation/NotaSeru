@@ -1,0 +1,1074 @@
+<!DOCTYPE html>
+<html lang="id" data-theme="light" data-color="indigo">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="NotaSeru">
+  <meta name="theme-color" content="#6366F1">
+  <meta name="description" content="Aplikasi Invoice & Keuangan Profesional">
+  <title>NotaSeru</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icon-192.svg">
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" defer></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" defer></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="config.js"></script>
+</head>
+<body>
+<div id="app">
+<!-- AUTH PAGE -->
+<div id="authPage" style="display:none">
+  <div class="auth-box">
+    <!-- Tombol tutup popup (hanya muncul kalau sudah ada sesi/guest) -->
+    <button class="auth-close-btn" id="authCloseBtn" style="display:none" onclick="closeAuthModal()" title="Tutup">✕</button>
+    <div class="auth-logo">
+      <div class="auth-logo-ic">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+      </div>
+      <div class="auth-logo-name">NotaSeru</div>
+    </div>
+    <div class="auth-tagline">Invoice &amp; Keuangan — tersinkron di semua perangkat</div>
+    <div class="auth-tabs">
+      <button class="auth-tab auth-tab-active" id="authTabLogin" onclick="switchAuthTab('login')">Masuk</button>
+      <button class="auth-tab" id="authTabRegister" onclick="switchAuthTab('register')">Daftar</button>
+    </div>
+    <!-- Login -->
+    <div id="authFormLogin">
+      <div class="auth-field"><label>Email</label><input type="email" id="loginEmail" placeholder="email@kamu.com" autocomplete="email"></div>
+      <div class="auth-field"><label>Password</label><div style="position:relative"><input type="password" id="loginPass" placeholder="••••••••" autocomplete="current-password" style="width:100%;box-sizing:border-box;padding-right:44px"><button type="button" onclick="togglePass('loginPass',this)" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--txt-3);padding:0;line-height:1"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg></button></div></div>
+      <button class="auth-btn" id="authBtnLogin" onclick="doLogin()">Masuk</button>
+    </div>
+    <!-- Register -->
+    <div id="authFormRegister" style="display:none">
+      <div class="auth-field"><label>Username</label><input type="text" id="regUsername" placeholder="nama kamu" autocomplete="username" style="width:100%;box-sizing:border-box"></div>
+      <div class="auth-field"><label>Email</label><input type="email" id="regEmail" placeholder="email@kamu.com" autocomplete="email"></div>
+      <div class="auth-field"><label>Password</label><div style="position:relative"><input type="password" id="regPass" placeholder="Min. 6 karakter" autocomplete="new-password" style="width:100%;box-sizing:border-box;padding-right:44px"><button type="button" onclick="togglePass('regPass',this)" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--txt-3);padding:0;line-height:1"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg></button></div></div>
+      <div class="auth-field"><label>Ulangi Password</label><div style="position:relative"><input type="password" id="regPass2" placeholder="••••••••" autocomplete="new-password" style="width:100%;box-sizing:border-box;padding-right:44px"><button type="button" onclick="togglePass('regPass2',this)" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--txt-3);padding:0;line-height:1"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg></button></div></div>
+      <button class="auth-btn" id="authBtnRegister" onclick="doRegister()">Buat Akun</button>
+    </div>
+    <div class="auth-err" id="authErr"></div>
+    <div id="authSpinner">Memproses...</div>
+    <!-- Tanpa login -->
+    <div style="margin-top:16px;text-align:center">
+      <button onclick="doGuestMode()" style="background:none;border:none;color:var(--txt-3);font-size:13px;cursor:pointer;font-family:var(--font);text-decoration:underline;padding:4px">
+        Lanjut tanpa login (data hanya di perangkat ini)
+      </button>
+    </div>
+
+    <!-- Layar sukses (tersembunyi, muncul setelah login/daftar) -->
+    <div id="authSuccess" style="display:none;text-align:center;padding:8px 0">
+      <div style="font-size:48px;margin-bottom:12px">🎉</div>
+      <div style="font-size:17px;font-weight:800;color:var(--txt-1);margin-bottom:6px" id="authSuccessTitle">Berhasil!</div>
+      <div style="font-size:13px;color:var(--txt-3);margin-bottom:4px" id="authSuccessEmail"></div>
+      <div style="font-size:12px;color:var(--txt-3);margin-bottom:20px" id="authSuccessSub">Akun kamu sudah aktif dan siap digunakan.</div>
+      <button onclick="closeAuthModal()" style="background:var(--primary);color:#fff;border:none;padding:12px 32px;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;font-family:var(--font);width:100%">Mulai Pakai NotaSeru ✨</button>
+    </div>
+  </div>
+</div>
+
+
+
+<!-- TOAST -->
+<div class="toast-wrap" id="toastWrap"></div>
+
+<!-- OVERLAY -->
+<div class="overlay" id="overlay" onclick="closeSheets();closeWAImport()"></div>
+
+<!-- BOTTOM NAV -->
+<nav class="bottom-nav">
+  <button class="nav-item active" onclick="nav('dashboard')" id="nav-dashboard">
+    <div class="nav-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></div>
+    <span class="nav-label">Beranda</span><div class="nav-dot"></div>
+  </button>
+  <button class="nav-item" onclick="nav('invoice-list')" id="nav-invoice-list">
+    <div class="nav-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg></div>
+    <span class="nav-label">Nota</span><div class="nav-dot"></div>
+  </button>
+  <button class="nav-item" onclick="nav('income')" id="nav-income">
+    <div class="nav-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg></div>
+    <span class="nav-label">Keuangan</span><div class="nav-dot"></div>
+  </button>
+  <button class="nav-item" onclick="nav('settings')" id="nav-settings">
+    <div class="nav-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg></div>
+    <span class="nav-label">Akun</span><div class="nav-dot"></div>
+  </button>
+</nav>
+
+<!-- ============================
+     DASHBOARD
+============================= -->
+<div class="page active" id="page-dashboard">
+  <!-- Hero -->
+  <div class="dash-hero">
+    <div class="hero-top">
+      <div>
+        <div class="hero-greeting" id="greetTime">Selamat pagi</div>
+        <div class="hero-store" id="heroStoreName">Toko Saya</div>
+      </div>
+      <div class="hero-actions">
+        <button class="hero-btn" onclick="nav('invoice-form')">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        </button>
+        <button class="hero-btn" onclick="nav('settings')">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+        </button>
+      </div>
+    </div>
+    <div class="hero-omzet-lbl">Omzet bulan ini</div>
+    <div class="hero-omzet-val" id="heroOmzet">Rp 0</div>
+  </div>
+
+  <!-- Sync badge only (hidden, no email/logout here) -->
+  <span id="syncBadge" style="display:none"></span>
+  <span id="headerUserEmail" style="display:none"></span>
+  <button id="logoutBtn" style="display:none" onclick="doLogout()"></button>
+
+  <!-- Stat pills -->
+  <div class="stat-pills">
+    <div class="sp">
+      <div class="sp-ic" style="background:var(--success-soft);color:var(--success)">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+      </div>
+      <div class="sp-val" id="dashIncome">Rp 0</div>
+      <div class="sp-lbl">Pemasukan</div>
+    </div>
+    <div class="sp">
+      <div class="sp-ic" style="background:var(--danger-soft);color:var(--danger)">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/><polyline points="17 18 23 18 23 12"/></svg>
+      </div>
+      <div class="sp-val" id="dashExpense">Rp 0</div>
+      <div class="sp-lbl">Pengeluaran</div>
+    </div>
+    <div class="sp">
+      <div class="sp-ic" style="background:var(--primary-soft);color:var(--primary)">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+      </div>
+      <div class="sp-val" id="dashCount">0</div>
+      <div class="sp-lbl">Nota</div>
+    </div>
+  </div>
+
+  <!-- Laba bersih -->
+  <div class="laba-card">
+    <div class="laba-left">
+      <div class="ll-lbl">Laba bersih bulan ini</div>
+      <div class="ll-val" id="dashLaba">Rp 0</div>
+    </div>
+  </div>
+
+  <!-- Install Banner -->
+  <div class="install-banner gone" id="installBanner" onclick="triggerInstall()">
+    <div class="ib-ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></div>
+    <div class="ib-txt"><div class="ibt">Install NotaSeru</div><div class="ibs">Tambah ke layar utama</div></div>
+    <button class="ib-close" onclick="dismissInstall(event)">✕</button>
+  </div>
+
+  <!-- Quick menu -->
+  <div class="section">
+    <div class="section-hd"><span class="section-title">Menu</span></div>
+    <div class="qmenu">
+      <div class="qm qm-nota" onclick="nav('invoice-form')">
+        <div class="qm-ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></div>
+        <div class="qm-lbl">Bikin Nota</div>
+      </div>
+      <div class="qm qm-in" onclick="nav('income')">
+        <div class="qm-ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg></div>
+        <div class="qm-lbl">Pemasukan</div>
+      </div>
+      <div class="qm qm-out" onclick="nav('expense')">
+        <div class="qm-ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/><polyline points="17 18 23 18 23 12"/></svg></div>
+        <div class="qm-lbl">Pengeluaran</div>
+      </div>
+      <div class="qm qm-ship" onclick="nav('settings')">
+        <div class="qm-ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg></div>
+        <div class="qm-lbl">Pengaturan</div>
+      </div>
+    </div>
+  </div>
+
+  <div style="padding:0 20px 8px"></div>
+</div>
+
+<!-- ============================
+     ALL INVOICES
+============================= -->
+<div class="page" id="page-invoice-list">
+  <div class="top-header">
+    <div class="top-header-inner">
+      <div class="header-spacer"></div>
+      <div class="header-title">Semua Nota</div>
+      <div style="display:flex;align-items:center;gap:7px">
+        <button class="btn-select-mode" id="btnPilihNota" onclick="enterSelectModeFromBtn()" title="Pilih Nota">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+          Pilih
+        </button>
+        <button class="header-action" onclick="nav('invoice-form')">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+  <div class="search-wrap">
+    <div class="search-inner">
+      <span class="search-ico"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>
+      <input type="search" class="search-input" id="invSearch" placeholder="Cari nama atau nomor nota..." oninput="renderInvList()">
+    </div>
+  </div>
+  <div class="filter-bar" id="invFilterBar">
+    <div class="chip active" onclick="setInvFilter('all',this)">Semua</div>
+    <div class="chip" onclick="setInvFilter('lunas',this)">Lunas</div>
+    <div class="chip" onclick="setInvFilter('dp',this)">DP</div>
+    <div class="chip" onclick="setInvFilter('belum',this)">Belum Bayar</div>
+  </div>
+  <div style="padding:0 20px 20px">
+    <div style="font-size:12px;color:var(--txt-3);margin-bottom:10px" id="invListCount"></div>
+    <div class="inv-cards" id="allInvList"></div>
+  </div>
+</div>
+
+<!-- ============================
+     INVOICE FORM
+============================= -->
+<div class="page" id="page-invoice-form">
+  <div class="top-header">
+    <div class="top-header-inner">
+      <button class="back-btn" onclick="goBack()"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg></button>
+      <div class="header-title" id="invFormTitle">Buat Nota</div>
+      <div style="display:flex;gap:6px;align-items:center">
+        <button class="header-action" onclick="saveInvoice()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg></button>
+      </div>
+    </div>
+  </div>
+  <div style="padding-bottom:20px">
+    <div id="draftBanner" style="display:none;margin:12px 20px 0;padding:10px 14px;background:var(--warning-soft);border-radius:var(--r-md);display:flex;align-items:center;justify-content:space-between;gap:10px">
+      <span style="font-size:12px;color:var(--warning);font-weight:600">📝 Form belum disimpan – dilanjutkan dari sebelumnya</span>
+      <button onclick="resetForm();document.getElementById('draftBanner').style.display='none'" style="font-size:11px;padding:4px 10px;border-radius:var(--r-full);background:var(--warning);color:#fff;border:none;cursor:pointer;font-family:var(--font);font-weight:600;white-space:nowrap">Buat Baru</button>
+    </div>
+    <div class="form-wrap" style="padding-bottom:8px">
+
+      <!-- Invoice info -->
+      <div class="card mb-3">
+        <div class="card-hd">
+          <span class="card-title">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="9" y1="7" x2="15" y2="7"/></svg>
+            Info Invoice
+          </span>
+        </div>
+        <div class="card-body">
+          <div class="form-group">
+            <label class="form-label">Nomor Invoice</label>
+            <input type="text" class="form-input" id="invNumber" readonly style="opacity:.6;cursor:not-allowed">
+          </div>
+          <div class="form-row">
+            <div class="form-group" style="margin-bottom:0">
+              <label class="form-label">Tanggal</label>
+              <input type="date" class="form-input" id="invDate">
+            </div>
+            <div class="form-group" style="margin-bottom:0">
+              <label class="form-label">Status</label>
+              <select class="form-select" id="invStatus">
+                <option value="belum">Belum Bayar</option>
+                <option value="dp">DP</option>
+                <option value="lunas">Lunas</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Customer -->
+      <div class="card mb-3">
+        <div class="card-hd">
+          <span class="card-title">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+            Data Pelanggan
+          </span>
+        </div>
+        <div class="card-body">
+          <!-- WA autofill button -->
+          <button onclick="openWAImport()" style="width:100%;display:flex;align-items:center;justify-content:center;gap:8px;padding:10px 14px;margin-bottom:14px;border-radius:var(--r-md);background:#f0fdf4;border:1.5px solid #86efac;cursor:pointer;font-family:var(--font);font-size:12px;font-weight:700;color:#15803d;transition:all .18s">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="#25D366"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413Z"/></svg>
+            Isi Form Otomatis dari WhatsApp
+          </button>
+          <div class="form-group" style="position:relative">
+          <label class="form-label">Nama Pelanggan</label>
+          <input type="text" class="form-input" id="custName" placeholder="Nama lengkap pelanggan" autocomplete="off" oninput="onCustNameInput(this.value)" onfocus="onCustNameInput(this.value)" onblur="setTimeout(()=>hideCustSuggest(),200)">
+          <div id="custSuggestBox" style="display:none;position:absolute;left:0;right:0;top:100%;margin-top:2px;background:var(--bg-card);border:1.5px solid var(--border-soft);border-radius:var(--r-md);box-shadow:var(--shadow-lg);z-index:200;max-height:160px;overflow-y:auto"></div>
+        </div>
+          <div class="form-group"><label class="form-label">Nomor HP</label><input type="tel" class="form-input" id="custPhone" placeholder="08xx-xxxx-xxxx"></div>
+          <div class="form-group" style="margin-bottom:0"><label class="form-label">Alamat</label><textarea class="form-textarea" id="custAddr" rows="2" placeholder="Alamat pelanggan / pengiriman"></textarea></div>
+        </div>
+      </div>
+
+      <!-- Items -->
+      <div class="card mb-3">
+        <div class="card-hd">
+          <span class="card-title">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+            Item Pesanan
+          </span>
+        </div>
+        <div class="card-body" id="itemsContainer"></div>
+        <div style="padding:0 16px 14px">
+          <button class="btn btn-secondary btn-block btn-sm" onclick="addItem()" style="border:1.5px dashed var(--primary);color:var(--primary);background:var(--primary-soft);">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Tambah Item
+          </button>
+        </div>
+      </div>
+
+      <!-- Totals -->
+      <div class="total-box mb-3">
+        <div class="tot-row"><span class="tot-label">Subtotal</span><span class="tot-val" id="subtotalDisplay">Rp 0</span></div>
+        <div class="tot-row">
+          <div style="display:flex;align-items:center;gap:8px">
+            <span class="tot-label">Diskon</span>
+            <div class="disc-toggle">
+              <button class="disc-btn active" id="discBtnPersen" onclick="setDiscType('persen')">%</button>
+              <button class="disc-btn" id="discBtnRupiah" onclick="setDiscType('rupiah')">Rp</button>
+            </div>
+          </div>
+          <input type="text" class="inline-input" id="discInput" placeholder="0" onfocus="fmtDiscFocus(this)" oninput="fmtDiscInput(this);recalc()">
+        </div>
+        <div class="tot-row">
+          <span class="tot-label">Ongkir</span>
+          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px">
+            <input type="text" class="inline-input" id="ongkirInput" placeholder="Rp 0" onfocus="fmtInlineFocus(this)" oninput="fmtInline(this);recalc()">
+            <div style="display:flex;align-items:center;gap:5px">
+              <select id="ekspedisiSelect" onchange="setEkspedisi(this.value)" style="font-size:11px;padding:4px 6px;border-radius:6px;background:var(--bg-input);border:1px solid var(--border);color:var(--txt-2);font-family:var(--font);outline:none;max-width:100px;"></select>
+              <input type="text" id="ekspedisiInput" class="inline-input" style="width:100px;font-size:11px;padding:4px 8px" placeholder="Ekspedisi..." value="">
+            </div>
+          </div>
+        </div>
+        <div class="tot-row tot-grand"><span class="tot-label">Grand Total</span><span class="tot-val" id="grandDisplay">Rp 0</span></div>
+        <div class="tot-row"><span class="tot-label">DP / Uang Muka</span><input type="text" class="inline-input dp-input-full" id="dpInput" placeholder="Rp 0" onfocus="fmtInlineFocus(this)" oninput="fmtInline(this);recalc()"></div>
+        <div class="tot-row tot-sisa"><span class="tot-label">Sisa Bayar</span><span class="tot-val" id="sisaDisplay">Rp 0</span></div>
+      </div>
+
+      <!-- Notes -->
+      <div class="form-group"><label class="form-label">Catatan</label><textarea class="form-textarea" id="invNotes" rows="2" placeholder="Catatan tambahan..."></textarea></div>
+      <button class="btn btn-primary btn-block" onclick="saveAndPreview()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+        Simpan &amp; Preview
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================
+     PREVIEW
+============================= -->
+<div class="page" id="page-preview">
+  <div class="top-header">
+    <div class="top-header-inner">
+      <button class="back-btn" onclick="goBack()"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg></button>
+      <div class="header-title">Preview Nota</div>
+      <button class="header-action" onclick="openSheet('exportSheet')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
+      </button>
+    </div>
+  </div>
+  <div class="preview-wrap" id="previewWrap" style="padding-bottom:0"><div class="inv-preview-scaler" id="previewScaler"><div class="inv-preview" id="invoicePreview"></div></div></div>
+  <div class="export-bar">
+    <button class="btn btn-secondary" onclick="exportPDF()">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+      PDF &amp; Bagikan
+    </button>
+    <button class="btn btn-secondary" onclick="exportPNG()">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+      PNG &amp; Bagikan
+    </button>
+    <button class="btn btn-wa" onclick="sendWA()" style="grid-column:span 2;background:#25D366;color:#fff">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="white"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413Z"/></svg>
+      Kirim via WhatsApp
+    </button>
+  </div>
+</div>
+
+<!-- ============================
+     KEUANGAN (Finance Tab)
+============================= -->
+<div class="page" id="page-income">
+  <div class="top-header">
+    <div class="top-header-inner">
+      <div class="header-spacer"></div>
+      <div class="header-title">Keuangan</div>
+      <div style="display:flex;align-items:center;gap:7px">
+        <button class="btn-export-fin" onclick="openExportKeuanganSheet()" title="Export Data Keuangan">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Export
+        </button>
+        <button class="header-action" onclick="openExpenseSheet()" title="Tambah Pengeluaran">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Period filter chips -->
+  <div class="filter-bar" id="finPeriodBar" style="gap:6px;padding:10px 16px">
+    <div class="chip active" onclick="setFinPeriod('1m',this)">Bln Ini</div>
+    <div class="chip" onclick="setFinPeriod('3m',this)">3 Bln</div>
+    <div class="chip" onclick="setFinPeriod('6m',this)">6 Bln</div>
+    <div class="chip" onclick="setFinPeriod('1y',this)">1 Tahun</div>
+    <div class="chip" onclick="setFinPeriod('custom',this)">Pilih Periode</div>
+  </div>
+
+  <!-- Summary cards: penuh berwarna, glow di tepi, teks hitam semua -->
+  <div style="padding:0 16px 12px;display:grid;grid-template-columns:1fr 1fr;gap:10px">
+    <!-- Omset: hijau -->
+    <div class="fin-card-green" style="background:#dcfce7;border-radius:14px;padding:16px 14px 13px;box-shadow:0 0 0 0 #86efac,0 4px 18px rgba(34,197,94,0.22)">
+      <div style="font-size:9px;font-weight:800;color:#166534;text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px">Omset</div>
+      <div style="font-size:17px;font-weight:800;color:#14532d;line-height:1.1" id="finOmset">Rp 0</div>
+      <div style="font-size:10px;color:#4ade80;margin-top:4px;font-weight:600" id="finOmsetNote">0 nota</div>
+    </div>
+    <!-- Laba: biru -->
+    <div class="fin-card-blue" style="background:#dbeafe;border-radius:14px;padding:16px 14px 13px;box-shadow:0 4px 18px rgba(59,130,246,0.22)">
+      <div style="font-size:9px;font-weight:800;color:#1e3a8a;text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px">Laba Bersih</div>
+      <div style="font-size:17px;font-weight:800;color:#1e3a8a;line-height:1.1" id="finLaba">Rp 0</div>
+      <div style="font-size:10px;color:#60a5fa;margin-top:4px;font-weight:600" id="finLabaNote">–</div>
+    </div>
+    <!-- Pemasukan: teal -->
+    <div class="fin-card-teal" style="background:#ccfbf1;border-radius:14px;padding:16px 14px 13px;box-shadow:0 4px 18px rgba(20,184,166,0.22)">
+      <div style="font-size:9px;font-weight:800;color:#134e4a;text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px">Pemasukan</div>
+      <div style="font-size:16px;font-weight:800;color:#134e4a;line-height:1.1" id="finIncome">Rp 0</div>
+    </div>
+    <!-- Pengeluaran: merah/rose -->
+    <div class="fin-card-red" style="background:#ffe4e6;border-radius:14px;padding:16px 14px 13px;box-shadow:0 4px 18px rgba(244,63,94,0.22)">
+      <div style="font-size:9px;font-weight:800;color:#881337;text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px">Pengeluaran</div>
+      <div style="font-size:16px;font-weight:800;color:#881337;line-height:1.1" id="finExpense">Rp 0</div>
+    </div>
+  </div>
+
+  <!-- Chart area dengan toggle -->
+  <div style="padding:0 16px 12px">
+    <div style="background:var(--bg-card);border:1px solid var(--border-soft);border-radius:var(--r-md);overflow:hidden">
+      <!-- Header toggle -->
+      <button onclick="toggleFinChart()" style="width:100%;display:flex;justify-content:space-between;align-items:center;padding:12px 14px;background:none;border:none;cursor:pointer;font-family:var(--font)">
+        <div style="display:flex;gap:10px;align-items:center">
+          <span style="display:flex;align-items:center;gap:4px;font-size:11px;font-weight:700;color:var(--txt-2)"><span style="width:8px;height:3px;border-radius:2px;background:#22c55e;display:inline-block"></span>Omset</span>
+          <span style="display:flex;align-items:center;gap:4px;font-size:11px;font-weight:700;color:var(--txt-2)"><span style="width:8px;height:3px;border-radius:2px;background:#f87171;display:inline-block;border-top:2px dashed #f87171;height:0"></span>Pengeluaran</span>
+        </div>
+        <svg id="finChartChevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--txt-3)" stroke-width="2" stroke-linecap="round" style="transition:transform .3s;transform:rotate(0deg)"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <!-- Collapsible chart body -->
+      <div id="finChartBody" style="overflow:hidden;max-height:180px;transition:max-height .35s ease">
+        <div style="padding:0 14px 14px">
+          <canvas id="finChart" height="120" style="width:100%;display:block"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tabs: Pemasukan / Pengeluaran -->
+  <div style="padding:0 16px 10px;display:flex;gap:6px">
+    <button id="finTabIncome" onclick="switchFinTab('income')" style="flex:1;padding:8px;border-radius:var(--r-md);border:none;font-size:12px;font-weight:700;cursor:pointer;font-family:var(--font);background:var(--primary);color:#fff;transition:all .2s">Pemasukan</button>
+    <button id="finTabExpense" onclick="switchFinTab('expense')" style="flex:1;padding:8px;border-radius:var(--r-md);border:none;font-size:12px;font-weight:700;cursor:pointer;font-family:var(--font);background:var(--bg-input);color:var(--txt-2);transition:all .2s">Pengeluaran</button>
+  </div>
+
+  <!-- List area -->
+  <div style="padding:0 16px 24px">
+    <div id="finIncomeList"></div>
+    <div id="finExpenseList" style="display:none"></div>
+  </div>
+
+  <!-- Custom period modal -->
+  <div id="finCustomModal" style="display:none;position:fixed;inset:0;z-index:999;background:rgba(0,0,0,0.5);align-items:flex-end;justify-content:center">
+    <div style="background:var(--bg-card);border-radius:20px 20px 0 0;padding:24px 20px 32px;width:100%;max-width:480px">
+      <div style="font-size:15px;font-weight:700;color:var(--txt-1);margin-bottom:16px">Pilih Periode</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+        <div>
+          <label style="font-size:11px;font-weight:700;color:var(--txt-3);text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:6px">Dari</label>
+          <input type="month" id="finFromMonth" class="form-input">
+        </div>
+        <div>
+          <label style="font-size:11px;font-weight:700;color:var(--txt-3);text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:6px">Sampai</label>
+          <input type="month" id="finToMonth" class="form-input">
+        </div>
+      </div>
+      <div style="display:flex;gap:10px">
+        <button class="btn btn-secondary" style="flex:1" onclick="closeFinCustomModal()">Batal</button>
+        <button class="btn btn-primary" style="flex:1" onclick="applyFinCustomPeriod()">Terapkan</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================
+     EXPENSE
+============================= -->
+<div class="page" id="page-expense">
+  <div class="top-header">
+    <div class="top-header-inner">
+      <div class="header-spacer"></div>
+      <div class="header-title">Pengeluaran</div>
+      <button class="header-action" onclick="openExpenseSheet()">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      </button>
+    </div>
+  </div>
+  <div class="expense-hero">
+    <div class="ih-label">Total Pengeluaran Bulan Ini</div>
+    <div class="ih-val" id="expTotalVal">Rp 0</div>
+    <div class="ih-sub" id="expMonthLbl"></div>
+  </div>
+  <div style="padding:0 20px 20px">
+    <div class="section-title" style="margin-bottom:12px">Riwayat Pengeluaran</div>
+    <div id="expList"></div>
+  </div>
+</div>
+
+<!-- ============================
+     SETTINGS
+============================= -->
+<div class="page" id="page-settings">
+  <div class="top-header">
+    <div class="top-header-inner">
+      <div class="header-spacer"></div>
+      <div class="header-title">Pengaturan</div>
+      <button class="header-action" onclick="saveSettings()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg></button>
+    </div>
+  </div>
+  <div style="padding-bottom:20px">
+
+    <!-- ── Akun ── -->
+    <div class="sett-section">
+      <div class="sett-card" id="settAkunCard">
+        <!-- Belum login -->
+        <div id="settAkunGuest">
+          <div class="sett-row" onclick="openAuthModal()">
+            <div class="sett-ic" style="background:var(--primary-soft);color:var(--primary)">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+            </div>
+            <div class="sett-content">
+              <div class="sett-label">Masuk / Daftar</div>
+              <div class="sett-sub">Login untuk sinkron di semua perangkat</div>
+            </div>
+            <div class="sett-arrow"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg></div>
+          </div>
+        </div>
+        <!-- Sudah login -->
+        <div id="settAkunLoggedIn" style="display:none">
+          <div class="sett-row no-tap" style="padding:16px">
+            <div style="width:44px;height:44px;border-radius:50%;background:var(--primary);display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:800;color:#fff;flex-shrink:0" id="settAvatarInitial">?</div>
+            <div class="sett-content" style="margin-left:12px">
+              <div class="sett-label" id="settUsernameDisplay" style="font-size:16px;font-weight:800;color:var(--txt-1)">—</div>
+              <div class="sett-sub" id="settEmailDisplay" style="font-size:12px">—</div>
+              <div style="display:inline-flex;align-items:center;gap:4px;background:var(--success-soft,#D1FAE5);color:var(--success,#059669);font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px;margin-top:4px"><span style="width:8px;height:8px;border-radius:50%;background:#22C55E;display:inline-block;flex-shrink:0"></span> Akun Aktif</div>
+            </div>
+          </div>
+          <div class="sett-row" onclick="confirmLogout()" style="border-top:1px solid var(--border-soft)">
+            <div class="sett-ic" style="background:var(--danger-soft,#FEE2E2);color:var(--danger,#DC2626)">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+            </div>
+            <div class="sett-content">
+              <div class="sett-label" style="color:var(--danger,#DC2626)">Keluar / Logout</div>
+              <div class="sett-sub">Data tetap tersimpan di cloud</div>
+            </div>
+            <div class="sett-arrow"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg></div>
+          </div>
+          <div class="sett-row" onclick="doDeleteAccount()" style="border-top:1px solid var(--border-soft)">
+            <div class="sett-ic" style="background:#FFF1F2;color:#9F1239">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+            </div>
+            <div class="sett-content">
+              <div class="sett-label" style="color:#9F1239">Hapus Akun</div>
+              <div class="sett-sub">Hapus akun & data cloud secara permanen</div>
+            </div>
+            <div class="sett-arrow"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- Logo -->
+    <div class="sett-section">
+      <div class="section-title" style="margin-bottom:12px">Logo Toko</div>
+      <div class="logo-area" onclick="document.getElementById('logoInput').click()">
+        <img id="logoPrev" class="logo-prev" src="" alt="Logo">
+        <div class="logo-ph-ic" id="logoPh"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></div>
+        <div class="logo-txt">Ketuk untuk upload logo</div>
+      </div>
+      <input type="file" id="logoInput" accept="image/*" style="display:none" onchange="uploadLogo(this)">
+    </div>
+
+    <!-- Info Toko -->
+    <div class="sett-section">
+      <div class="section-title" style="margin-bottom:12px">Info Toko</div>
+      <div class="sett-card">
+        <div class="sett-row no-tap">
+          <div class="sett-ic" style="background:var(--primary-soft);color:var(--primary)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></div>
+          <div class="sett-content"><input type="text" id="settName" class="form-input" style="background:transparent;border:none;padding:0;font-size:14px;font-weight:600" placeholder="Nama Toko"></div>
+        </div>
+        <div class="sett-row no-tap" style="align-items:flex-start">
+          <div class="sett-ic" style="background:var(--primary-soft);color:var(--primary);margin-top:2px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg></div>
+          <div class="sett-content"><textarea id="settAddr" class="form-input" rows="2" style="background:transparent;border:none;padding:0;font-size:13px;resize:none;overflow:hidden;line-height:1.5;min-height:20px;width:100%;box-sizing:border-box" placeholder="Alamat Toko" oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"></textarea></div>
+        </div>
+        <div class="sett-row no-tap">
+          <div class="sett-ic" style="background:var(--success-soft);color:var(--success)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 13a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.41 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 9.91a16 16 0 0 0 6.16 6.16l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg></div>
+          <div class="sett-content"><input type="tel" id="settPhone" class="form-input" style="background:transparent;border:none;padding:0;font-size:13px" placeholder="Nomor HP"></div>
+        </div>
+        <div class="sett-row no-tap">
+          <div class="sett-ic" style="background:var(--warning-soft);color:var(--warning)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg></div>
+          <div class="sett-content"><input type="email" id="settEmail" class="form-input" style="background:transparent;border:none;padding:0;font-size:13px" placeholder="Email Toko"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Pembayaran -->
+    <div class="sett-section">
+      <div class="section-title" style="margin-bottom:12px">Info Pembayaran</div>
+      <div class="sett-card">
+        <div class="sett-row no-tap">
+          <div class="sett-ic" style="background:var(--primary-soft);color:var(--primary)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg></div>
+          <div class="sett-content"><input type="text" id="settBank" class="form-input" style="background:transparent;border:none;padding:0;font-size:13px" placeholder="Nama Bank (BCA, BNI...)"></div>
+        </div>
+        <div class="sett-row no-tap">
+          <div class="sett-ic" style="background:var(--primary-soft);color:var(--primary)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg></div>
+          <div class="sett-content"><input type="text" id="settBankNo" class="form-input" style="background:transparent;border:none;padding:0;font-size:13px" placeholder="Nomor Rekening"></div>
+        </div>
+        <div class="sett-row no-tap">
+          <div class="sett-ic" style="background:var(--success-soft);color:var(--success)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg></div>
+          <div class="sett-content"><input type="text" id="settBankOwner" class="form-input" style="background:transparent;border:none;padding:0;font-size:13px" placeholder="Atas Nama"></div>
+        </div>
+        <div class="sett-row no-tap" style="align-items:flex-start">
+          <div class="sett-ic" style="background:var(--warning-soft);color:var(--warning);margin-top:2px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></div>
+          <div class="sett-content">
+            <div class="sett-label" style="margin-bottom:4px">Catatan Pembayaran</div>
+            <textarea id="settBankNote" class="form-input" rows="2" style="background:var(--bg-input);font-size:13px;padding:8px 12px;resize:none;overflow:hidden;line-height:1.5;width:100%;box-sizing:border-box" placeholder="Contoh: Minimal DP 50%, Pelunasan sebelum pengiriman" maxlength="200" oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"></textarea>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tanda tangan & ucapan -->
+    <div class="sett-section">
+      <div class="section-title" style="margin-bottom:12px">Tanda Tangan & Ucapan</div>
+      <div class="sett-card">
+        <div class="sett-row" onclick="openSheet('signSheet')">
+          <div class="sett-ic" style="background:var(--primary-soft);color:var(--primary)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 17c3-3 4-8 7-8s2 5 5 5 3-4 5-4"/><line x1="3" y1="21" x2="21" y2="21"/></svg></div>
+          <div class="sett-content"><div class="sett-label">Tanda Tangan Elektronik</div><div class="sett-sub" id="signStatus">Ketuk untuk menggambar</div></div>
+          <div class="sett-arrow"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg></div>
+        </div>
+        <div class="sett-row no-tap" style="align-items:flex-start">
+          <div class="sett-ic" style="background:var(--success-soft);color:var(--success);margin-top:2px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></div>
+          <div class="sett-content">
+            <div class="sett-label" style="margin-bottom:4px">Ucapan Terima Kasih</div>
+            <textarea id="settThankyou" class="form-input" rows="2" style="background:var(--bg-input);font-size:13px;padding:8px 12px;resize:none;overflow:hidden;line-height:1.5;width:100%;box-sizing:border-box" placeholder="Terima kasih atas kepercayaan Anda" maxlength="200" oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"></textarea>
+          </div>
+        </div>
+        <div class="sett-row no-tap">
+          <div class="sett-ic" style="background:var(--bg-input);color:var(--txt-3)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="17 11 12 6 7 11"/><polyline points="17 18 12 13 7 18"/></svg></div>
+          <div class="sett-content">
+            <div class="sett-label" style="margin-bottom:4px">Label Tanda Tangan</div>
+            <input type="text" id="settSignLabel" class="form-input" style="background:var(--bg-input);font-size:13px;padding:8px 12px" placeholder="Hormat kami" maxlength="40">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Katalog Produk -->
+    <div class="sett-section">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+        <div class="section-title">Katalog Produk</div>
+        <button onclick="openProductForm()" style="display:flex;align-items:center;gap:5px;padding:6px 12px;border-radius:var(--r-full);background:var(--primary);color:#fff;border:none;font-size:12px;font-weight:600;cursor:pointer;font-family:var(--font)">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Tambah
+        </button>
+      </div>
+      <div class="sett-card">
+        <div style="padding:4px 16px 8px" id="catalogList">
+          <div style="text-align:center;padding:24px;color:var(--txt-3);font-size:13px">Belum ada produk. Ketuk + untuk menambah.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Daftar Ekspedisi -->
+    <div class="sett-section">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+        <div class="section-title">Daftar Ekspedisi</div>
+        <button onclick="openEkspedisiForm()" style="display:flex;align-items:center;gap:5px;padding:6px 12px;border-radius:var(--r-full);background:var(--primary);color:#fff;border:none;font-size:12px;font-weight:600;cursor:pointer;font-family:var(--font)">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Tambah
+        </button>
+      </div>
+      <div class="sett-card">
+        <div style="padding:4px 16px 8px" id="ekspedisiList">
+          <div style="text-align:center;padding:24px;color:var(--txt-3);font-size:13px">Belum ada ekspedisi. Ketuk + untuk menambah.</div>
+        </div>
+      </div>
+    </div>
+
+
+    <!-- Template Nota -->
+    <div class="sett-section">
+      <div class="section-title" style="margin-bottom:12px">Template Nota</div>
+      <div class="sett-card" style="padding:12px 16px">
+        <div class="template-grid" id="templateGrid">
+          <div class="tpl-card active" data-tpl="classic" onclick="selectTemplate('classic',this)">
+            <div class="tpl-preview tpl-classic">
+              <div class="tpl-logo-sm"></div>
+              <div class="tpl-lines"><div></div><div></div><div class="tpl-accent"></div></div>
+            </div>
+            <div class="tpl-name">Classic</div>
+          </div>
+          <div class="tpl-card" data-tpl="modern" onclick="selectTemplate('modern',this)">
+            <div class="tpl-preview tpl-modern">
+              <div class="tpl-top-bar"></div>
+              <div class="tpl-logo-sm"></div>
+              <div class="tpl-lines"><div></div><div></div></div>
+            </div>
+            <div class="tpl-name">Modern</div>
+          </div>
+          <div class="tpl-card" data-tpl="minimal" onclick="selectTemplate('minimal',this)">
+            <div class="tpl-preview tpl-minimal">
+              <div class="tpl-lines"><div class="tpl-title-line"></div><div></div><div></div></div>
+              <div class="tpl-logo-right"></div>
+            </div>
+            <div class="tpl-name">Minimal</div>
+          </div>
+          <div class="tpl-card" data-tpl="bold" onclick="selectTemplate('bold',this)">
+            <div class="tpl-preview tpl-bold">
+              <div class="tpl-header-bold">
+                <div class="tpl-logo-bold"></div>
+                <div class="tpl-badge-bold">INV</div>
+              </div>
+              <div class="tpl-lines"><div></div><div></div></div>
+            </div>
+            <div class="tpl-name">Bold</div>
+          </div>
+        </div>
+        <!-- Template Color Picker -->
+        <div style="padding:10px 0 4px;border-top:1px solid var(--border-soft);margin-top:8px">
+          <div style="font-size:10px;font-weight:700;color:var(--txt-3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">Nuansa Warna</div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <button class="tpl-color-dot active" data-color="amber" onclick="selectTplColor('amber')" title="Amber" style="width:28px;height:28px;border-radius:8px;background:#D97706;border:3px solid transparent;cursor:pointer;transition:all .2s;padding:0;outline:none"></button>
+            <button class="tpl-color-dot" data-color="navy" onclick="selectTplColor('navy')" title="Navy" style="width:28px;height:28px;border-radius:8px;background:#1D4ED8;border:3px solid transparent;cursor:pointer;transition:all .2s;padding:0;outline:none"></button>
+            <button class="tpl-color-dot" data-color="green" onclick="selectTplColor('green')" title="Hijau" style="width:28px;height:28px;border-radius:8px;background:#15803D;border:3px solid transparent;cursor:pointer;transition:all .2s;padding:0;outline:none"></button>
+            <button class="tpl-color-dot" data-color="purple" onclick="selectTplColor('purple')" title="Ungu" style="width:28px;height:28px;border-radius:8px;background:#7C3AED;border:3px solid transparent;cursor:pointer;transition:all .2s;padding:0;outline:none"></button>
+            <button class="tpl-color-dot" data-color="gray" onclick="selectTplColor('gray')" title="Abu-abu" style="width:28px;height:28px;border-radius:8px;background:#374151;border:3px solid transparent;cursor:pointer;transition:all .2s;padding:0;outline:none"></button>
+            <button id="customColorBtn" onclick="openCustomColorPicker()" title="Pilih Warna Custom" style="width:28px;height:28px;border-radius:8px;background:var(--bg-input);border:2px solid var(--border-soft);cursor:pointer;transition:all .2s;padding:0;outline:none;display:flex;align-items:center;justify-content:center;flex-shrink:0;color:var(--txt-2)">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 22l1-1h3l9-9"/><path d="M3 21v-3l9-9"/><path d="m15 6 3.4-3.4a2.1 2.1 0 1 1 3 3L18 9l.4.4a2.1 2.1 0 1 1-3 3l-3.8-3.8"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tampilan -->
+    <div class="sett-section">
+      <div class="section-title" style="margin-bottom:12px">Tampilan</div>
+      <div class="sett-card">
+        <div class="sett-row no-tap">
+          <div class="sett-ic" style="background:var(--bg-input);color:var(--txt-2)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg></div>
+          <div class="sett-content"><div class="sett-label">Mode Gelap</div></div>
+          <label class="toggle"><input type="checkbox" id="darkToggle" onchange="toggleDark(this.checked)"><span class="tgl-slider"></span></label>
+        </div>
+        <div class="sett-row no-tap">
+          <div class="sett-ic" style="background:var(--bg-input);color:var(--txt-2)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg></div>
+          <div class="sett-content">
+            <div class="sett-label">Warna Tema</div>
+            <div class="color-row" id="colorPicker">
+              <div class="color-opt active" style="background:#6366F1" data-c="indigo" onclick="setColor('indigo',this)"></div>
+              <div class="color-opt" style="background:#3B82F6" data-c="blue" onclick="setColor('blue',this)"></div>
+              <div class="color-opt" style="background:#059669" data-c="green" onclick="setColor('green',this)"></div>
+              <div class="color-opt" style="background:#EA580C" data-c="orange" onclick="setColor('orange',this)"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Data -->
+    <div class="sett-section">
+      <div class="section-title" style="margin-bottom:12px">Manajemen Data</div>
+      <div class="sett-card">
+        <div class="sett-row" onclick="backupData()">
+          <div class="sett-ic" style="background:var(--success-soft);color:var(--success)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></div>
+          <div class="sett-content"><div class="sett-label">Backup Data</div><div class="sett-sub">Export ke file JSON</div></div>
+          <div class="sett-arrow"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg></div>
+        </div>
+        <div class="sett-row" onclick="document.getElementById('restoreInput').click()">
+          <div class="sett-ic" style="background:var(--warning-soft);color:var(--warning)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></div>
+          <div class="sett-content"><div class="sett-label">Restore Data</div><div class="sett-sub">Import dari file backup</div></div>
+          <div class="sett-arrow"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg></div>
+        </div>
+        <div class="sett-row" onclick="confirmClear()">
+          <div class="sett-ic" style="background:var(--danger-soft);color:var(--danger)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg></div>
+          <div class="sett-content"><div class="sett-label" style="color:var(--danger)">Hapus Semua Data</div><div class="sett-sub">Tidak dapat dibatalkan</div></div>
+          <div class="sett-arrow"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg></div>
+        </div>
+      </div>
+      <input type="file" id="restoreInput" accept=".json" style="display:none" onchange="handleRestore(this)">
+    </div>
+    <div style="text-align:center;padding:16px;color:var(--txt-3);font-size:11px">NotaSeru v3.0 · Dibuat dengan cinta</div>
+  </div>
+</div>
+
+<!-- ============================
+     SHEETS
+============================= -->
+<!-- Expense Sheet -->
+<!-- Profit per Nota Sheet -->
+<div class="sheet" id="profitSheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-hd">
+    <div>
+      <div class="sheet-title" id="profitSheetTitle">Pembukuan Nota</div>
+      <div style="font-size:11px;color:var(--txt-3);margin-top:2px" id="profitSheetSub"></div>
+    </div>
+    <button class="sheet-close" onclick="closeSheets()">✕</button>
+  </div>
+  <div class="sheet-body" id="profitSheetBody"></div>
+</div>
+
+<!-- Grup Nota Sheet -->
+<div class="sheet" id="grupSheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-hd">
+    <div>
+      <div class="sheet-title">Analisis Grup Nota</div>
+      <div style="font-size:11px;color:var(--txt-3);margin-top:2px" id="grupSheetSub"></div>
+    </div>
+    <button class="sheet-close" onclick="closeSheets()">✕</button>
+  </div>
+  <div class="sheet-body" id="grupSheetBody"></div>
+</div>
+
+<div class="sheet" id="expenseSheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-hd"><div class="sheet-title" id="expSheetTitle">Tambah Pengeluaran</div><button class="sheet-close" onclick="closeSheets()">✕</button></div>
+  <div class="sheet-body">
+    <input type="hidden" id="editExpId">
+    <div class="form-group"><label class="form-label">Nama Pengeluaran</label><input type="text" class="form-input" id="expName" placeholder="Contoh: Beli bahan baku"></div>
+    <div class="form-group"><label class="form-label">Kategori</label>
+      <select class="form-select" id="expCat">
+        <option value="operasional">Operasional</option>
+        <option value="bahan">Bahan Baku</option>
+        <option value="transport">Transport</option>
+        <option value="marketing">Marketing</option>
+        <option value="gaji">Gaji / SDM</option>
+        <option value="utilitas">Utilitas</option>
+        <option value="lainnya">Lainnya</option>
+      </select>
+    </div>
+    <div class="form-group"><label class="form-label">Nominal</label><input type="text" class="form-input" id="expAmount" placeholder="Rp 0" oninput="fmtInline(this)"></div>
+    <div class="form-group"><label class="form-label">Tanggal</label><input type="date" class="form-input" id="expDate"></div>
+    <div class="form-group"><label class="form-label">Catatan</label><textarea class="form-textarea" id="expNotes" rows="2" placeholder="Opsional..."></textarea></div>
+    <button class="btn btn-primary btn-block" onclick="saveExpense()">Simpan Pengeluaran</button>
+  </div>
+</div>
+
+<!-- Invoice Action Sheet -->
+<div class="sheet" id="invActionSheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-hd"><div class="sheet-title" id="invActionTitle">Aksi Nota</div><button class="sheet-close" onclick="closeSheets()">✕</button></div>
+  <div id="invActionContent"></div>
+  <div style="height:12px"></div>
+</div>
+
+<!-- Export Sheet -->
+<div class="sheet" id="exportSheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-hd"><div class="sheet-title">Export Nota</div><button class="sheet-close" onclick="closeSheets()">✕</button></div>
+  <div>
+    <div class="as-item" onclick="exportPDF()"><div class="as-ic" style="background:var(--danger-soft);color:var(--danger)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div><div><div class="as-label">Simpan PDF</div><div class="as-sub">Format A4 siap cetak</div></div></div>
+    <div class="as-item" onclick="exportPNG()"><div class="as-ic" style="background:var(--primary-soft);color:var(--primary)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></div><div><div class="as-label">Simpan PNG</div><div class="as-sub">Gambar resolusi tinggi</div></div></div>
+    <div class="as-div"></div>
+    <div class="as-item" onclick="sendWA();closeSheets()"><div class="as-ic" style="background:#dcfce7;color:#16a34a"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div><div><div class="as-label">Kirim WhatsApp</div><div class="as-sub">Buka WA dengan pesan otomatis</div></div></div>
+  </div>
+  <div style="height:16px"></div>
+</div>
+
+<!-- Export Keuangan Sheet -->
+<div class="sheet" id="exportKeuanganSheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-hd"><div class="sheet-title">Export Data Keuangan</div><button class="sheet-close" onclick="closeSheets()">&#x2715;</button></div>
+  <div class="sheet-body" style="padding:0 20px 8px">
+    <div style="font-size:11px;font-weight:700;color:var(--txt-3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px">Pilih Periode</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px">
+      <button class="export-period-btn active" id="ep_bulan_ini" onclick="selectExportPeriod('bulan_ini',this)">Bulan Ini</button>
+      <button class="export-period-btn" id="ep_bulan_lalu" onclick="selectExportPeriod('bulan_lalu',this)">Bulan Lalu</button>
+      <button class="export-period-btn" id="ep_3_bulan" onclick="selectExportPeriod('3_bulan',this)">3 Bulan Terakhir</button>
+      <button class="export-period-btn" id="ep_6_bulan" onclick="selectExportPeriod('6_bulan',this)">6 Bulan Terakhir</button>
+      <button class="export-period-btn" id="ep_tahun_ini" onclick="selectExportPeriod('tahun_ini',this)">Tahun Ini</button>
+      <button class="export-period-btn" id="ep_semua" onclick="selectExportPeriod('semua',this)">Semua Data</button>
+    </div>
+    <div style="font-size:11px;font-weight:700;color:var(--txt-3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px">Atau Rentang Tanggal Sendiri</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+      <div>
+        <div style="font-size:11px;color:var(--txt-3);margin-bottom:4px">Dari Tanggal</div>
+        <input type="date" id="exportDateFrom" class="input" style="font-size:13px;padding:10px 12px" oninput="onCustomDateChange()">
+      </div>
+      <div>
+        <div style="font-size:11px;color:var(--txt-3);margin-bottom:4px">Sampai Tanggal</div>
+        <input type="date" id="exportDateTo" class="input" style="font-size:13px;padding:10px 12px" oninput="onCustomDateChange()">
+      </div>
+    </div>
+    <div id="exportPeriodInfo" style="font-size:12px;color:var(--primary);font-weight:600;margin-bottom:16px;min-height:18px"></div>
+    <div style="font-size:11px;font-weight:700;color:var(--txt-3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px">Format File</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:20px">
+      <button class="export-fmt-btn active" id="fmtXLSX" onclick="selectExportFmt('xlsx',this)">&#128196; Excel (.xlsx)</button>
+      <button class="export-fmt-btn" id="fmtCSV" onclick="selectExportFmt('csv',this)">&#128196; CSV</button>
+    </div>
+    <button class="btn btn-primary" style="width:100%;padding:14px;font-size:14px" onclick="doExportKeuangan()">Export Sekarang</button>
+    <div style="height:8px"></div>
+  </div>
+</div>
+
+<!-- Signature Sheet -->
+<div class="sheet" id="signSheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-hd"><div class="sheet-title">Tanda Tangan</div><button class="sheet-close" onclick="closeSheets()">✕</button></div>
+  <div class="sheet-body">
+    <p style="font-size:12px;color:var(--txt-3);margin-bottom:12px">Gambar tanda tangan Anda di bawah ini menggunakan jari atau mouse</p>
+    <div class="sign-canvas-wrap">
+      <canvas id="signatureCanvas" width="400" height="160"></canvas>
+      <div class="sign-ph" id="signPh"><span>Gambar tanda tangan di sini</span></div>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:12px">
+      <button class="btn btn-secondary" style="flex:1" onclick="clearSign()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+        Hapus
+      </button>
+      <button class="btn btn-primary" style="flex:2" onclick="saveSign()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+        Simpan
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Product Picker Sheet -->
+<div class="sheet" id="productPickerSheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-hd">
+    <div class="sheet-title">Pilih Produk</div>
+    <button class="sheet-close" onclick="closeSheets()">✕</button>
+  </div>
+  <div style="padding:0 20px 12px">
+    <div class="search-inner">
+      <span class="search-ico"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>
+      <input type="search" class="search-input" id="productSearch" placeholder="Cari nama produk..." oninput="renderProductPicker(this.value)" autocomplete="off">
+    </div>
+  </div>
+  <div id="productPickerList" style="max-height:50vh;overflow-y:auto"></div>
+  <div style="padding:12px 20px 8px;border-top:1px solid var(--border-soft);display:flex;gap:8px">
+    <button class="btn btn-primary" style="flex:1" onclick="openProductFormFromPicker()">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      Tambah Katalog
+    </button>
+    <button class="btn btn-secondary" style="flex:1" onclick="addBlankItem()">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+      Isi Manual
+    </button>
+  </div>
+  <div style="height:8px"></div>
+</div>
+
+<!-- Product Form Sheet -->
+<div class="sheet" id="productFormSheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-hd">
+    <div class="sheet-title" id="prodFormTitle">Tambah Produk</div>
+    <button class="sheet-close" onclick="closeSheets()">✕</button>
+  </div>
+  <div class="sheet-body">
+    <input type="hidden" id="editProdId">
+    <div style="display:flex;gap:10px;margin-bottom:14px">
+      <div style="flex:0 0 auto">
+        <label class="form-label">Ikon</label>
+        <input type="text" id="prodEmoji" class="form-input" style="width:60px;text-align:center;font-size:22px;padding:8px" placeholder="🛍️" maxlength="2">
+      </div>
+      <div style="flex:1">
+        <label class="form-label">Nama Produk *</label>
+        <input type="text" id="prodName" class="form-input" placeholder="Contoh: Kue Brownies">
+      </div>
+    </div>
+    <div class="form-row" style="margin-bottom:14px">
+      <div>
+        <label class="form-label">Harga Default</label>
+        <input type="text" id="prodPrice" class="form-input" placeholder="Rp 0 (opsional)" oninput="fmtInline(this)">
+      </div>
+      <div>
+        <label class="form-label">Satuan</label>
+        <input type="text" id="prodUnit" class="form-input" placeholder="pcs, kg, box..." value="pcs">
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Deskripsi (Opsional)</label>
+      <input type="text" id="prodDesc" class="form-input" placeholder="Keterangan singkat produk">
+    </div>
+    <button class="btn btn-primary btn-block" onclick="saveProduct()">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+      Simpan Produk
+    </button>
+  </div>
+</div>
+
+<!-- Share Sheet -->
+<div class="sheet" id="shareSheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-hd">
+    <div class="sheet-title">Bagikan Nota</div>
+    <button class="sheet-close" onclick="closeSheets()">✕</button>
+  </div>
+  <div id="shareSheetContent"></div>
+</div>
+
+<!-- Ekspedisi Form Sheet -->
+<div class="sheet" id="ekspedisiFormSheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-hd">
+    <div class="sheet-title" id="ekspFormTitle">Tambah Ekspedisi</div>
+    <button class="sheet-close" onclick="closeSheets()">✕</button>
+  </div>
+  <div class="sheet-body">
+    <input type="hidden" id="editEkspId">
+    <div class="form-group">
+      <label class="form-label">Nama Ekspedisi *</label>
+      <input type="text" id="ekspName" class="form-input" placeholder="Contoh: JNE, J&T, SiCepat...">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Keterangan (opsional)</label>
+      <input type="text" id="ekspDesc" class="form-input" placeholder="Contoh: Regular, Express...">
+    </div>
+    <button class="btn btn-primary btn-block" onclick="saveEkspedisi()">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+      Simpan Ekspedisi
+    </button>
+  </div>
+</div>
+
+</div><!-- #app -->
+<script src="script.js"></script>
+<script src="auth.js"></script>
+<!-- Custom Color Picker Modal -->
+<div id="customColorModal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.55);backdrop-filter:blur(4px);align-items:center;justify-content:center">
+  <div style="background:var(--bg-card);border-radius:20px;padding:20px;width:300px;max-width:92vw;box-shadow:0 20px 60px rgba(0,0,0,0.3)">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <div style="font-size:14px;font-weight:700;color:var(--txt-1)">🎨 Pilih Warna Custom</div>
+      <button onclick="closeCustomColorPicker()" style="width:28px;height:28px;border-radius:50%;border:none;background:var(--bg-input);color:var(--txt-2);cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center">×</button>
+    </div>
+    <!-- Hue-Saturation canvas -->
+    <canvas id="colorPickerCanvas" width="260" height="160" style="border-radius:10px;cursor:crosshair;width:100%;touch-action:none"></canvas>
+    <!-- Hue slider -->
+    <canvas id="hueSliderCanvas" width="260" height="22" style="border-radius:6px;cursor:pointer;width:100%;margin-top:10px;touch-action:none"></canvas>
+    <!-- Preview + hex input -->
+    <div style="display:flex;gap:10px;align-items:center;margin-top:12px">
+      <div id="colorPreviewBox" style="width:44px;height:44px;border-radius:10px;border:2px solid var(--border-soft);flex-shrink:0"></div>
+      <div style="flex:1">
+        <div style="font-size:10px;font-weight:700;color:var(--txt-3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">Kode Hex</div>
+        <input id="colorHexInput" maxlength="7" placeholder="#RRGGBB" style="width:100%;padding:8px 10px;border-radius:8px;border:1.5px solid var(--border-soft);background:var(--bg-input);color:var(--txt-1);font-size:13px;font-family:monospace;outline:none;box-sizing:border-box" oninput="onHexInput(this.value)">
+      </div>
+    </div>
+    <button onclick="applyCustomColor()" style="margin-top:14px;width:100%;padding:12px;border-radius:10px;background:var(--primary);color:#fff;border:none;font-size:14px;font-weight:700;cursor:pointer">Gunakan Warna Ini</button>
+  </div>
+</div>
+
+</body>
+</html>

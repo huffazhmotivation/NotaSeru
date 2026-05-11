@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="72" height="72" viewBox="0 0 340 340">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="170" y2="340" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#2992ff"/>
+      <stop offset="100%" stop-color="#0b63ff"/>
+    </linearGradient>
+    <linearGradient id="ngrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1680ff"/>
+      <stop offset="100%" stop-color="#0b63ff"/>
+    </linearGradient>
+    <filter id="pshadow" x="-20%" y="-10%" width="150%" height="150%">
+      <feDropShadow dx="0" dy="14" stdDeviation="15" flood-color="#000" flood-opacity="0.10"/>
+    </filter>
+  </defs>
+
+  <!-- Blue background -->
+  <rect width="340" height="340" rx="72" ry="72" fill="url(#bg)"/>
+  <!-- Inner highlight -->
+  <rect width="340" height="340" rx="72" ry="72" fill="none" stroke="rgba(255,255,255,0.12)" stroke-width="2" stroke-inset="1"/>
+
+  <!-- Paper -->
+  <g filter="url(#pshadow)">
+    <rect x="92" y="77" width="156" height="186" rx="36" ry="36" fill="white"/>
+  </g>
+
+  <!-- Paper fold bottom-right: clip-path polygon(100% 0, 0 100%, 100% 100%) on 52x52 at bottom-right of paper -->
+  <!-- Bottom-right of paper: x=92+156=248, y=77+186=263 -->
+  <!-- fold 52x52: top-left=196,211 -->
+  <polygon points="248,211 248,263 196,263" fill="#d9e8ff" opacity="0.9"/>
+
+  <!-- Binding holes: cx=92-12+12=92 (center at paper left edge), r=12 -->
+  <circle cx="92" cy="111" r="12" fill="#1778ff" opacity="0.6"/>
+  <circle cx="92" cy="158" r="12" fill="#1778ff" opacity="0.6"/>
+  <circle cx="92" cy="205" r="12" fill="#1778ff" opacity="0.6"/>
+
+  <!-- Line 1: x=130, y=109, w=84, h=10, rx=5 -->
+  <rect x="130" y="109" width="84" height="10" rx="5" fill="#a9c8ff"/>
+  <!-- Line 2: x=130, y=135, w=56, h=10, rx=5 -->
+  <rect x="130" y="135" width="56" height="10" rx="5" fill="#a9c8ff"/>
+
+  <!-- N logo: box x=142, y=156.6, w=56, h=64 -->
+  <!-- Left stem -->
+  <rect x="142" y="157" width="13" height="64" rx="6" fill="url(#ngrad)"/>
+  <!-- Right stem -->
+  <rect x="185" y="157" width="13" height="64" rx="6" fill="url(#ngrad)"/>
+  <!-- Diagonal: w=13, h=76, center=(170, 188.6), rotate(-38deg) -->
+  <rect x="163.5" y="151.1" width="13" height="76" rx="6" fill="url(#ngrad)"
+        transform="rotate(-38 170 189.1)"/>
+</svg>
