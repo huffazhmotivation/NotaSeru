@@ -54,15 +54,27 @@ const CloudDB = {
   async pullAll() {
     const sb = getSB(); if (!sb || !_authUser) return;
     try {
-      const { data, error } = await sb.from('userdata').select('key, value').eq('user_id', _authUser.id);
+      const { data, error } = await sb.from('userdata').select('key, value, updated_at').eq('user_id', _authUser.id);
       if (error) throw error;
       if (!data?.length) return;
       // BUG FIX #3: Tulis langsung ke localStorage (bypass patched DB.set)
       // agar tidak trigger push balik ke cloud (infinite push loop)
+      let changed = false;
       for (const row of data) {
-        try { localStorage.setItem('ns3_' + row.key, JSON.stringify(row.value)); } catch {}
+        const current = localStorage.getItem('ns3_' + row.key);
+        const incoming = JSON.stringify(row.value);
+        if (current !== incoming) {
+          try { localStorage.setItem('ns3_' + row.key, incoming); } catch {}
+          changed = true;
+        }
       }
-      console.log('[NS] pulled', data.length, 'keys');
+      console.log('[NS] pulled', data.length, 'keys, changed:', changed);
+      // BUG FIX: render UI kalau ada data yang berubah
+      if (changed) {
+        if (typeof renderInvList   === 'function') renderInvList();
+        if (typeof renderDashboard === 'function') renderDashboard();
+        if (typeof renderExpenseList === 'function') renderExpenseList();
+      }
     } catch(e) { console.warn('CloudDB pullAll err', e); }
   },
   async pushAll() {
@@ -427,6 +439,7 @@ async function onSignedIn(user, isNew) {
   updateSettAkunRow();
   // Mulai realtime sync
   startRealtimeSync();
+  _startPolling(); // BUG FIX #8: mulai polling fallback
   // Tutup popup otomatis setelah 1.8 detik
   setTimeout(() => {
     document.getElementById('authPage').style.display = 'none';
@@ -450,20 +463,14 @@ function _patchDB() {
 // BUG FIX #6: Sync ulang data saat tab kembali aktif (pindah dari HP/laptop lain)
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible' && _authUser) {
-    CloudDB.pullAll().then(() => {
-      if (typeof renderInvList   === 'function') renderInvList();
-      if (typeof renderDashboard === 'function') renderDashboard();
-    }).catch(() => {});
+    CloudDB.pullAll().catch(() => {});
   }
 });
 // BUG FIX #6: Sync ulang saat koneksi internet kembali
 window.addEventListener('online', () => {
   if (_authUser) {
     startRealtimeSync();
-    CloudDB.pullAll().then(() => {
-      if (typeof renderInvList   === 'function') renderInvList();
-      if (typeof renderDashboard === 'function') renderDashboard();
-    }).catch(() => {});
+    CloudDB.pullAll().catch(() => {});
   }
 });
 
@@ -537,3 +544,16 @@ document.addEventListener('keydown', e => {
 document.getElementById('authPage').addEventListener('click', function(e) {
   if (e.target === this) closeAuthModal();
 });
+
+// BUG FIX #8: Polling fallback — pull setiap 15 detik sebagai safety net
+// kalau Realtime channel miss event (Safari → Chrome sering bermasalah)
+let _pollTimer = null;
+function _startPolling() {
+  if (_pollTimer) clearInterval(_pollTimer);
+  _pollTimer = setInterval(() => {
+    if (_authUser) CloudDB.pullAll().catch(() => {});
+  }, 15000);
+}
+function _stopPolling() {
+  if (_pollTimer) { clearInterval(_pollTimer); _pollTimer = null; }
+}
