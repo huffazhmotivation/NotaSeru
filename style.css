@@ -469,9 +469,33 @@ img{max-width:100%;display:block;}
 /* Select bar bg-base fallback */
 [data-theme="dark"] .select-bar { background: var(--bg) !important; }
 
-/* Select check circle â€” visible in dark mode before selected */
+/* â”€â”€ Select Mode â€” Dark Mode Fix Menyeluruh â”€â”€ */
+
+/* 1. Lingkaran check sebelum dicentang â€” border lebih terang supaya keliatan */
 [data-theme="dark"] .select-check { border-color: #4B5563 !important; background: #1E2536 !important; }
-[data-theme="dark"] .inv-card.selected .select-check { background: var(--primary) !important; border-color: var(--primary) !important; }
+
+/* 3. Card selected â€” background biru muda soft, bukan putih */
+[data-theme="dark"] .inv-card.selected { background: rgba(56,189,248,0.13) !important; border-color: #38bdf8 !important; border-left-width: 3px !important; }
+
+/* 4. Teks di dalam card selected tetap terbaca */
+[data-theme="dark"] .inv-card.selected .inv-card-name   { color: #E0F2FE !important; }
+[data-theme="dark"] .inv-card.selected .inv-card-meta   { color: #7DD3FC !important; }
+[data-theme="dark"] .inv-card.selected .inv-card-amount { color: #E0F2FE !important; }
+
+/* 5. Card selected yang juga berstatus lunas/dp â€” selected menang */
+[data-theme="dark"] .inv-card.selected.status-lunas,
+[data-theme="dark"] .inv-card.selected.status-dp { background: rgba(56,189,248,0.13) !important; border-color: #38bdf8 !important; }
+
+/* 6. Badge status di dalam card selected */
+[data-theme="dark"] .inv-card.selected .badge-belum { background: rgba(239,68,68,0.2) !important; color: #fca5a5 !important; }
+[data-theme="dark"] .inv-card.selected .badge-dp    { background: rgba(245,158,11,0.2) !important; color: #fcd34d !important; }
+[data-theme="dark"] .inv-card.selected .badge-lunas { background: rgba(16,185,129,0.2) !important; color: #6ee7b7 !important; }
+
+/* 7. Icon card saat selected di dark */
+[data-theme="dark"] .inv-card.selected .inv-card-ic { background: rgba(56,189,248,0.2) !important; color: #38bdf8 !important; }
+
+/* 8. Lingkaran check setelah dicentang â€” ikut warna biru muda */
+[data-theme="dark"] .inv-card.selected .select-check { background: #38bdf8 !important; border-color: #38bdf8 !important; }
 
 /* finOmsetNote â€” warna teks nota count di finance */
 [data-theme="dark"] #finOmsetNote { color: #4ade80 !important; }
