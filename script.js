@@ -3426,6 +3426,9 @@ function uploadLogo(input) {
   const r = new FileReader();
   r.onload = e => {
     const data = e.target.result;
+    // Simpan logo di key TERPISAH agar tidak membebani push 'settings'
+    DB.set('ns3_logo', data);
+    // Tetap simpan referensi di settings untuk kompatibilitas render nota
     const s = DB.get('settings', {}); s.logo = data; DB.set('settings', s);
     const p = document.getElementById('logoPrev'); const ph = document.getElementById('logoPh');
     if (p) { p.src = data; p.style.display = 'block'; } if (ph) ph.style.display = 'none';
@@ -3468,13 +3471,18 @@ function clearSign() {
   const canvas = document.getElementById('signatureCanvas'); if (!canvas) return;
   const ctx = canvas.getContext('2d'); ctx.clearRect(0,0,canvas.width,canvas.height);
   signHasContent = false; document.getElementById('signPh').style.display='flex';
+  DB.set('ns3_signature', null);
   const s = DB.get('settings',{}); delete s.signature; DB.set('settings',s);
   setText('signStatus','Ketuk untuk menggambar');
 }
 function saveSign() {
   if (!signHasContent) { toast('Gambar tanda tangan dulu', 'wrn'); return; }
   const canvas = document.getElementById('signatureCanvas');
-  const s = DB.get('settings',{}); s.signature = canvas.toDataURL('image/png'); DB.set('settings',s);
+  const dataUrl = canvas.toDataURL('image/png');
+  // Simpan signature di key TERPISAH agar tidak membebani push 'settings'
+  DB.set('ns3_signature', dataUrl);
+  // Tetap simpan referensi di settings untuk kompatibilitas render nota
+  const s = DB.get('settings',{}); s.signature = dataUrl; DB.set('settings',s);
   setText('signStatus','Tanda tangan tersimpan ✓');
   closeSheets(); toast('Tanda tangan disimpan ✓', 'ok');
 }
