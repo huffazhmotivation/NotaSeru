@@ -424,6 +424,7 @@ async function doLogout() {
   if (el) { el.textContent = ''; el.style.display = 'none'; }
   const lb = document.getElementById('logoutBtn');
   if (lb) lb.style.display = 'none';
+  if (typeof loadSettingsUI === 'function') loadSettingsUI(); // bersihkan DOM field info toko
   updateSettAkunRow();
   resetAuthModal(); // reset popup ke form login/daftar dulu
   showAuthPage();   // baru tampilkan popup
