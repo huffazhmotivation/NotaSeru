@@ -127,7 +127,7 @@ img{max-width:100%;display:block;}
 .inv-cards{display:flex;flex-direction:column;gap:10px;}
 
 /* ── Swipe wrapper ── */
-.inv-swipe-wrap{position:relative;border-radius:var(--r-md);overflow:hidden;transform:translateZ(0);-webkit-transform:translateZ(0);}
+.inv-swipe-wrap{position:relative;border-radius:var(--r-md);overflow:hidden;}
 .inv-swipe-actions{position:absolute;right:0;top:0;bottom:0;display:flex;align-items:stretch;border-radius:0 var(--r-md) var(--r-md) 0;overflow:hidden;z-index:1;}
 .inv-swipe-actions-left{position:absolute;left:0;top:0;bottom:0;display:flex;align-items:stretch;border-radius:var(--r-md) 0 0 var(--r-md);overflow:hidden;z-index:1;}
 .inv-swipe-btn{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;padding:0 16px;cursor:pointer;min-width:68px;border:none;font-size:10px;font-weight:700;letter-spacing:.05em;color:#fff;transition:filter .12s,opacity .2s;}
@@ -151,6 +151,7 @@ img{max-width:100%;display:block;}
 .inv-card.status-lunas{background:#ECFDF5;border-color:#6EE7B7;}
 .inv-card.status-dp{background:#FFFBEB;border-color:#FCD34D;}
 .inv-card.status-belum{background:var(--bg-card);border-color:var(--border-soft);}
+/* dark mode handled below via [data-theme="dark"] overrides */
 
 /* Getar setelah reveal (haptic visual) */
 @keyframes inv-getar{0%{transform:translateX(var(--tx,0))}15%{transform:translateX(calc(var(--tx,0) + 6px))}35%{transform:translateX(calc(var(--tx,0) - 5px))}55%{transform:translateX(calc(var(--tx,0) + 4px))}72%{transform:translateX(calc(var(--tx,0) - 3px))}85%{transform:translateX(calc(var(--tx,0) + 2px))}100%{transform:translateX(var(--tx,0))}}
@@ -225,6 +226,7 @@ img{max-width:100%;display:block;}
 .tot-grand .tot-label{font-size:14px;font-weight:700;color:#92400E;}
 .tot-grand .tot-val{font-size:16px;color:#92400E;}
 .tot-sisa .tot-val{color:#78350F;}
+/* dark handled below */
 .inline-input{width:120px;padding:5px 10px;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--r-sm);font-size:16px;text-align:right;color:var(--txt-1);font-family:var(--font);outline:none;}
 .inline-input:focus{border-color:var(--primary);}
 .inline-num{width:64px;padding:5px 10px;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--r-sm);font-size:16px;text-align:right;color:var(--txt-1);font-family:var(--font);outline:none;}
@@ -402,17 +404,62 @@ img{max-width:100%;display:block;}
 .logo-prev{width:96px;height:96px;border-radius:var(--r-md);object-fit:contain;margin:0 auto 8px;display:none;}
 .logo-ph-ic{display:flex;align-items:center;justify-content:center;width:70px;height:70px;background:var(--bg-input);border-radius:var(--r-md);margin:0 auto 8px;color:var(--txt-3);}
 
-/* Finance cards dark mode override */
-[data-theme="dark"] .fin-card-green { background: rgba(34,197,94,0.08) !important; border-left-color: rgba(34,197,94,0.35) !important; }
-[data-theme="dark"] .fin-card-blue  { background: rgba(96,165,250,0.08) !important; border-left-color: rgba(96,165,250,0.35) !important; }
-[data-theme="dark"] .fin-card-teal  { background: rgba(94,234,212,0.08) !important; border-left-color: rgba(94,234,212,0.35) !important; }
-[data-theme="dark"] .fin-card-red   { background: rgba(248,113,113,0.08) !important; border-left-color: rgba(248,113,113,0.35) !important; }
-
 /* Finance cards dark mode - vibrant */
-[data-theme="dark"] .fin-card-green { background: rgba(34,197,94,0.15) !important; box-shadow: 0 4px 18px rgba(34,197,94,0.15) !important; }
-[data-theme="dark"] .fin-card-blue  { background: rgba(59,130,246,0.15) !important; box-shadow: 0 4px 18px rgba(59,130,246,0.15) !important; }
-[data-theme="dark"] .fin-card-teal  { background: rgba(20,184,166,0.15) !important; box-shadow: 0 4px 18px rgba(20,184,166,0.15) !important; }
-[data-theme="dark"] .fin-card-red   { background: rgba(244,63,94,0.15)  !important; box-shadow: 0 4px 18px rgba(244,63,94,0.15)  !important; }
+[data-theme="dark"] .fin-card-green { background: rgba(34,197,94,0.15) !important; box-shadow: 0 4px 18px rgba(34,197,94,0.15) !important; border-left-color: rgba(34,197,94,0.45) !important; }
+[data-theme="dark"] .fin-card-blue  { background: rgba(59,130,246,0.15) !important; box-shadow: 0 4px 18px rgba(59,130,246,0.15) !important; border-left-color: rgba(59,130,246,0.45) !important; }
+[data-theme="dark"] .fin-card-teal  { background: rgba(20,184,166,0.15) !important; box-shadow: 0 4px 18px rgba(20,184,166,0.15) !important; border-left-color: rgba(20,184,166,0.45) !important; }
+[data-theme="dark"] .fin-card-red   { background: rgba(244,63,94,0.15)  !important; box-shadow: 0 4px 18px rgba(244,63,94,0.15)  !important; border-left-color: rgba(244,63,94,0.45) !important; }
+
+/* ══════════════════════════════════════════════
+   DARK MODE — Fix semua elemen hardcoded
+   ══════════════════════════════════════════════ */
+
+/* Nota card status — lunas & dp pakai warna soft biar tetap terbaca */
+[data-theme="dark"] .inv-card.status-lunas { background: rgba(16,185,129,0.12) !important; border-color: rgba(16,185,129,0.35) !important; }
+[data-theme="dark"] .inv-card.status-dp    { background: rgba(245,158,11,0.12) !important; border-color: rgba(245,158,11,0.35) !important; }
+[data-theme="dark"] .inv-card.status-lunas .inv-card-ic { background: rgba(16,185,129,0.18); color: #34d399; }
+[data-theme="dark"] .inv-card.status-dp    .inv-card-ic { background: rgba(245,158,11,0.18); color: #fbbf24; }
+
+/* Total grand row */
+[data-theme="dark"] .tot-grand             { background: rgba(245,158,11,0.15) !important; }
+[data-theme="dark"] .tot-grand .tot-label  { color: #fcd34d !important; }
+[data-theme="dark"] .tot-grand .tot-val    { color: #fcd34d !important; }
+[data-theme="dark"] .tot-sisa .tot-val     { color: #fbbf24 !important; }
+
+/* Signature canvas */
+[data-theme="dark"] .sign-canvas-wrap { background: #1a2030 !important; }
+
+/* Template preview background — ini tetap putih karena simulasi kertas */
+/* tidak perlu diubah, sudah dibungkus di .tpl-preview */
+
+/* Template line previews di dark — pakai border lebih terang */
+[data-theme="dark"] .tpl-classic .tpl-lines div,
+[data-theme="dark"] .tpl-modern .tpl-lines div,
+[data-theme="dark"] .tpl-minimal .tpl-lines div,
+[data-theme="dark"] .tpl-bold .tpl-lines div  { background: #3a4560 !important; }
+[data-theme="dark"] .tpl-minimal .tpl-title-line { background: #c9d1e0 !important; }
+[data-theme="dark"] .tpl-header-bold            { background: #c9d1e0 !important; }
+[data-theme="dark"] .tpl-logo-right             { background: #3a4560 !important; }
+[data-theme="dark"] .tpl-logo-bold              { background: #0D1117 !important; }
+
+/* Profit saved badge */
+[data-theme="dark"] .profit-saved-badge.pos { background: rgba(16,185,129,0.2) !important; color: #34d399 !important; }
+[data-theme="dark"] .profit-saved-badge.neg { background: rgba(244,63,94,0.2)  !important; color: #fb7185 !important; }
+
+/* Grup block — hover/active overlay */
+[data-theme="dark"] .grup-block-profit         { background: rgba(0,0,0,.35) !important; }
+[data-theme="dark"] .grup-block-profit.positive { color: #34d399 !important; }
+[data-theme="dark"] .grup-block-profit.negative { color: #fb7185 !important; }
+[data-theme="dark"] .grup-member-row:active     { background: rgba(255,255,255,.06) !important; }
+[data-theme="dark"] .grup-block-header:active   { background: rgba(255,255,255,.05) !important; }
+[data-theme="dark"] .grup-block-footer          { background: rgba(0,0,0,.2) !important; }
+[data-theme="dark"] .grup-block-footer:active   { opacity: .6; }
+
+/* Select bar bg-base fallback */
+[data-theme="dark"] .select-bar { background: var(--bg) !important; }
+
+/* finOmsetNote — warna teks nota count di finance */
+[data-theme="dark"] #finOmsetNote { color: #4ade80 !important; }
 
 /* ── Profit Drawer (swipe down from nota) ── */
 .profit-drawer{background:var(--bg-card);border:1px solid var(--border-soft);border-radius:0 0 var(--r-md) var(--r-md);overflow:hidden;max-height:0;transition:max-height .35s cubic-bezier(.4,0,.2,1),opacity .25s;opacity:0;margin-top:-2px;}
@@ -588,34 +635,3 @@ img{max-width:100%;display:block;}
 #logoutBtn:hover{background:var(--danger,#DC2626);color:#fff;}
 .header-user-row{display:flex;align-items:center;gap:8px;padding:8px 20px 4px;flex-wrap:wrap;background:var(--bg-card);border-radius:12px;margin:0 16px 8px;box-shadow:0 1px 4px rgba(0,0,0,.06);}
 #headerUserEmail{font-size:12px;color:var(--txt-2);font-weight:600;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-
-/* ── Dark Mode Fixes ────────────────────────── */
-[data-theme="dark"] .inv-card.status-lunas{background:rgba(16,185,129,.12);border-color:rgba(16,185,129,.3);}
-[data-theme="dark"] .inv-card.status-dp{background:rgba(245,158,11,.1);border-color:rgba(245,158,11,.3);}
-[data-theme="dark"] .inv-card.status-lunas .inv-card-ic{background:rgba(16,185,129,.2);color:#34D399;}
-[data-theme="dark"] .inv-card.status-dp .inv-card-ic{background:rgba(245,158,11,.2);color:#FCD34D;}
-[data-theme="dark"] .tot-grand{background:rgba(245,158,11,.12);}
-[data-theme="dark"] .tot-grand .tot-label{color:#FCD34D;}
-[data-theme="dark"] .tot-grand .tot-val{color:#FCD34D;}
-[data-theme="dark"] .tot-sisa .tot-val{color:#FDE68A;}
-[data-theme="dark"] .profit-saved-badge.pos{background:rgba(16,185,129,.2);color:#6EE7B7;}
-[data-theme="dark"] .profit-saved-badge.neg{background:rgba(244,63,94,.2);color:#FDA4AF;}
-[data-theme="dark"] .grup-block{background:rgba(255,255,255,.04);}
-[data-theme="dark"] .grup-block-header{background:rgba(255,255,255,.06);}
-[data-theme="dark"] .grup-block-footer{background:rgba(255,255,255,.03);}
-[data-theme="dark"] .profit-result-main-val.positive{color:#34D399;}
-[data-theme="dark"] .profit-result-main-val.negative{color:#FB7185;}
-[data-theme="dark"] .grup-block-profit.positive{color:#34D399;}
-[data-theme="dark"] .grup-block-profit.negative{color:#FB7185;}
-[data-theme="dark"] input,[data-theme="dark"] textarea,[data-theme="dark"] select{color:var(--txt-1);background:var(--bg-input);border-color:var(--border);}
-[data-theme="dark"] input::placeholder,[data-theme="dark"] textarea::placeholder{color:var(--txt-3);}
-
-/* ── Dark Mode Swipe Actions Fix ── */
-[data-theme="dark"] .inv-card{background:var(--bg-card);}
-[data-theme="dark"] .inv-card.status-lunas{background:rgba(16,185,129,.12);}
-[data-theme="dark"] .inv-card.status-dp{background:rgba(245,158,11,.1);}
-[data-theme="dark"] .inv-card.status-belum{background:var(--bg-card);}
-[data-theme="dark"] .swipe-btn-belum{background:#B91C1C;}
-[data-theme="dark"] .swipe-btn-dp{background:#B45309;}
-[data-theme="dark"] .swipe-btn-lunas{background:#047857;}
-
