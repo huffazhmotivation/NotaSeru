@@ -57,7 +57,11 @@ const CloudDB = {
       const { data, error } = await sb.from('userdata').select('key, value').eq('user_id', _authUser.id);
       if (error) throw error;
       if (!data?.length) return;
-      for (const row of data) DB.set(row.key, row.value);
+      // BUG FIX #3: Tulis langsung ke localStorage (bypass patched DB.set)
+      // agar tidak trigger push balik ke cloud (infinite push loop)
+      for (const row of data) {
+        try { localStorage.setItem('ns3_' + row.key, JSON.stringify(row.value)); } catch {}
+      }
       console.log('[NS] pulled', data.length, 'keys');
     } catch(e) { console.warn('CloudDB pullAll err', e); }
   },
@@ -90,13 +94,18 @@ const CloudDB = {
 // ── Realtime Sync ──
 let _realtimeChannel = null;
 
+let _realtimeReconnectTimer = null;
+
 function startRealtimeSync() {
   const sb = getSB();
   if (!sb || !_authUser) return;
   stopRealtimeSync(); // bersihkan channel lama kalau ada
 
+  // BUG FIX #2: channel name unik per user agar tidak konflik antar akun
+  const channelName = 'userdata-changes-' + _authUser.id;
+
   _realtimeChannel = sb
-    .channel('userdata-changes')
+    .channel(channelName)
     .on(
       'postgres_changes',
       {
@@ -113,9 +122,9 @@ function startRealtimeSync() {
           // Jangan re-render kalau nilai tidak berubah
           const current = DB.get(k, null);
           if (JSON.stringify(current) === JSON.stringify(v)) return;
-          // Simpan ke localStorage tanpa trigger push balik ke cloud
-          const orig = DB.set.bind(DB);
-          orig(k, v);
+          // BUG FIX #3: Tulis langsung ke localStorage (bypass patched DB.set)
+          // agar tidak trigger push balik ke cloud
+          try { localStorage.setItem('ns3_' + k, JSON.stringify(v)); } catch {}
           // Re-render UI yang relevan
           _reRenderForKey(k);
           showSyncBadge('Tersinkron ✓');
@@ -130,11 +139,22 @@ function startRealtimeSync() {
     .subscribe((status) => {
       if (status === 'SUBSCRIBED') {
         console.log('[NS] Realtime sync aktif');
+        // BUG FIX #4: batalkan timer reconnect kalau sudah tersambung
+        if (_realtimeReconnectTimer) { clearTimeout(_realtimeReconnectTimer); _realtimeReconnectTimer = null; }
+      } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+        // BUG FIX #4: auto reconnect saat channel putus
+        console.warn('[NS] Realtime channel ' + status + ', reconnect dalam 5 detik...');
+        if (_realtimeReconnectTimer) clearTimeout(_realtimeReconnectTimer);
+        _realtimeReconnectTimer = setTimeout(() => {
+          if (_authUser) startRealtimeSync();
+        }, 5000);
       }
     });
 }
 
 function stopRealtimeSync() {
+  // BUG FIX #4: batalkan timer reconnect kalau ada
+  if (_realtimeReconnectTimer) { clearTimeout(_realtimeReconnectTimer); _realtimeReconnectTimer = null; }
   const sb = getSB();
   if (_realtimeChannel && sb) {
     sb.removeChannel(_realtimeChannel).catch(() => {});
@@ -145,17 +165,25 @@ function stopRealtimeSync() {
 function _reRenderForKey(key) {
   try {
     if (key === 'invoices') {
-      if (typeof renderInvoiceList === 'function') renderInvoiceList();
-      if (typeof renderDashboard  === 'function') renderDashboard();
+      // BUG FIX #1: fungsi yang benar adalah renderInvList (bukan renderInvoiceList)
+      if (typeof renderInvList      === 'function') renderInvList();
+      if (typeof renderDashboard    === 'function') renderDashboard();
     } else if (key === 'expenses') {
-      if (typeof renderDashboard  === 'function') renderDashboard();
+      if (typeof renderDashboard    === 'function') renderDashboard();
+      // BUG FIX #7: render list pengeluaran juga kalau ada
+      if (typeof renderExpenseList  === 'function') renderExpenseList();
     } else if (key === 'settings') {
-      if (typeof loadSettingsUI   === 'function') loadSettingsUI();
-      if (typeof applyAppearance  === 'function') applyAppearance();
+      if (typeof loadSettingsUI     === 'function') loadSettingsUI();
+      if (typeof applyAppearance    === 'function') applyAppearance();
     } else if (key === 'products' || key === 'ekspedisi') {
       if (typeof populateEkspedisiSelect === 'function') populateEkspedisiSelect();
     } else if (key.startsWith('grup_')) {
-      if (typeof renderInvoiceList === 'function') renderInvoiceList();
+      // BUG FIX #1: gunakan nama fungsi yang benar
+      if (typeof renderInvList      === 'function') renderInvList();
+    } else if (key.startsWith('inv_profit_')) {
+      // BUG FIX #5: update UI profit ketika inv_profit_ key berubah
+      if (typeof renderInvList      === 'function') renderInvList();
+      if (typeof renderDashboard    === 'function') renderDashboard();
     }
   } catch(e) { console.warn('[NS] reRender err', key, e); }
 }
@@ -392,7 +420,8 @@ async function onSignedIn(user, isNew) {
   await CloudDB.pullAll().catch(() => {});
   hideSyncBadge();
   renderDashboard();
-  renderInvoiceList();
+  // BUG FIX #1: nama fungsi yang benar adalah renderInvList
+  if (typeof renderInvList === 'function') renderInvList();
   loadSettingsUI();
   applyAppearance();
   updateSettAkunRow();
@@ -417,6 +446,26 @@ function _patchDB() {
     if (_authUser) CloudDB._push(k, v);
   };
 }
+
+// BUG FIX #6: Sync ulang data saat tab kembali aktif (pindah dari HP/laptop lain)
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && _authUser) {
+    CloudDB.pullAll().then(() => {
+      if (typeof renderInvList   === 'function') renderInvList();
+      if (typeof renderDashboard === 'function') renderDashboard();
+    }).catch(() => {});
+  }
+});
+// BUG FIX #6: Sync ulang saat koneksi internet kembali
+window.addEventListener('online', () => {
+  if (_authUser) {
+    startRealtimeSync();
+    CloudDB.pullAll().then(() => {
+      if (typeof renderInvList   === 'function') renderInvList();
+      if (typeof renderDashboard === 'function') renderDashboard();
+    }).catch(() => {});
+  }
+});
 
 // ── Boot ──
 async function initAuth() {
