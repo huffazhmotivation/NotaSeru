@@ -3379,16 +3379,26 @@ function loadSettingsUI() {
   const fields = { settName:'storeName', settAddr:'storeAddress', settPhone:'storePhone', settEmail:'storeEmail', settBank:'bankName', settBankNo:'bankNo', settBankOwner:'bankOwner', settThankyou:'thankyou', settSignLabel:'signLabel', settBankNote:'bankNote' };
   for (const [id, key] of Object.entries(fields)) {
     const el = document.getElementById(id);
-    if (el && s[key]) {
-      el.value = s[key];
+    if (el) {
+      el.value = s[key] || '';
       // Auto-resize textarea fields
       if (el.tagName === 'TEXTAREA') {
         setTimeout(() => { el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px'; }, 50);
       }
     }
   }
-  if (s.logo) { const p = document.getElementById('logoPrev'); const ph = document.getElementById('logoPh'); if (p) { p.src = s.logo; p.style.display = 'block'; } if (ph) ph.style.display = 'none'; }
-  if (s.signature) setText('signStatus', 'Tanda tangan tersimpan ✓');
+  // Reset logo
+  const logoPrev = document.getElementById('logoPrev');
+  const logoPh   = document.getElementById('logoPh');
+  if (s.logo) {
+    if (logoPrev) { logoPrev.src = s.logo; logoPrev.style.display = 'block'; }
+    if (logoPh)   logoPh.style.display = 'none';
+  } else {
+    if (logoPrev) { logoPrev.src = ''; logoPrev.style.display = 'none'; }
+    if (logoPh)   logoPh.style.display = '';
+  }
+  // Reset tanda tangan
+  setText('signStatus', s.signature ? 'Tanda tangan tersimpan ✓' : '');
 }
 
 function applyAppearance() {
