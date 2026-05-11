@@ -87,6 +87,79 @@ const CloudDB = {
   }
 };
 
+// ── Realtime Sync ──
+let _realtimeChannel = null;
+
+function startRealtimeSync() {
+  const sb = getSB();
+  if (!sb || !_authUser) return;
+  stopRealtimeSync(); // bersihkan channel lama kalau ada
+
+  _realtimeChannel = sb
+    .channel('userdata-changes')
+    .on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'userdata',
+        filter: `user_id=eq.${_authUser.id}`
+      },
+      (payload) => {
+        const { eventType, new: newRow, old: oldRow } = payload;
+        if (eventType === 'INSERT' || eventType === 'UPDATE') {
+          const k = newRow.key;
+          const v = newRow.value;
+          // Jangan re-render kalau nilai tidak berubah
+          const current = DB.get(k, null);
+          if (JSON.stringify(current) === JSON.stringify(v)) return;
+          // Simpan ke localStorage tanpa trigger push balik ke cloud
+          const orig = DB.set.bind(DB);
+          orig(k, v);
+          // Re-render UI yang relevan
+          _reRenderForKey(k);
+          showSyncBadge('Tersinkron ✓');
+          setTimeout(hideSyncBadge, 1500);
+        } else if (eventType === 'DELETE') {
+          const k = oldRow.key;
+          localStorage.removeItem('ns3_' + k);
+          _reRenderForKey(k);
+        }
+      }
+    )
+    .subscribe((status) => {
+      if (status === 'SUBSCRIBED') {
+        console.log('[NS] Realtime sync aktif');
+      }
+    });
+}
+
+function stopRealtimeSync() {
+  const sb = getSB();
+  if (_realtimeChannel && sb) {
+    sb.removeChannel(_realtimeChannel).catch(() => {});
+    _realtimeChannel = null;
+  }
+}
+
+function _reRenderForKey(key) {
+  try {
+    if (key === 'invoices') {
+      if (typeof renderInvoiceList === 'function') renderInvoiceList();
+      if (typeof renderDashboard  === 'function') renderDashboard();
+    } else if (key === 'expenses') {
+      if (typeof renderDashboard  === 'function') renderDashboard();
+    } else if (key === 'settings') {
+      if (typeof loadSettingsUI   === 'function') loadSettingsUI();
+      if (typeof applyAppearance  === 'function') applyAppearance();
+    } else if (key === 'products' || key === 'ekspedisi') {
+      if (typeof populateEkspedisiSelect === 'function') populateEkspedisiSelect();
+    } else if (key.startsWith('grup_')) {
+      if (typeof renderInvoiceList === 'function') renderInvoiceList();
+    }
+  } catch(e) { console.warn('[NS] reRender err', key, e); }
+}
+
 // ── UI helpers ──
 function showAuthPage() {
   const ap = document.getElementById('authPage');
@@ -287,6 +360,7 @@ async function doLogout() {
     showSyncBadge('Menyimpan...');
     await CloudDB.pushAll().catch(() => {});
     hideSyncBadge();
+    stopRealtimeSync();
     await sb.auth.signOut().catch(() => {});
   }
   _authUser = null;
@@ -322,6 +396,8 @@ async function onSignedIn(user, isNew) {
   loadSettingsUI();
   applyAppearance();
   updateSettAkunRow();
+  // Mulai realtime sync
+  startRealtimeSync();
   // Tutup popup otomatis setelah 1.8 detik
   setTimeout(() => {
     document.getElementById('authPage').style.display = 'none';
@@ -380,6 +456,7 @@ async function initAuth() {
     sb.auth.onAuthStateChange(async (event, session) => {
       if (event === 'SIGNED_IN' && session?.user && session.user.id !== _authUser?.id) await onSignedIn(session.user);
       if (event === 'SIGNED_OUT') {
+        stopRealtimeSync();
         _authUser = null;
         _dbPatched = false;
         resetAuthModal();
