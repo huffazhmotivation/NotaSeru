@@ -336,8 +336,20 @@ function showAuthErr(msg) { document.getElementById('authErr').textContent = msg
 function showSyncBadge(msg) { const el = document.getElementById('syncBadge'); if (el) { el.textContent = '⟳ ' + msg; el.style.display = 'inline-flex'; } }
 function hideSyncBadge()    { const el = document.getElementById('syncBadge'); if (el) el.style.display = 'none'; }
 
+// ── Hapus semua data lokal ns3_ (kecuali GUEST_KEY & USERNAME_KEY) ──
+function clearLocalData() {
+  const preserve = [GUEST_KEY, USERNAME_KEY];
+  const toRemove = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const k = localStorage.key(i);
+    if (k && k.startsWith('ns3_') && !preserve.includes(k)) toRemove.push(k);
+  }
+  toRemove.forEach(k => localStorage.removeItem(k));
+}
+
 // ── Mode Tamu ──
 function doGuestMode() {
+  clearLocalData(); // mulai fresh, tidak ada sisa data akun sebelumnya
   localStorage.setItem(GUEST_KEY, '1');
   document.getElementById('authPage').style.display = 'none';
   document.getElementById('app').style.display = '';
@@ -405,6 +417,7 @@ async function doLogout() {
   }
   _authUser = null;
   _dbPatched = false; // reset patch agar sesi baru bisa di-patch ulang
+  clearLocalData(); // hapus semua data lokal agar tidak bocor ke sesi berikutnya
   localStorage.removeItem(GUEST_KEY);
   // Sembunyikan header user
   const el = document.getElementById('headerUserEmail');
