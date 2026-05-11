@@ -71,9 +71,14 @@ const CloudDB = {
       console.log('[NS] pulled', data.length, 'keys, changed:', changed);
       // BUG FIX: render UI kalau ada data yang berubah
       if (changed) {
-        if (typeof renderInvList   === 'function') renderInvList();
-        if (typeof renderDashboard === 'function') renderDashboard();
-        if (typeof renderExpenseList === 'function') renderExpenseList();
+        if (typeof renderInvList       === 'function') renderInvList();
+        if (typeof renderDashboard     === 'function') renderDashboard();
+        if (typeof renderExpenseList   === 'function') renderExpenseList();
+        if (typeof loadSettingsUI      === 'function') loadSettingsUI();
+        if (typeof applyAppearance     === 'function') applyAppearance();
+        if (typeof renderCatalogList   === 'function') renderCatalogList();
+        if (typeof renderEkspedisiList === 'function') renderEkspedisiList();
+        if (typeof populateEkspedisiSelect === 'function') populateEkspedisiSelect();
       }
     } catch(e) { console.warn('CloudDB pullAll err', e); }
   },
@@ -185,9 +190,13 @@ function _reRenderForKey(key) {
       // BUG FIX #7: render list pengeluaran juga kalau ada
       if (typeof renderExpenseList  === 'function') renderExpenseList();
     } else if (key === 'settings') {
-      if (typeof loadSettingsUI     === 'function') loadSettingsUI();
-      if (typeof applyAppearance    === 'function') applyAppearance();
+      if (typeof loadSettingsUI        === 'function') loadSettingsUI();
+      if (typeof applyAppearance       === 'function') applyAppearance();
+      if (typeof renderCatalogList     === 'function') renderCatalogList();
+      if (typeof renderEkspedisiList   === 'function') renderEkspedisiList();
     } else if (key === 'products' || key === 'ekspedisi') {
+      if (typeof renderCatalogList     === 'function') renderCatalogList();
+      if (typeof renderEkspedisiList   === 'function') renderEkspedisiList();
       if (typeof populateEkspedisiSelect === 'function') populateEkspedisiSelect();
     } else if (key.startsWith('grup_')) {
       // BUG FIX #1: gunakan nama fungsi yang benar
@@ -449,8 +458,11 @@ async function onSignedIn(user, isNew) {
   await CloudDB.pullAll().catch(() => {});
   hideSyncBadge();
   renderDashboard();
-  // BUG FIX #1: nama fungsi yang benar adalah renderInvList
-  if (typeof renderInvList === 'function') renderInvList();
+  if (typeof renderInvList         === 'function') renderInvList();
+  if (typeof renderExpenseList     === 'function') renderExpenseList();
+  if (typeof renderCatalogList     === 'function') renderCatalogList();
+  if (typeof renderEkspedisiList   === 'function') renderEkspedisiList();
+  if (typeof populateEkspedisiSelect === 'function') populateEkspedisiSelect();
   loadSettingsUI();
   applyAppearance();
   updateSettAkunRow();
@@ -478,9 +490,24 @@ function _patchDB() {
 }
 
 // BUG FIX #6: Sync ulang data saat tab kembali aktif (pindah dari HP/laptop lain)
-document.addEventListener('visibilitychange', () => {
+document.addEventListener('visibilitychange', async () => {
   if (document.visibilityState === 'visible' && _authUser) {
-    CloudDB.pullAll().catch(() => {});
+    const before = {
+      settings: JSON.stringify(DB.get('settings', {})),
+      products:  JSON.stringify(DB.get('products',  [])),
+      ekspedisi: JSON.stringify(DB.get('ekspedisi', []))
+    };
+    await CloudDB.pullAll().catch(() => {});
+    // Re-render settings & catalog kalau ada perubahan (pullAll sudah handle invoices/expenses)
+    if (before.settings !== JSON.stringify(DB.get('settings', {}))) {
+      if (typeof loadSettingsUI  === 'function') loadSettingsUI();
+      if (typeof applyAppearance === 'function') applyAppearance();
+    }
+    if (before.products !== JSON.stringify(DB.get('products', [])) || before.ekspedisi !== JSON.stringify(DB.get('ekspedisi', []))) {
+      if (typeof renderCatalogList     === 'function') renderCatalogList();
+      if (typeof renderEkspedisiList   === 'function') renderEkspedisiList();
+      if (typeof populateEkspedisiSelect === 'function') populateEkspedisiSelect();
+    }
   }
 });
 // BUG FIX #6: Sync ulang saat koneksi internet kembali
