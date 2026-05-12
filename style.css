@@ -242,7 +242,7 @@ img{max-width:100%;display:block;}
 .sett-section{padding:0 20px 16px;}
 .sett-section:first-of-type{padding-top:20px;}
 .sett-card{background:var(--bg-card);border-radius:var(--r-lg);border:1px solid var(--border-soft);overflow:hidden;}
-.sett-row{display:flex;align-items:center;padding:13px 16px;border-bottom:1px solid var(--border-soft);gap:12px;cursor:pointer;transition:var(--ease);}
+.sett-row{display:flex;align-items:center;padding:14px 16px;border-bottom:1px solid var(--border-soft);gap:12px;cursor:pointer;transition:var(--ease);min-height:52px;box-sizing:border-box;}
 .sett-row:last-child{border-bottom:none;}
 .sett-row:active{background:var(--bg-input);}
 .sett-row.no-tap{cursor:default;}
