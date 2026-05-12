@@ -279,6 +279,7 @@ function _reRenderForKey(key) {
       if (typeof renderExpenseList  === 'function') renderExpenseList();
       if (typeof renderIncomePage   === 'function') renderIncomePage();
     } else if (key === 'settings' || key === 'logo' || key === 'signature') {
+      // BUG FIX #7: loadSettingsUI sudah diproteksi agar tidak overwrite field yang sedang difokus
       if (typeof loadSettingsUI        === 'function') loadSettingsUI();
       if (typeof applyAppearance       === 'function') applyAppearance();
       if (typeof renderCatalogList     === 'function') renderCatalogList();
