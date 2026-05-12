@@ -3377,10 +3377,17 @@ function loadSettingsUI() {
   if (typeof updateSettAkunRow === 'function') updateSettAkunRow();
   const s = DB.get('settings', {});
   const fields = { settName:'storeName', settAddr:'storeAddress', settPhone:'storePhone', settEmail:'storeEmail', settBank:'bankName', settBankNo:'bankNo', settBankOwner:'bankOwner', settThankyou:'thankyou', settSignLabel:'signLabel', settBankNote:'bankNote' };
+  const activeEl = document.activeElement;
+  // Ambil draft lokal (ketikan yang belum disimpan) agar sync cloud tidak menimpa
+  let draft = null;
+  try { const raw = localStorage.getItem('ns3_settingsDraft'); if (raw) draft = JSON.parse(raw); } catch {}
   for (const [id, key] of Object.entries(fields)) {
     const el = document.getElementById(id);
     if (el) {
-      el.value = s[key] || '';
+      // Jangan overwrite field yang sedang diketik user (mencegah teks hilang saat sync)
+      if (el === activeEl) continue;
+      // Prioritaskan draft lokal (ketikan belum tersimpan) atas data cloud
+      el.value = (draft && draft[key] !== undefined) ? draft[key] : (s[key] || '');
       // Auto-resize textarea fields
       if (el.tagName === 'TEXTAREA') {
         setTimeout(() => { el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px'; }, 50);
@@ -3416,9 +3423,25 @@ function saveSettings() {
   for (const [id, key] of Object.entries(fields)) {
     const el = document.getElementById(id); if (el) s[key] = el.value.trim();
   }
+  // Hapus flag draft karena sudah disimpan resmi
+  try { localStorage.removeItem('ns3_settingsDraft'); } catch {}
   DB.set('settings', s);
   renderDashboard();
   toast('Pengaturan disimpan ✓', 'ok');
+}
+
+// Simpan ketikan sementara ke localStorage agar tidak hilang saat sync cloud masuk.
+// Dipanggil dari oninput pada field settings di HTML.
+// Tidak push ke cloud — hanya pelindung sementara sampai user klik Simpan.
+function _saveSettingsDraft() {
+  try {
+    const fields = { settName:'storeName', settAddr:'storeAddress', settPhone:'storePhone', settEmail:'storeEmail', settBank:'bankName', settBankNo:'bankNo', settBankOwner:'bankOwner', settThankyou:'thankyou', settSignLabel:'signLabel', settBankNote:'bankNote' };
+    const draft = {};
+    for (const [id, key] of Object.entries(fields)) {
+      const el = document.getElementById(id); if (el) draft[key] = el.value;
+    }
+    localStorage.setItem('ns3_settingsDraft', JSON.stringify(draft));
+  } catch {}
 }
 
 function uploadLogo(input) {
