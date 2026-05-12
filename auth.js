@@ -75,7 +75,29 @@ const CloudDB = {
       // BUG FIX #3: Tulis langsung ke localStorage (bypass patched DB.set)
       // agar tidak trigger push balik ke cloud (infinite push loop)
       let changed = false;
+      // Kumpulkan logo & signature dulu sebelum proses settings
+      let incomingLogo = undefined, incomingSign = undefined;
       for (const row of data) {
+        if (row.key === 'logo')      { incomingLogo = row.value; continue; }
+        if (row.key === 'signature') { incomingSign = row.value; continue; }
+        if (row.key === 'settings') {
+          // Merge: settings dari cloud (slim) + logo/signature dari cloud/lokal
+          try {
+            const slim = Object.assign({}, row.value);
+            // Logo & signature akan digabungkan setelah loop selesai
+            const current = localStorage.getItem('ns3_settings');
+            const currentObj = current ? JSON.parse(current) : {};
+            // Pertahankan logo/signature lokal dulu, nanti di-override kalau ada dari cloud
+            slim.logo      = currentObj.logo;
+            slim.signature = currentObj.signature;
+            const incoming = JSON.stringify(slim);
+            if (current !== incoming) {
+              localStorage.setItem('ns3_settings', incoming);
+              changed = true;
+            }
+          } catch {}
+          continue;
+        }
         const current = localStorage.getItem('ns3_' + row.key);
         const incoming = JSON.stringify(row.value);
         if (current !== incoming) {
@@ -83,19 +105,23 @@ const CloudDB = {
           changed = true;
         }
       }
-      // Gabungkan kembali ns3_logo & ns3_signature ke dalam object settings di localStorage
-      // agar kode render nota tetap bisa akses via DB.get('settings').logo / .signature
-      const settingsRaw = localStorage.getItem('ns3_settings');
-      const logoRaw     = localStorage.getItem('ns3_logo');
-      const signRaw     = localStorage.getItem('ns3_signature');
-      if (settingsRaw && (logoRaw || signRaw)) {
-        try {
-          const s = JSON.parse(settingsRaw);
-          if (logoRaw)  { const logo = JSON.parse(logoRaw);  if (logo)  s.logo      = logo;  else delete s.logo; }
-          if (signRaw)  { const sign = JSON.parse(signRaw);  if (sign)  s.signature = sign;  else delete s.signature; }
-          localStorage.setItem('ns3_settings', JSON.stringify(s));
-        } catch {}
-      }
+      // Sekarang gabungkan logo & signature ke settings
+      try {
+        const settingsRaw = localStorage.getItem('ns3_settings');
+        const s = settingsRaw ? JSON.parse(settingsRaw) : {};
+        let settingsDirty = false;
+        if (incomingLogo !== undefined) {
+          localStorage.setItem('ns3_logo', JSON.stringify(incomingLogo));
+          if (incomingLogo) s.logo = incomingLogo; else delete s.logo;
+          settingsDirty = true; changed = true;
+        }
+        if (incomingSign !== undefined) {
+          localStorage.setItem('ns3_signature', JSON.stringify(incomingSign));
+          if (incomingSign) s.signature = incomingSign; else delete s.signature;
+          settingsDirty = true; changed = true;
+        }
+        if (settingsDirty) localStorage.setItem('ns3_settings', JSON.stringify(s));
+      } catch {}
       console.log('[NS] pulled', data.length, 'keys, changed:', changed);
       // BUG FIX: render UI kalau ada data yang berubah
       if (changed) {
@@ -112,12 +138,35 @@ const CloudDB = {
   },
   async pushAll() {
     const sb = getSB(); if (!sb || !_authUser) return;
-    const SYNC_KEYS = ['invoices','expenses','settings','products','ekspedisi','logo','signature'];
+    const now = new Date().toISOString();
     const rows = [];
-    for (const k of SYNC_KEYS) {
-      const v = DB.get(k, null);
-      if (v !== null) rows.push({ user_id: _authUser.id, key: k, value: v, updated_at: new Date().toISOString() });
+
+    // --- Settings: pisahkan logo & signature agar tidak melebihi batas JSONB ---
+    const rawSettings = DB.get('settings', null);
+    if (rawSettings !== null) {
+      const slim = Object.assign({}, rawSettings);
+      delete slim.logo; delete slim.signature;
+      rows.push({ user_id: _authUser.id, key: 'settings', value: slim, updated_at: now });
     }
+
+    // --- Logo & Signature: ambil langsung dari localStorage (bukan DB.get) ---
+    try {
+      const logoVal = localStorage.getItem('ns3_logo');
+      if (logoVal) rows.push({ user_id: _authUser.id, key: 'logo', value: JSON.parse(logoVal), updated_at: now });
+    } catch {}
+    try {
+      const signVal = localStorage.getItem('ns3_signature');
+      if (signVal) rows.push({ user_id: _authUser.id, key: 'signature', value: JSON.parse(signVal), updated_at: now });
+    } catch {}
+
+    // --- Key lain ---
+    const OTHER_KEYS = ['invoices','expenses','products','ekspedisi'];
+    for (const k of OTHER_KEYS) {
+      const v = DB.get(k, null);
+      if (v !== null) rows.push({ user_id: _authUser.id, key: k, value: v, updated_at: now });
+    }
+
+    // --- grup_ dan inv_profit_ ---
     for (let i = 0; i < localStorage.length; i++) {
       const k = localStorage.key(i);
       if (!k?.startsWith('ns3_')) continue;
@@ -125,14 +174,19 @@ const CloudDB = {
       if (clean.startsWith('grup_') || clean.startsWith('inv_profit_')) {
         try {
           const v = JSON.parse(localStorage.getItem(k));
-          rows.push({ user_id: _authUser.id, key: clean, value: v, updated_at: new Date().toISOString() });
+          rows.push({ user_id: _authUser.id, key: clean, value: v, updated_at: now });
         } catch {}
       }
     }
+
     if (!rows.length) return;
-    try {
-      await sb.from('userdata').upsert(rows, { onConflict: 'user_id,key' });
-    } catch(e) { console.warn('CloudDB pushAll err', e); }
+    // Push per-row agar satu row gagal tidak blok semua
+    for (const row of rows) {
+      try {
+        const { error } = await sb.from('userdata').upsert(row, { onConflict: 'user_id,key' });
+        if (error) console.warn('CloudDB pushAll row err', row.key, error);
+      } catch(e) { console.warn('CloudDB pushAll row err', row.key, e); }
+    }
   }
 };
 
