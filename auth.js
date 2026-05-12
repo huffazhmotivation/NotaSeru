@@ -406,9 +406,15 @@ async function doDeleteAccount() {
     // Sign out dulu agar tidak ada session aktif
     await sb.auth.signOut().catch(() => {});
     hideSyncBadge();
+    stopRealtimeSync();
+    _stopPolling();
     _authUser = null;
     _dbPatched = false;
+    clearLocalData();
     localStorage.removeItem(GUEST_KEY);
+    if (typeof loadSettingsUI  === 'function') loadSettingsUI();
+    if (typeof renderDashboard === 'function') renderDashboard();
+    if (typeof renderInvList   === 'function') renderInvList();
     updateSettAkunRow();
     resetAuthModal();
     showAuthPage();
@@ -515,8 +521,9 @@ async function doLogout() {
     await sb.auth.signOut().catch(() => {});
   }
   _authUser = null;
-  _dbPatched = false; // reset patch agar sesi baru bisa di-patch ulang
-  clearLocalData(); // hapus semua data lokal agar tidak bocor ke sesi berikutnya
+  _dbPatched = false;
+  _stopPolling();
+  clearLocalData();
   localStorage.removeItem(GUEST_KEY);
   // Sembunyikan header user
   const el = document.getElementById('headerUserEmail');
@@ -582,13 +589,17 @@ function _patchDB() {
 document.addEventListener('visibilitychange', async () => {
   if (document.visibilityState === 'visible' && _authUser) {
     const before = {
-      settings: JSON.stringify(DB.get('settings', {})),
+      settings:  JSON.stringify(DB.get('settings', {})),
+      logo:      localStorage.getItem('ns3_logo'),
+      signature: localStorage.getItem('ns3_signature'),
       products:  JSON.stringify(DB.get('products',  [])),
       ekspedisi: JSON.stringify(DB.get('ekspedisi', []))
     };
     await CloudDB.pullAll().catch(() => {});
-    // Re-render settings & catalog kalau ada perubahan (pullAll sudah handle invoices/expenses)
-    if (before.settings !== JSON.stringify(DB.get('settings', {}))) {
+    const settingsChanged = before.settings  !== JSON.stringify(DB.get('settings', {}))
+                         || before.logo      !== localStorage.getItem('ns3_logo')
+                         || before.signature !== localStorage.getItem('ns3_signature');
+    if (settingsChanged) {
       if (typeof loadSettingsUI  === 'function') loadSettingsUI();
       if (typeof applyAppearance === 'function') applyAppearance();
     }
@@ -646,8 +657,13 @@ async function initAuth() {
       if (event === 'SIGNED_IN' && session?.user && session.user.id !== _authUser?.id) await onSignedIn(session.user);
       if (event === 'SIGNED_OUT') {
         stopRealtimeSync();
+        _stopPolling();
         _authUser = null;
         _dbPatched = false;
+        clearLocalData();
+        if (typeof loadSettingsUI  === 'function') loadSettingsUI();
+        if (typeof renderDashboard === 'function') renderDashboard();
+        if (typeof renderInvList   === 'function') renderInvList();
         resetAuthModal();
         showAuthPage();
         updateSettAkunRow();
