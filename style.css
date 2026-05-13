@@ -28,6 +28,8 @@
   --txt-1:#F9FAFB; --txt-2:#9CA3AF; --txt-3:#4B5563;
   --primary-soft:rgba(99,102,241,.15); --success-soft:rgba(16,185,129,.15);
   --danger-soft:rgba(244,63,94,.15);   --warning-soft:rgba(245,158,11,.15);
+  /* Di dark mode, warna teks semantic harus lebih terang agar kontras di atas bg gelap */
+  --success:#34d399; --danger:#fb7185; --warning:#fbbf24;
   --sh-xs:0 1px 3px rgba(0,0,0,.4); --sh-sm:0 2px 10px rgba(0,0,0,.4); --sh-md:0 4px 24px rgba(0,0,0,.5);
 }
 [data-color="blue"]   {--primary:#3B82F6;--primary-dark:#2563EB;--primary-soft:#EFF6FF;--primary-glow:rgba(59,130,246,.18);}
@@ -417,8 +419,17 @@ img{max-width:100%;display:block;}
 /* Nota card status — lunas & dp pakai warna soft biar tetap terbaca */
 [data-theme="dark"] .inv-card.status-lunas { background: rgba(16,185,129,0.12) !important; border-color: rgba(16,185,129,0.35) !important; }
 [data-theme="dark"] .inv-card.status-dp    { background: rgba(245,158,11,0.12) !important; border-color: rgba(245,158,11,0.35) !important; }
-[data-theme="dark"] .inv-card.status-lunas .inv-card-ic { background: rgba(16,185,129,0.18); color: #34d399; }
-[data-theme="dark"] .inv-card.status-dp    .inv-card-ic { background: rgba(245,158,11,0.18); color: #fbbf24; }
+[data-theme="dark"] .inv-card.status-lunas .inv-card-ic { background: rgba(16,185,129,0.18); color: var(--success); }
+[data-theme="dark"] .inv-card.status-dp    .inv-card-ic { background: rgba(245,158,11,0.18); color: var(--warning); }
+/* Badge warna teks dan background di dark mode */
+[data-theme="dark"] .badge-lunas { background: rgba(16,185,129,0.18) !important; color: var(--success) !important; }
+[data-theme="dark"] .badge-dp    { background: rgba(245,158,11,0.18) !important; color: var(--warning) !important; }
+[data-theme="dark"] .badge-belum { background: rgba(244,63,94,0.18)  !important; color: var(--danger)  !important; }
+/* Teks nama dan amount di card lunas/dp dark mode — tetap kontras */
+[data-theme="dark"] .inv-card.status-lunas .inv-card-name,
+[data-theme="dark"] .inv-card.status-lunas .inv-card-amount { color: var(--txt-1); }
+[data-theme="dark"] .inv-card.status-dp .inv-card-name,
+[data-theme="dark"] .inv-card.status-dp .inv-card-amount    { color: var(--txt-1); }
 
 /* Total grand row */
 [data-theme="dark"] .tot-grand             { background: rgba(245,158,11,0.15) !important; }
