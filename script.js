@@ -736,7 +736,7 @@ function grupBlockHTML(grupKey, members) {
   
   const memberRows = members.map((inv, idx) => {
     const sm = { lunas:'Lunas', dp:'DP', belum:'Belum Bayar' };
-    const statusColor = inv.status === 'lunas' ? '#059669' : inv.status === 'dp' ? '#D97706' : '#9CA3AF';
+    const statusColor = inv.status === 'lunas' ? 'var(--success)' : inv.status === 'dp' ? 'var(--warning)' : 'var(--txt-3)';
     const isFirst = idx === 0;
     const isLast = idx === members.length - 1;
     return `<div class="grup-member-row${isLast ? ' last' : ''}" onclick="viewInv('${inv.id}');event.stopPropagation()">
@@ -3171,9 +3171,9 @@ function renderFinancePage() {
       filtInvs.forEach(i => { byStatus[i.status] = (byStatus[i.status]||0) + (i.grand||0); });
       incList.innerHTML = `
         <div style="display:flex;flex-direction:column;gap:8px">
-          ${byStatus.lunas ? `<div style="display:flex;justify-content:space-between;align-items:center;padding:11px 14px;background:#ECFDF5;border:1px solid #6EE7B7;border-radius:var(--r-md)"><div style="font-size:13px;font-weight:600;color:#059669">✓ Lunas</div><div style="font-size:13px;font-weight:700;color:#059669">${fmtRp(byStatus.lunas)}</div></div>` : ''}
-          ${byStatus.dp ? `<div style="display:flex;justify-content:space-between;align-items:center;padding:11px 14px;background:#FFFBEB;border:1px solid #FCD34D;border-radius:var(--r-md)"><div style="font-size:13px;font-weight:600;color:#D97706">◐ DP / Uang Muka</div><div style="font-size:13px;font-weight:700;color:#D97706">${fmtRp(byStatus.dp)}</div></div>` : ''}
-          ${byStatus.belum ? `<div style="display:flex;justify-content:space-between;align-items:center;padding:11px 14px;background:#FFF1F2;border:1px solid #FECDD3;border-radius:var(--r-md)"><div style="font-size:13px;font-weight:600;color:#E11D48">✗ Belum Bayar</div><div style="font-size:13px;font-weight:700;color:#E11D48">${fmtRp(byStatus.belum)}</div></div>` : ''}
+          ${byStatus.lunas ? `<div style="display:flex;justify-content:space-between;align-items:center;padding:11px 14px;background:var(--success-soft);border:1px solid rgba(16,185,129,0.35);border-radius:var(--r-md)"><div style="font-size:13px;font-weight:600;color:var(--success)">✓ Lunas</div><div style="font-size:13px;font-weight:700;color:var(--success)">${fmtRp(byStatus.lunas)}</div></div>` : ''}
+          ${byStatus.dp ? `<div style="display:flex;justify-content:space-between;align-items:center;padding:11px 14px;background:var(--warning-soft);border:1px solid rgba(245,158,11,0.35);border-radius:var(--r-md)"><div style="font-size:13px;font-weight:600;color:var(--warning)">◐ DP / Uang Muka</div><div style="font-size:13px;font-weight:700;color:var(--warning)">${fmtRp(byStatus.dp)}</div></div>` : ''}
+          ${byStatus.belum ? `<div style="display:flex;justify-content:space-between;align-items:center;padding:11px 14px;background:var(--danger-soft);border:1px solid rgba(244,63,94,0.35);border-radius:var(--r-md)"><div style="font-size:13px;font-weight:600;color:var(--danger)">✗ Belum Bayar</div><div style="font-size:13px;font-weight:700;color:var(--danger)">${fmtRp(byStatus.belum)}</div></div>` : ''}
           <div style="font-size:11px;color:var(--txt-3);text-align:center;margin-top:2px">${filtInvs.length} nota · Lihat detail di tab Nota</div>
         </div>`;
     }
