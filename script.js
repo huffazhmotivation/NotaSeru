@@ -26,6 +26,11 @@ const DB = {
 
 // ── Boot ───────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
+  // Restore the user's standing default nota template/color so it keeps
+  // applying until they actively choose a different one.
+  const _bootSettings = DB.get('settings', {});
+  if (_bootSettings.defaultTemplate) curTemplate = _bootSettings.defaultTemplate;
+  if (_bootSettings.defaultTplColor) curTplColor = _bootSettings.defaultTplColor;
   applyAppearance();
   setGreeting();
   initDates();
@@ -105,7 +110,7 @@ function restoreFormDraft(draft) {
   if (draft.ekspedisi) document.getElementById('ekspedisiInput').value = draft.ekspedisi;
   document.getElementById('dpInput').value = draft.dp || '';
   document.getElementById('invNotes').value = draft.notes || '';
-  if (draft.template) selectTemplate(draft.template);
+  if (draft.template) selectTemplate(draft.template, null, false);
   items = draft.items && draft.items.length ? draft.items : [{ id: Date.now(), name: '', qty: 1, price: 0 }];
   const firstDiscItem = items.find(i => i.discItemType);
   curDiscItemType = firstDiscItem ? firstDiscItem.discItemType : 'persen';
@@ -143,7 +148,7 @@ function nav(page) {
   if (page === 'income') renderIncomePage();
   if (page === 'expense') renderExpensePage();
   if (page === 'dashboard') renderDashboard();
-  if (page === 'settings') { renderCatalogList(); renderEkspedisiList(); selectTemplate(curTemplate || 'classic'); selectTplColor(curTplColor || 'amber'); }
+  if (page === 'settings') { renderCatalogList(); renderEkspedisiList(); selectTemplate(curTemplate || 'classic', null, false); selectTplColor(curTplColor || 'amber', false); }
   const el = document.getElementById('page-' + page);
   if (el) { el.classList.add('active'); curPage = page; window.scrollTo(0,0); }
 }
@@ -263,7 +268,7 @@ function resetForm() {
   const eSel = document.getElementById('ekspedisiSelect'); if (eSel) eSel.value = '';
   document.getElementById('dpInput').value = '';
   document.getElementById('invNotes').value = '';
-  selectTemplate(curTemplate || 'classic');
+  selectTemplate(curTemplate || 'classic', null, false);
   genInvNum();
   renderItems();
   recalc();
@@ -333,7 +338,7 @@ function renderItems() {
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
         <div>
           <div style="font-size:10px;font-weight:700;color:var(--txt-3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">Qty</div>
-          <input type="number" class="form-input" style="padding:10px 12px;font-size:13px" min="1" placeholder="Qty" value="" onfocus="if(!this.value)this.value=''" oninput="updItem(${item.id},'qty',this.value)" onblur="if(!this.value||parseInt(this.value)<1){this.value='';updItem(${item.id},'qty',1);}">
+          <input type="number" class="form-input" style="padding:10px 12px;font-size:13px" min="1" placeholder="Qty" value="${item.qty || 1}" oninput="updItem(${item.id},'qty',this.value)" onblur="if(!this.value||parseInt(this.value)<1){this.value=1;updItem(${item.id},'qty',1);}">
         </div>
         <div>
           <div style="font-size:10px;font-weight:700;color:var(--txt-3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">Harga</div>
@@ -898,7 +903,7 @@ function invCardHTML(inv) {
   const isSelected = selectMode && selectedIds.has(inv.id);
   return `<div class="inv-swipe-wrap" id="swipe-wrap-${inv.id}" style="margin-bottom:2px">
     <div class="inv-swipe-actions-left" id="swipe-actions-left-${inv.id}">
-      <button class="inv-swipe-btn" style="background:#6366F1" onclick="openProfitDrawer('${inv.id}',event)">
+      <button class="inv-swipe-btn" style="background:var(--primary)" onclick="openProfitDrawer('${inv.id}',event)">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>Profit
       </button>
     </div>
@@ -1221,7 +1226,7 @@ function editInv(id) {
   const eInp = document.getElementById('ekspedisiInput'); if (eInp) eInp.value = inv.ekspedisi || '';
   document.getElementById('dpInput').value = inv.dp > 0 ? fmtRp(inv.dp) : '';
   document.getElementById('invNotes').value = inv.notes || '';
-  if (inv.template) selectTemplate(inv.template);
+  if (inv.template) selectTemplate(inv.template, null, false);
   items = JSON.parse(JSON.stringify(inv.items || [{ id: Date.now(), name:'', qty:1, price:0 }]));
   // Restore per-item discount type from first item that has one
   const firstDiscItem = items.find(i => i.discItemType);
@@ -1646,9 +1651,15 @@ function saveGrupData() {
 }
 
 // ── Template helpers ────────────────────────
-function selectTemplate(name, el) {
+// persist=true (default) saves this as the user's standing default template,
+// used whenever a template is actively picked (tap on a template card).
+// Pass persist=false when just reflecting a value that's already known
+// (restoring a draft, opening an existing invoice, or re-syncing the UI),
+// so opening an old invoice never silently changes the user's default.
+function selectTemplate(name, el, persist = true) {
   curTemplate = name;
   document.querySelectorAll('.tpl-card').forEach(c => c.classList.toggle('active', c.dataset.tpl === name));
+  if (persist) { const s = DB.get('settings', {}); s.defaultTemplate = name; DB.set('settings', s); }
 }
 
 // Template color palette
@@ -1665,9 +1676,10 @@ const TPL_COLORS = {
   gray:   { main:'#374151', dark:'#1F2937', darker:'#111827', darkest:'#030712', soft:'#F3F4F6', softer:'#F9FAFB', text:'#F3F4F6', border:'#E5E7EB' },
 };
 
-function selectTplColor(color) {
+function selectTplColor(color, persist = true) {
   curTplColor = color;
   document.querySelectorAll('.tpl-color-dot').forEach(d => d.classList.toggle('active', d.dataset.color === color));
+  if (persist) { const s = DB.get('settings', {}); s.defaultTplColor = color; DB.set('settings', s); }
 }
 
 function initDiscToggle() {
@@ -3193,7 +3205,7 @@ function renderFinancePage() {
           <div style="width:38px;height:38px;border-radius:var(--r-sm);background:var(--danger-soft);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">${catIco[e.cat]||'🗂️'}</div>
           <div style="flex:1;min-width:0">
             <div style="font-size:13px;font-weight:600;color:var(--txt-1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${xss(e.name)}</div>
-            <div style="font-size:11px;color:var(--txt-3)">${e.date} · ${xss(e.cat||'lainnya')}${e.sourceType==='nota'?' · <span style=\"color:#6366F1;font-weight:600\">Dari Nota</span>':e.sourceType==='grup'?' · <span style=\"color:#7C3AED;font-weight:600\">Dari Grup</span>':''}</div>
+            <div style="font-size:11px;color:var(--txt-3)">${e.date} · ${xss(e.cat||'lainnya')}${e.sourceType==='nota'?' · <span style=\"color:var(--primary);font-weight:600\">Dari Nota</span>':e.sourceType==='grup'?' · <span style=\"color:#5B4B8A;font-weight:600\">Dari Grup</span>':''}</div>
           </div>
           <div style="font-size:14px;font-weight:700;color:var(--danger);flex-shrink:0">-${fmtRp(e.amount)}</div>
         </div>`).join('');

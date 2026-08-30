@@ -7,7 +7,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="NotaSeru">
-  <meta name="theme-color" content="#6366F1">
+  <meta name="theme-color" content="#1E3A5F">
   <meta name="description" content="Aplikasi Invoice & Keuangan Profesional">
   <title>NotaSeru</title>
   <link rel="manifest" href="manifest.json">
@@ -421,27 +421,27 @@
 
   <!-- Summary cards: penuh berwarna, glow di tepi, teks hitam semua -->
   <div style="padding:0 16px 12px;display:grid;grid-template-columns:1fr 1fr;gap:10px">
-    <!-- Omset: hijau -->
-    <div class="fin-card-green" style="background:#dcfce7;border-radius:14px;padding:16px 14px 13px;box-shadow:0 0 0 0 #86efac,0 4px 18px rgba(34,197,94,0.22)">
-      <div style="font-size:9px;font-weight:800;color:#166534;text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px">Omset</div>
-      <div style="font-size:17px;font-weight:800;color:#14532d;line-height:1.1" id="finOmset">Rp 0</div>
-      <div style="font-size:10px;color:#4ade80;margin-top:4px;font-weight:600" id="finOmsetNote">0 nota</div>
+    <!-- Omset -->
+    <div class="fin-card fin-card-green">
+      <div class="fin-card-lbl">Omset</div>
+      <div class="fin-card-val" id="finOmset">Rp 0</div>
+      <div class="fin-card-note" id="finOmsetNote">0 nota</div>
     </div>
-    <!-- Laba: biru -->
-    <div class="fin-card-blue" style="background:#dbeafe;border-radius:14px;padding:16px 14px 13px;box-shadow:0 4px 18px rgba(59,130,246,0.22)">
-      <div style="font-size:9px;font-weight:800;color:#1e3a8a;text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px">Laba Bersih</div>
-      <div style="font-size:17px;font-weight:800;color:#1e3a8a;line-height:1.1" id="finLaba">Rp 0</div>
-      <div style="font-size:10px;color:#60a5fa;margin-top:4px;font-weight:600" id="finLabaNote">–</div>
+    <!-- Laba bersih -->
+    <div class="fin-card fin-card-blue">
+      <div class="fin-card-lbl">Laba Bersih</div>
+      <div class="fin-card-val" id="finLaba">Rp 0</div>
+      <div class="fin-card-note" id="finLabaNote">–</div>
     </div>
-    <!-- Pemasukan: teal -->
-    <div class="fin-card-teal" style="background:#ccfbf1;border-radius:14px;padding:16px 14px 13px;box-shadow:0 4px 18px rgba(20,184,166,0.22)">
-      <div style="font-size:9px;font-weight:800;color:#134e4a;text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px">Pemasukan</div>
-      <div style="font-size:16px;font-weight:800;color:#134e4a;line-height:1.1" id="finIncome">Rp 0</div>
+    <!-- Pemasukan -->
+    <div class="fin-card fin-card-teal">
+      <div class="fin-card-lbl">Pemasukan</div>
+      <div class="fin-card-val" id="finIncome">Rp 0</div>
     </div>
-    <!-- Pengeluaran: merah/rose -->
-    <div class="fin-card-red" style="background:#ffe4e6;border-radius:14px;padding:16px 14px 13px;box-shadow:0 4px 18px rgba(244,63,94,0.22)">
-      <div style="font-size:9px;font-weight:800;color:#881337;text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px">Pengeluaran</div>
-      <div style="font-size:16px;font-weight:800;color:#881337;line-height:1.1" id="finExpense">Rp 0</div>
+    <!-- Pengeluaran -->
+    <div class="fin-card fin-card-red">
+      <div class="fin-card-lbl">Pengeluaran</div>
+      <div class="fin-card-val" id="finExpense">Rp 0</div>
     </div>
   </div>
 
@@ -773,7 +773,7 @@
           <div class="sett-content">
             <div class="sett-label">Warna Tema</div>
             <div class="color-row" id="colorPicker">
-              <div class="color-opt active" style="background:#6366F1" data-c="indigo" onclick="setColor('indigo',this)"></div>
+              <div class="color-opt active" style="background:#1E3A5F" data-c="indigo" onclick="setColor('indigo',this)"></div>
               <div class="color-opt" style="background:#3B82F6" data-c="blue" onclick="setColor('blue',this)"></div>
               <div class="color-opt" style="background:#059669" data-c="green" onclick="setColor('green',this)"></div>
               <div class="color-opt" style="background:#EA580C" data-c="orange" onclick="setColor('orange',this)"></div>

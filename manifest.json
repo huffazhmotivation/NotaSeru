@@ -4,8 +4,8 @@
   "description": "Aplikasi Invoice & Keuangan Profesional",
   "start_url": "./index.html",
   "display": "standalone",
-  "background_color": "#1b84ff",
-  "theme_color": "#1b84ff",
+  "background_color": "#F3F1EB",
+  "theme_color": "#1E3A5F",
   "orientation": "portrait",
   "icons": [
     {
