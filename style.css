@@ -56,14 +56,14 @@ svg{stroke-width:1.7;}
 #finOmset,#finLaba,#finIncome,#finExpense{font-variant-numeric:tabular-nums;}
 
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
-html{font-size:16px;-webkit-text-size-adjust:100%;overscroll-behavior-y:contain;background:var(--bg);}
-body{font-family:var(--font);background:var(--bg);color:var(--txt-1);min-height:100vh;min-height:-webkit-fill-available;overflow-x:hidden;-webkit-font-smoothing:antialiased;overscroll-behavior-y:contain;}
+html{font-size:16px;-webkit-text-size-adjust:100%;overscroll-behavior-y:none;background:var(--bg);}
+body{font-family:var(--font);background:var(--bg);color:var(--txt-1);min-height:100vh;min-height:-webkit-fill-available;overflow-x:hidden;-webkit-font-smoothing:antialiased;overscroll-behavior-y:none;}
 input,textarea,select,button{font-family:var(--font);}
 a{text-decoration:none;color:inherit;}
 img{max-width:100%;display:block;}
 ::-webkit-scrollbar{width:0;}
 
-#app{max-width:1080px;margin:0 auto;min-height:100vh;min-height:-webkit-fill-available;background:transparent;position:relative;overscroll-behavior-y:contain;}
+#app{max-width:1080px;margin:0 auto;min-height:100vh;min-height:-webkit-fill-available;background:transparent;position:relative;overscroll-behavior-y:none;}
 
 /* Boot splash — hides the very first render (dashboard content painting,
    auth/session check) so nothing flashes behind the login popup. */
