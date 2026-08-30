@@ -1223,7 +1223,11 @@ function openInvAction(id) {
 
 function viewInv(id) {
   const inv = DB.get('invoices', []).find(i => i.id === id); if (!inv) return;
-  curInvId = id; curTplColor = inv.tplColor || 'amber'; buildPreview(inv); nav('preview');
+  // Cukup tampilkan nota apa adanya sesuai template & warna yang tersimpan
+  // di nota itu sendiri — TIDAK mengubah curTplColor global, supaya
+  // preview satu nota lama tidak "mencemari" nota baru yang akan dibuat
+  // setelahnya dengan warna/template yang salah.
+  curInvId = id; buildPreview(inv); nav('preview');
 }
 
 function editInv(id) {
@@ -1242,7 +1246,11 @@ function editInv(id) {
   const eInp = document.getElementById('ekspedisiInput'); if (eInp) eInp.value = inv.ekspedisi || '';
   document.getElementById('dpInput').value = inv.dp > 0 ? fmtRp(inv.dp) : '';
   document.getElementById('invNotes').value = inv.notes || '';
-  if (inv.template) selectTemplate(inv.template, null, false);
+  // BUG FIX: jangan timpa curTemplate/curTplColor dengan template lama milik
+  // nota ini. Template nota sekarang selalu mengikuti pilihan TERBARU di
+  // Pengaturan (curTemplate), bukan snapshot lama — supaya saat edit/duplikat
+  // lalu disimpan (walau tanpa perubahan apa pun), tampilannya otomatis ikut
+  // template terkini, bukan "terkunci" ke template saat nota pertama dibuat.
   items = JSON.parse(JSON.stringify(inv.items || [{ id: Date.now(), name:'', qty:1, price:0 }]));
   // Restore per-item discount type from first item that has one
   const firstDiscItem = items.find(i => i.discItemType);

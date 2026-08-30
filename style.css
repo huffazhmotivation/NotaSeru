@@ -757,38 +757,33 @@ img{max-width:100%;display:block;}
 
 /* ============================================
    GLASS LAYER — frosted glassmorphism skin
-   Ambient blurred color blobs sit fixed behind the app; surfaces (nav,
-   header, sheets, cards) become translucent + backdrop-blurred so the
-   blobs glow through, giving the "kekinian" frosted look. Layout,
-   spacing and interactions from above are untouched.
+   Surfaces (nav, header, sheets, settings cards) get a translucent,
+   backdrop-blurred "frosted glass" look for a modern feel. Nota cards
+   (.inv-card) are kept fully opaque on purpose: each one has colored
+   swipe-action buttons hidden directly behind it, and translucency let
+   those colors bleed through as a distracting rainbow tint — so they're
+   excluded from the frost and stay solid, matching the original design.
    ============================================ */
 :root{
-  --glass-bg:rgba(255,255,255,.62);
-  --glass-bg-strong:rgba(255,255,255,.78);
+  --glass-bg:rgba(255,255,255,.72);
+  --glass-bg-strong:rgba(255,255,255,.86);
   --glass-border:rgba(255,255,255,.7);
   --glass-shadow:0 8px 32px rgba(20,26,22,.10);
-  --glass-blur:blur(22px) saturate(180%);
+  --glass-blur:blur(18px) saturate(160%);
 }
 [data-theme="dark"]{
-  --glass-bg:rgba(26,31,25,.58);
-  --glass-bg-strong:rgba(26,31,25,.74);
+  --glass-bg:rgba(26,31,25,.66);
+  --glass-bg-strong:rgba(26,31,25,.8);
   --glass-border:rgba(255,255,255,.08);
   --glass-shadow:0 8px 32px rgba(0,0,0,.45);
 }
 
-#glassBg{position:fixed;inset:0;z-index:0;overflow:hidden;pointer-events:none;}
-#glassBg span{position:absolute;border-radius:50%;filter:blur(60px);opacity:.55;}
-#glassBg span:nth-child(1){width:280px;height:280px;top:-60px;left:-60px;background:var(--primary);}
-#glassBg span:nth-child(2){width:240px;height:240px;top:220px;right:-80px;background:#5A5AF0;opacity:.28;}
-#glassBg span:nth-child(3){width:260px;height:260px;bottom:-60px;left:30%;background:#F2A900;opacity:.22;}
-[data-theme="dark"] #glassBg span{opacity:.22;}
-
-#app{background:transparent;position:relative;z-index:1;}
-html,body{background:var(--bg);}
-
-/* Frosted surfaces */
-.top-header,.bottom-nav,.sheet,.sett-card,.sp,.qm,.laba-card,.inv-card,
-.auth-box,.header-user-row,.toast,#colorPicker,.grup-block-header,.grup-block,
+/* Frosted surfaces — .toast is intentionally excluded: it needs a solid,
+   high-contrast background (dark/green/red/amber) to stay readable as a
+   status message, especially in light mode where a translucent white
+   toast becomes nearly invisible against the light page background. */
+.top-header,.bottom-nav,.sheet,.sett-card,.sp,.laba-card,
+.auth-box,.header-user-row,#colorPicker,.grup-block-header,.grup-block,
 .stat-pills .sp{
   background:var(--glass-bg)!important;
   -webkit-backdrop-filter:var(--glass-blur);
@@ -830,8 +825,4 @@ html,body{background:var(--bg);}
 /* Sheet handle + inputs stay crisp against the frosted sheet body */
 .sheet .form-input,.sheet input,.sheet textarea,.sheet select{
   background:var(--bg-input);
-}
-
-@media (max-width:480px){
-  #glassBg span{filter:blur(46px);}
 }
