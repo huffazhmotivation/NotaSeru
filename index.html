@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="id" data-theme="light" data-color="indigo">
+<html lang="id" data-theme="light" data-color="green">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
@@ -7,7 +7,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="NotaSeru">
-  <meta name="theme-color" content="#1E3A5F">
+  <meta name="theme-color" content="#0E9F6E">
   <meta name="description" content="Aplikasi Invoice & Keuangan Profesional">
   <title>NotaSeru</title>
   <link rel="manifest" href="manifest.json">
@@ -20,6 +20,14 @@
   <script src="config.js"></script>
 </head>
 <body>
+<!-- BOOT SPLASH — covers the app until first render + auth check are done,
+     so no dashboard content flashes behind the login popup on first open -->
+<div id="bootSplash">
+  <div class="boot-logo">
+    <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+  </div>
+  <div class="boot-spinner"></div>
+</div>
 <div id="app">
 <!-- AUTH PAGE -->
 <div id="authPage" style="display:none">
@@ -773,10 +781,12 @@
           <div class="sett-content">
             <div class="sett-label">Warna Tema</div>
             <div class="color-row" id="colorPicker">
-              <div class="color-opt active" style="background:#1E3A5F" data-c="indigo" onclick="setColor('indigo',this)"></div>
-              <div class="color-opt" style="background:#3B82F6" data-c="blue" onclick="setColor('blue',this)"></div>
-              <div class="color-opt" style="background:#059669" data-c="green" onclick="setColor('green',this)"></div>
-              <div class="color-opt" style="background:#EA580C" data-c="orange" onclick="setColor('orange',this)"></div>
+              <div class="color-opt active" style="background:#0E9F6E" data-c="green" onclick="setColor('green',this)"></div>
+              <div class="color-opt" style="background:#2E7BF6" data-c="blue" onclick="setColor('blue',this)"></div>
+              <div class="color-opt" style="background:#FF7A2E" data-c="orange" onclick="setColor('orange',this)"></div>
+              <div class="color-opt" style="background:#F14E93" data-c="pink" onclick="setColor('pink',this)"></div>
+              <div class="color-opt" style="background:#8B5CF6" data-c="purple" onclick="setColor('purple',this)"></div>
+              <div class="color-opt" style="background:#0FB8B0" data-c="teal" onclick="setColor('teal',this)"></div>
             </div>
           </div>
         </div>

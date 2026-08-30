@@ -49,6 +49,15 @@ document.addEventListener('DOMContentLoaded', async () => {
   } catch(e) {
     console.error('[NS] boot error', e);
     loadSettingsUI();
+  } finally {
+    // BUG FIX: sembunyikan boot splash setelah semua render + cek sesi login
+    // selesai, apa pun hasilnya — supaya tidak ada teks/isi dashboard yang
+    // kelihatan sekilas di belakang popup login saat pertama buka app.
+    const splash = document.getElementById('bootSplash');
+    if (splash) {
+      splash.classList.add('boot-hide');
+      setTimeout(() => splash.remove(), 300);
+    }
   }
 });
 

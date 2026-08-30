@@ -1,12 +1,12 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="384" height="384" viewBox="0 0 340 340">
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="170" y2="340" gradientUnits="userSpaceOnUse">
-      <stop offset="0%" stop-color="#2992ff"/>
-      <stop offset="100%" stop-color="#0b63ff"/>
+      <stop offset="0%" stop-color="#22C48A"/>
+      <stop offset="100%" stop-color="#0B7A55"/>
     </linearGradient>
     <linearGradient id="ngrad" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#1680ff"/>
-      <stop offset="100%" stop-color="#0b63ff"/>
+      <stop offset="0%" stop-color="#12B37A"/>
+      <stop offset="100%" stop-color="#0B7A55"/>
     </linearGradient>
     <filter id="pshadow" x="-20%" y="-10%" width="150%" height="150%">
       <feDropShadow dx="0" dy="14" stdDeviation="15" flood-color="#000" flood-opacity="0.10"/>
@@ -26,17 +26,17 @@
   <!-- Paper fold bottom-right: clip-path polygon(100% 0, 0 100%, 100% 100%) on 52x52 at bottom-right of paper -->
   <!-- Bottom-right of paper: x=92+156=248, y=77+186=263 -->
   <!-- fold 52x52: top-left=196,211 -->
-  <polygon points="248,211 248,263 196,263" fill="#d9e8ff" opacity="0.9"/>
+  <polygon points="248,211 248,263 196,263" fill="#D6F5E8" opacity="0.9"/>
 
   <!-- Binding holes: cx=92-12+12=92 (center at paper left edge), r=12 -->
-  <circle cx="92" cy="111" r="12" fill="#1778ff" opacity="0.6"/>
-  <circle cx="92" cy="158" r="12" fill="#1778ff" opacity="0.6"/>
-  <circle cx="92" cy="205" r="12" fill="#1778ff" opacity="0.6"/>
+  <circle cx="92" cy="111" r="12" fill="#0E9F6E" opacity="0.6"/>
+  <circle cx="92" cy="158" r="12" fill="#0E9F6E" opacity="0.6"/>
+  <circle cx="92" cy="205" r="12" fill="#0E9F6E" opacity="0.6"/>
 
   <!-- Line 1: x=130, y=109, w=84, h=10, rx=5 -->
-  <rect x="130" y="109" width="84" height="10" rx="5" fill="#a9c8ff"/>
+  <rect x="130" y="109" width="84" height="10" rx="5" fill="#9FE6C9"/>
   <!-- Line 2: x=130, y=135, w=56, h=10, rx=5 -->
-  <rect x="130" y="135" width="56" height="10" rx="5" fill="#a9c8ff"/>
+  <rect x="130" y="135" width="56" height="10" rx="5" fill="#9FE6C9"/>
 
   <!-- N logo: box x=142, y=156.6, w=56, h=64 -->
   <!-- Left stem -->
