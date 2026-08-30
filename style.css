@@ -820,6 +820,22 @@ img{max-width:100%;display:block;}
   transform:translateX(-50%);
   -webkit-transform:translateX(-50%);
 }
+.bottom-nav::after{
+  /* Garis tipis bercahaya di tepi atas pill. Pakai warna primary (bukan
+     putih) khusus supaya tetap kelihatan jelas di mode terang — highlight
+     putih polos nyaris invisible di atas kartu putih/terang. */
+  content:'';
+  position:absolute;
+  top:0;left:18px;right:18px;
+  height:1px;
+  border-radius:1px;
+  background:linear-gradient(90deg,transparent,var(--primary) 50%,transparent);
+  opacity:.65;
+  box-shadow:0 0 6px 1px var(--primary-glow),0 0 1px var(--primary);
+  pointer-events:none;
+  z-index:1;
+}
+[data-theme="dark"] .bottom-nav::after{opacity:.85;}
 .bottom-nav::before{
   content:'';
   position:absolute;
