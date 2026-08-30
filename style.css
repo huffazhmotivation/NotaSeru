@@ -792,35 +792,30 @@ img{max-width:100%;display:block;}
   backdrop-filter:var(--glass-blur);
   border-color:var(--glass-border)!important;
 }
-/* .bottom-nav: keep centering transform intact (translateX(-50%) from the
-   base rule above must NOT be overwritten here — only add to it).
-   The frosted blur lives on a ::before pseudo-element clipped with
-   overflow:hidden + the same border-radius, instead of applying
-   backdrop-filter directly on an element that also carries a box-shadow
-   and sits pinned to the viewport edge — that specific combination is
-   what produced the dark smeared "fog" artifact underneath the pill in
-   Chrome/Safari. Splitting it into a clipped inner layer fixes it. */
 .bottom-nav{
   border-color:var(--glass-border)!important;
   background:transparent!important;
   position:fixed;
   overflow:visible;
-  box-shadow:0 10px 24px rgba(20,26,22,.14),0 1px 0 rgba(255,255,255,.4) inset;
-  transform:translateX(-50%) translateZ(0);
-  -webkit-transform:translateX(-50%) translateZ(0);
+  /* No outer dark drop-shadow anymore — that dark, blurred box-shadow is
+     what was producing the "black fog" underneath the pill once combined
+     with the blur layer below. A thin inset highlight is enough to lift
+     the pill off the page without any dark blur. */
+  box-shadow:0 1px 0 rgba(255,255,255,.5) inset;
+  transform:translateX(-50%);
+  -webkit-transform:translateX(-50%);
 }
 .bottom-nav::before{
   content:'';
   position:absolute;
   inset:0;
   border-radius:inherit;
-  overflow:hidden;
   background:var(--glass-bg);
   -webkit-backdrop-filter:var(--glass-blur);
   backdrop-filter:var(--glass-blur);
   z-index:-1;
 }
-[data-theme="dark"] .bottom-nav{box-shadow:0 10px 24px rgba(0,0,0,.35),0 1px 0 rgba(255,255,255,.08) inset;}
+[data-theme="dark"] .bottom-nav{box-shadow:0 1px 0 rgba(255,255,255,.12) inset;}
 .top-header{box-shadow:0 1px 0 var(--glass-border) inset;}
 .sheet{box-shadow:0 -8px 40px rgba(20,26,22,.14);}
 
