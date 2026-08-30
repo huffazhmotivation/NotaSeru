@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="id" data-theme="light" data-color="green">
+<html lang="id" data-theme="light" data-color="blue">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
@@ -7,7 +7,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="NotaSeru">
-  <meta name="theme-color" content="#0E9F6E">
+  <meta name="theme-color" content="#2E7BF6">
   <meta name="description" content="Aplikasi Invoice & Keuangan Profesional">
   <title>NotaSeru</title>
   <link rel="manifest" href="manifest.json">
@@ -20,6 +20,15 @@
   <script src="config.js"></script>
 </head>
 <body>
+<!-- AMBIENT GLOW ORBS — fixed, blurred color blobs sitting behind everything.
+     They give the frosted-glass surfaces (bottom-nav, header, sheets) actual
+     colorful light to pick up through backdrop-filter, which is what makes
+     the glass effect read as "glass" instead of plain blurred gray/white. -->
+<div class="bg-orbs" aria-hidden="true">
+  <span class="bg-orb bg-orb-1"></span>
+  <span class="bg-orb bg-orb-2"></span>
+  <span class="bg-orb bg-orb-3"></span>
+</div>
 <!-- BOOT SPLASH — covers the app until first render + auth check are done,
      so no dashboard content flashes behind the login popup on first open -->
 <div id="bootSplash">
@@ -802,8 +811,8 @@
           <div class="sett-content">
             <div class="sett-label">Warna Tema</div>
             <div class="color-row" id="colorPicker">
-              <div class="color-opt active" style="background:#0E9F6E" data-c="green" onclick="setColor('green',this)"></div>
-              <div class="color-opt" style="background:#2E7BF6" data-c="blue" onclick="setColor('blue',this)"></div>
+              <div class="color-opt" style="background:#0E9F6E" data-c="green" onclick="setColor('green',this)"></div>
+              <div class="color-opt active" style="background:#2E7BF6" data-c="blue" onclick="setColor('blue',this)"></div>
               <div class="color-opt" style="background:#FF7A2E" data-c="orange" onclick="setColor('orange',this)"></div>
               <div class="color-opt" style="background:#F14E93" data-c="pink" onclick="setColor('pink',this)"></div>
               <div class="color-opt" style="background:#8B5CF6" data-c="purple" onclick="setColor('purple',this)"></div>

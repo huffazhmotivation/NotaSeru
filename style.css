@@ -63,7 +63,7 @@ a{text-decoration:none;color:inherit;}
 img{max-width:100%;display:block;}
 ::-webkit-scrollbar{width:0;}
 
-#app{max-width:1080px;margin:0 auto;min-height:100vh;min-height:-webkit-fill-available;background:var(--bg);position:relative;overscroll-behavior-y:contain;}
+#app{max-width:1080px;margin:0 auto;min-height:100vh;min-height:-webkit-fill-available;background:transparent;position:relative;overscroll-behavior-y:contain;}
 
 /* Boot splash — hides the very first render (dashboard content painting,
    auth/session check) so nothing flashes behind the login popup. */
@@ -790,7 +790,17 @@ img{max-width:100%;display:block;}
   backdrop-filter:var(--glass-blur);
   border-color:var(--glass-border)!important;
 }
-.bottom-nav{box-shadow:var(--glass-shadow),0 1px 0 rgba(255,255,255,.4) inset;}
+.bottom-nav{
+  box-shadow:0 10px 24px rgba(20,26,22,.14),0 1px 0 rgba(255,255,255,.4) inset;
+  /* Forces its own compositing layer so the backdrop-filter blur is
+     calculated cleanly instead of smearing into a dark halo underneath
+     the pill near the bottom edge of the viewport (a known Chrome/Safari
+     backdrop-filter artifact on fixed elements sitting close to the edge). */
+  transform:translateZ(0);
+  -webkit-transform:translateZ(0);
+  isolation:isolate;
+}
+[data-theme="dark"] .bottom-nav{box-shadow:0 10px 24px rgba(0,0,0,.35),0 1px 0 rgba(255,255,255,.08) inset;}
 .top-header{box-shadow:0 1px 0 var(--glass-border) inset;}
 .sheet{box-shadow:0 -8px 40px rgba(20,26,22,.14);}
 
@@ -826,3 +836,28 @@ img{max-width:100%;display:block;}
 .sheet .form-input,.sheet input,.sheet textarea,.sheet select{
   background:var(--bg-input);
 }
+
+/* ── Ambient glow orbs ──────────────────────────
+   Soft, blurred color blobs fixed behind the whole app. Their only job is
+   to give the frosted-glass surfaces (bottom-nav, header, sheets) some
+   actual color to pick up through backdrop-filter — plain gray/white blur
+   reads as "foggy", colored blur reads as "glass". Kept faint and mostly
+   near the edges so they never fight with page content. */
+.bg-orbs{position:fixed;inset:0;overflow:hidden;z-index:0;pointer-events:none;}
+.bg-orb{position:absolute;border-radius:50%;filter:blur(64px);opacity:.5;}
+.bg-orb-1{
+  width:320px;height:320px;left:-90px;top:-70px;
+  background:radial-gradient(circle,var(--primary) 0%,transparent 72%);
+}
+.bg-orb-2{
+  width:280px;height:280px;right:-70px;top:38%;
+  background:radial-gradient(circle,#2E7BF6 0%,transparent 72%);
+}
+.bg-orb-3{
+  width:300px;height:300px;left:12%;bottom:-120px;
+  background:radial-gradient(circle,#8B5CF6 0%,transparent 72%);
+}
+[data-theme="dark"] .bg-orb{opacity:.38;filter:blur(70px);}
+
+/* Everything else needs to sit above the orb layer */
+#app{position:relative;z-index:1;}
