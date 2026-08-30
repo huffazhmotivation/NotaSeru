@@ -56,14 +56,14 @@ svg{stroke-width:1.7;}
 #finOmset,#finLaba,#finIncome,#finExpense{font-variant-numeric:tabular-nums;}
 
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
-html{font-size:16px;-webkit-text-size-adjust:100%;overscroll-behavior-y:none;background:var(--bg);min-height:100%;min-height:100dvh;}
-body{font-family:var(--font);background:var(--bg);color:var(--txt-1);min-height:100vh;min-height:-webkit-fill-available;min-height:100dvh;overflow-x:hidden;-webkit-font-smoothing:antialiased;overscroll-behavior-y:none;}
+html{font-size:16px;-webkit-text-size-adjust:100%;overscroll-behavior-y:contain;background:var(--bg);min-height:100%;min-height:100dvh;}
+body{font-family:var(--font);background:var(--bg);color:var(--txt-1);min-height:100vh;min-height:-webkit-fill-available;min-height:100dvh;overflow-x:hidden;-webkit-font-smoothing:antialiased;overscroll-behavior-y:contain;}
 input,textarea,select,button{font-family:var(--font);}
 a{text-decoration:none;color:inherit;}
 img{max-width:100%;display:block;}
 ::-webkit-scrollbar{width:0;}
 
-#app{max-width:1080px;margin:0 auto;min-height:100vh;min-height:-webkit-fill-available;min-height:100dvh;background:transparent;position:relative;overscroll-behavior-y:none;}
+#app{max-width:1080px;margin:0 auto;min-height:100vh;min-height:-webkit-fill-available;min-height:100dvh;background:transparent;position:relative;overscroll-behavior-y:contain;}
 
 /* Boot splash — hides the very first render (dashboard content painting,
    auth/session check) so nothing flashes behind the login popup. */
@@ -801,6 +801,11 @@ img{max-width:100%;display:block;}
   -webkit-backdrop-filter:var(--glass-blur);
   backdrop-filter:var(--glass-blur);
   border-color:var(--glass-border)!important;
+  /* BUG FIX #6: same border-radius/backdrop-filter clipping bug as
+     .bottom-nav::before below — force Safari to respect each element's
+     own rounded corners instead of leaking a square blur past them. */
+  -webkit-mask-image:-webkit-radial-gradient(white,black);
+  mask-image:radial-gradient(white,black);
 }
 .bottom-nav{
   border-color:var(--glass-border)!important;
@@ -824,6 +829,15 @@ img{max-width:100%;display:block;}
   -webkit-backdrop-filter:var(--glass-blur);
   backdrop-filter:var(--glass-blur);
   z-index:-1;
+  /* BUG FIX #6: iOS WebKit has a known bug where backdrop-filter on an
+     element ignores its own border-radius and paints the blur as a full
+     square/rectangle instead of clipping to the rounded pill shape — this
+     square blur then "leaks" out visibly below/around the rounded corners
+     as a smeared dark patch once it overlaps page content or the safe-area.
+     A no-op -webkit-mask-image forces Safari to actually respect the
+     border-radius when compositing the blur. */
+  -webkit-mask-image:-webkit-radial-gradient(white,black);
+  mask-image:radial-gradient(white,black);
 }
 [data-theme="dark"] .bottom-nav{box-shadow:0 1px 0 rgba(255,255,255,.12) inset;}
 .top-header{box-shadow:0 1px 0 var(--glass-border) inset;}
