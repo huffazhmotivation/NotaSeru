@@ -28,6 +28,8 @@
   </div>
   <div class="boot-spinner"></div>
 </div>
+<!-- Ambient blurred color blobs behind the glass UI layer -->
+<div id="glassBg" aria-hidden="true"><span></span><span></span><span></span></div>
 <div id="app">
 <!-- AUTH PAGE -->
 <div id="authPage" style="display:none">
@@ -748,6 +750,27 @@
               <div class="tpl-lines"><div></div><div></div></div>
             </div>
             <div class="tpl-name">Bold</div>
+          </div>
+          <div class="tpl-card" data-tpl="elegant" onclick="selectTemplate('elegant',this)">
+            <div class="tpl-preview tpl-elegant">
+              <div class="tpl-el-head"></div>
+              <div class="tpl-el-body">
+                <div class="tpl-el-main"><div></div><div></div><div></div></div>
+                <div class="tpl-el-side"></div>
+              </div>
+            </div>
+            <div class="tpl-name">Elegant</div>
+          </div>
+          <div class="tpl-card" data-tpl="ticket" onclick="selectTemplate('ticket',this)">
+            <div class="tpl-preview tpl-ticket">
+              <div class="tpl-tk-body">
+                <div class="tpl-tk-title"></div>
+                <div class="tpl-tk-dash"></div>
+                <div class="tpl-tk-line"></div>
+                <div class="tpl-tk-line"></div>
+              </div>
+            </div>
+            <div class="tpl-name">Struk</div>
           </div>
         </div>
         <!-- Template Color Picker -->

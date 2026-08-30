@@ -378,7 +378,7 @@ img{max-width:100%;display:block;}
 .disc-btn:active{transform:scale(.94);}
 
 /* ── Template Picker ── */
-.template-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;}
+.template-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
 .tpl-color-dot.active{border-color:var(--txt-1)!important;transform:scale(1.25);box-shadow:0 0 0 2px var(--bg-card),0 0 0 4px var(--txt-1);}
 .tpl-color-dot:active{transform:scale(.92);}
 .tpl-card{cursor:pointer;border:2px solid var(--border);border-radius:var(--r-sm);padding:6px;transition:var(--spring);text-align:center;background:var(--bg-input);}
@@ -416,6 +416,21 @@ img{max-width:100%;display:block;}
 .tpl-badge-bold{font-size:7px;font-weight:800;color:#fff;letter-spacing:.05em;}
 .tpl-bold .tpl-lines{padding:4px 5px;display:flex;flex-direction:column;gap:3px;}
 .tpl-bold .tpl-lines div{height:3px;background:#E5E7EB;border-radius:2px;}
+
+/* Elegant: header + 2-column body (kolom kiri isi, sidebar kanan) */
+.tpl-elegant{display:flex;flex-direction:column;padding:5px;gap:3px;}
+.tpl-elegant .tpl-el-head{height:3px;width:55%;background:#B08D57;border-radius:2px;margin:0 auto 4px;}
+.tpl-elegant .tpl-el-body{display:flex;gap:3px;flex:1;}
+.tpl-elegant .tpl-el-main{flex:1;display:flex;flex-direction:column;gap:3px;}
+.tpl-elegant .tpl-el-main div{height:2.5px;background:#E5E7EB;border-radius:2px;}
+.tpl-elegant .tpl-el-side{width:14px;background:#F5EEDD;border:1px solid #E7D9B8;border-radius:2px;}
+
+/* Ticket: struk sempit di tengah dengan garis putus-putus */
+.tpl-ticket{display:flex;align-items:center;justify-content:center;background:#EDEDF0;}
+.tpl-ticket .tpl-tk-body{width:60%;height:44px;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.08);display:flex;flex-direction:column;align-items:center;padding:4px 0;gap:3px;}
+.tpl-ticket .tpl-tk-title{width:60%;height:3px;background:#111827;border-radius:2px;}
+.tpl-ticket .tpl-tk-dash{width:75%;border-top:1px dashed #A1A1AA;height:0;}
+.tpl-ticket .tpl-tk-line{width:65%;height:2px;background:#E5E7EB;border-radius:2px;}
 
 /* Logo area bigger in settings */
 .logo-area{background:var(--bg-card);border:2px dashed var(--border);border-radius:var(--r-lg);padding:28px 22px;text-align:center;cursor:pointer;transition:var(--ease);margin-bottom:16px;}
@@ -496,7 +511,12 @@ img{max-width:100%;display:block;}
 [data-theme="dark"] .tpl-classic .tpl-lines div,
 [data-theme="dark"] .tpl-modern .tpl-lines div,
 [data-theme="dark"] .tpl-minimal .tpl-lines div,
-[data-theme="dark"] .tpl-bold .tpl-lines div  { background: #3a4560 !important; }
+[data-theme="dark"] .tpl-bold .tpl-lines div,
+[data-theme="dark"] .tpl-elegant .tpl-el-main div,
+[data-theme="dark"] .tpl-ticket .tpl-tk-line  { background: #3a4560 !important; }
+[data-theme="dark"] .tpl-ticket .tpl-tk-body { background: #1a2138 !important; }
+[data-theme="dark"] .tpl-ticket .tpl-tk-title { background: #c9d1e0 !important; }
+[data-theme="dark"] .tpl-elegant .tpl-el-side { background: #2a2418 !important; border-color: #4a3f26 !important; }
 [data-theme="dark"] .tpl-minimal .tpl-title-line { background: #c9d1e0 !important; }
 [data-theme="dark"] .tpl-header-bold            { background: #c9d1e0 !important; }
 [data-theme="dark"] .tpl-logo-right             { background: #3a4560 !important; }
@@ -734,3 +754,84 @@ img{max-width:100%;display:block;}
 #logoutBtn:hover{background:var(--danger,#DC2626);color:#fff;}
 .header-user-row{display:flex;align-items:center;gap:8px;padding:8px 20px 4px;flex-wrap:wrap;background:var(--bg-card);border-radius:12px;margin:0 16px 8px;box-shadow:0 1px 4px rgba(0,0,0,.06);}
 #headerUserEmail{font-size:12px;color:var(--txt-2);font-weight:600;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+
+/* ============================================
+   GLASS LAYER — frosted glassmorphism skin
+   Ambient blurred color blobs sit fixed behind the app; surfaces (nav,
+   header, sheets, cards) become translucent + backdrop-blurred so the
+   blobs glow through, giving the "kekinian" frosted look. Layout,
+   spacing and interactions from above are untouched.
+   ============================================ */
+:root{
+  --glass-bg:rgba(255,255,255,.62);
+  --glass-bg-strong:rgba(255,255,255,.78);
+  --glass-border:rgba(255,255,255,.7);
+  --glass-shadow:0 8px 32px rgba(20,26,22,.10);
+  --glass-blur:blur(22px) saturate(180%);
+}
+[data-theme="dark"]{
+  --glass-bg:rgba(26,31,25,.58);
+  --glass-bg-strong:rgba(26,31,25,.74);
+  --glass-border:rgba(255,255,255,.08);
+  --glass-shadow:0 8px 32px rgba(0,0,0,.45);
+}
+
+#glassBg{position:fixed;inset:0;z-index:0;overflow:hidden;pointer-events:none;}
+#glassBg span{position:absolute;border-radius:50%;filter:blur(60px);opacity:.55;}
+#glassBg span:nth-child(1){width:280px;height:280px;top:-60px;left:-60px;background:var(--primary);}
+#glassBg span:nth-child(2){width:240px;height:240px;top:220px;right:-80px;background:#5A5AF0;opacity:.28;}
+#glassBg span:nth-child(3){width:260px;height:260px;bottom:-60px;left:30%;background:#F2A900;opacity:.22;}
+[data-theme="dark"] #glassBg span{opacity:.22;}
+
+#app{background:transparent;position:relative;z-index:1;}
+html,body{background:var(--bg);}
+
+/* Frosted surfaces */
+.top-header,.bottom-nav,.sheet,.sett-card,.sp,.qm,.laba-card,.inv-card,
+.auth-box,.header-user-row,.toast,#colorPicker,.grup-block-header,.grup-block,
+.stat-pills .sp{
+  background:var(--glass-bg)!important;
+  -webkit-backdrop-filter:var(--glass-blur);
+  backdrop-filter:var(--glass-blur);
+  border-color:var(--glass-border)!important;
+}
+.bottom-nav{box-shadow:var(--glass-shadow),0 1px 0 rgba(255,255,255,.4) inset;}
+.top-header{box-shadow:0 1px 0 var(--glass-border) inset;}
+.sheet{box-shadow:0 -8px 40px rgba(20,26,22,.14);}
+
+/* Quick-menu tiles + product/template cards: lighter frost so their
+   colored icon chips stay legible */
+.qm,.tpl-card{background:var(--glass-bg-strong)!important;}
+
+/* Buttons & pills keep solid color (readability + tap affordance),
+   but gain a soft glass sheen highlight */
+.header-action,.auth-btn,.hero-btn{
+  position:relative;overflow:hidden;
+}
+.header-action::after,.auth-btn::after{
+  content:'';position:absolute;inset:0;
+  background:linear-gradient(180deg,rgba(255,255,255,.25),transparent 55%);
+  pointer-events:none;
+}
+
+/* Dashboard hero: keep the confident flat color but add a subtle glass
+   sheen + translucent edge so it reads as part of the same system */
+.dash-hero{
+  background:linear-gradient(160deg,var(--primary) 0%,var(--primary-dark) 100%);
+  box-shadow:0 12px 30px var(--primary-glow);
+}
+.hero-btn{
+  background:rgba(255,255,255,.2)!important;
+  -webkit-backdrop-filter:blur(8px);
+  backdrop-filter:blur(8px);
+  border:1px solid rgba(255,255,255,.28);
+}
+
+/* Sheet handle + inputs stay crisp against the frosted sheet body */
+.sheet .form-input,.sheet input,.sheet textarea,.sheet select{
+  background:var(--bg-input);
+}
+
+@media (max-width:480px){
+  #glassBg span{filter:blur(46px);}
+}

@@ -64,7 +64,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 // ── Greeting ───────────────────────────────
 function setGreeting() {
   const h = new Date().getHours();
-  const g = h < 11 ? 'Selamat pagi ☀️' : h < 15 ? 'Selamat siang 🌤️' : h < 18 ? 'Selamat sore 🌇' : 'Selamat malam 🌙';
+  const g = h < 11 ? 'Selamat pagi' : h < 15 ? 'Selamat siang' : h < 18 ? 'Selamat sore' : 'Selamat malam';
   const el = document.getElementById('greetTime');
   if (el) el.textContent = g;
 }
@@ -160,6 +160,12 @@ function nav(page) {
   if (page === 'settings') { renderCatalogList(); renderEkspedisiList(); selectTemplate(curTemplate || 'classic', null, false); selectTplColor(curTplColor || 'amber', false); }
   const el = document.getElementById('page-' + page);
   if (el) { el.classList.add('active'); curPage = page; window.scrollTo(0,0); }
+  // BUG FIX: textarea auto-resize dihitung dengan benar hanya ketika elemen
+  // sudah terlihat (display:block). Sebelumnya loadSettingsUI() cuma dipanggil
+  // sekali saat boot, saat halaman settings masih display:none, sehingga
+  // scrollHeight yang terukur 0 dan textarea (Catatan Pembayaran, Ucapan
+  // Terima Kasih) jadi kepotong. Panggil ulang setelah halaman aktif & terlihat.
+  if (page === 'settings') { requestAnimationFrame(() => requestAnimationFrame(loadSettingsUI)); }
 }
 
 function goBack() { nav(prevPage !== curPage ? prevPage : 'dashboard'); }
@@ -1209,6 +1215,7 @@ function openInvAction(id) {
     <div class="as-item" onclick="viewInv('${id}');closeSheets()"><div class="as-ic" style="background:var(--primary-soft);color:var(--primary)"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></div><div><div class="as-label">Lihat Invoice</div><div class="as-sub">Preview &amp; export</div></div></div>
     <div class="as-item" onclick="editInv('${id}');closeSheets()"><div class="as-ic" style="background:var(--warning-soft);color:var(--warning)"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></div><div><div class="as-label">Edit Nota</div><div class="as-sub">Ubah data nota</div></div></div>
     <div class="as-item" onclick="dupInv('${id}');closeSheets()"><div class="as-ic" style="background:var(--success-soft);color:var(--success)"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></div><div><div class="as-label">Duplikat Nota</div><div class="as-sub">Buat salinan nota ini</div></div></div>
+    <div class="as-item" onclick="closeSheets();setTimeout(()=>openProfitDrawer('${id}'),260)"><div class="as-ic" style="background:var(--primary-soft);color:var(--primary)"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg></div><div><div class="as-label">Kelola Profit</div><div class="as-sub">Catat pengeluaran &amp; lihat profit bersih</div></div></div>
     <div class="as-div"></div>
     <div class="as-item" onclick="delInv('${id}');closeSheets()"><div class="as-ic" style="background:var(--danger-soft);color:var(--danger)"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg></div><div><div class="as-label" style="color:var(--danger)">Hapus Nota</div><div class="as-sub">Tidak bisa dibatalkan</div></div></div>`;
   openSheet('invActionSheet');
@@ -2190,6 +2197,177 @@ function buildPreview(inv) {
       <div style="background:${C.darker};padding:18px 48px;display:flex;justify-content:space-between;align-items:center">
         <div style="font-size:13px;color:rgba(255,255,255,.7);font-style:italic">${xss(thankyou)}</div>
         <div style="font-size:11px;color:rgba(255,255,255,.4);letter-spacing:.08em">NOTASERU · INVOICE PRO</div>
+      </div>
+    </div>`;
+
+  // ── ELEGANT ─────────────────────────────────────────────────
+  // Layout dua-kolom (isi kiri + sidebar ringkasan kanan) — sangat berbeda
+  // dari 4 template sebelumnya yang semuanya satu kolom dari atas ke bawah.
+  } else if (tpl === 'elegant') {
+    const elRows = (inv.items || []).filter(i => i.name).map((item, idx) => {
+      const itemTotal = calcItemTotal(item);
+      const hasDisc = item.discItem > 0;
+      return `
+      <tr>
+        <td style="padding:10px 0;font-size:11px;color:#9CA3AF;border-bottom:1px solid #E7E1D5;vertical-align:top;width:22px">${String(idx+1).padStart(2,'0')}</td>
+        <td style="padding:10px 10px;font-size:13.5px;color:#292420;border-bottom:1px solid #E7E1D5;font-family:Georgia,'Times New Roman',serif">
+          ${xss(item.name)}${hasDisc ? `<div style="font-size:10.5px;color:${C.dark};margin-top:2px;font-family:-apple-system,sans-serif">diskon ${item.discItemType==='rupiah' ? fmtRp(item.discItem) : item.discItem+'%'}</div>` : ''}
+          <div style="font-size:11px;color:#9CA3AF;margin-top:2px;font-family:-apple-system,sans-serif">${item.qty} × ${fmtRp(item.price)}</div>
+        </td>
+        <td style="padding:10px 0;font-size:13.5px;color:#292420;border-bottom:1px solid #E7E1D5;text-align:right;font-weight:600;font-family:Georgia,'Times New Roman',serif;white-space:nowrap">${fmtRp(itemTotal)}</td>
+      </tr>`;
+    }).join('');
+
+    html = `<div style="font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',Arial,sans-serif;color:#292420;width:794px;min-height:1123px;box-sizing:border-box;display:flex;flex-direction:column;background:#FFFDF8">
+      <!-- Header centered, letterhead style -->
+      <div style="padding:40px 56px 22px;text-align:center;border-bottom:3px double ${C.dark}">
+        <div style="width:52px;height:52px;border-radius:50%;overflow:hidden;background:${C.softer};border:1px solid ${C.border};display:flex;align-items:center;justify-content:center;margin:0 auto 10px">${logoImg}</div>
+        <div style="font-family:Georgia,'Times New Roman',serif;font-size:24px;font-weight:700;color:#1C1917;letter-spacing:.03em">${xss(s.storeName||'Nama Toko')}</div>
+        <div style="font-size:11.5px;color:#78716C;margin-top:4px">${[s.storeAddress, s.storePhone].filter(Boolean).map(xss).join(' &nbsp;·&nbsp; ')}</div>
+        <div style="font-size:11px;font-weight:700;color:${C.dark};letter-spacing:.35em;text-transform:uppercase;margin-top:16px">Invoice</div>
+      </div>
+
+      <!-- Body: 2 kolom -->
+      <div style="flex:1;padding:32px 56px;display:grid;grid-template-columns:1fr 246px;gap:32px;align-items:start">
+        <!-- Kolom kiri -->
+        <div>
+          <div style="margin-bottom:20px">
+            <div style="font-size:10.5px;font-weight:700;color:#A8A29E;text-transform:uppercase;letter-spacing:.12em;margin-bottom:5px">Ditagihkan kepada</div>
+            <div style="font-family:Georgia,'Times New Roman',serif;font-size:19px;font-weight:700;color:#1C1917">${xss(inv.customer?.name||'-')}</div>
+            ${inv.customer?.phone ? `<div style="font-size:12px;color:#78716C;margin-top:2px">${xss(inv.customer.phone)}</div>` : ''}
+            ${inv.customer?.address ? `<div style="font-size:11.5px;color:#A8A29E;margin-top:1px;line-height:1.5">${xss(inv.customer.address)}</div>` : ''}
+          </div>
+
+          <table style="width:100%;border-collapse:collapse">
+            <thead>
+              <tr>
+                <th style="padding:0 0 8px;font-size:10.5px;font-weight:700;color:#A8A29E;text-transform:uppercase;letter-spacing:.1em;text-align:left;border-bottom:2px solid ${C.dark}">No</th>
+                <th style="padding:0 0 8px 10px;font-size:10.5px;font-weight:700;color:#A8A29E;text-transform:uppercase;letter-spacing:.1em;text-align:left;border-bottom:2px solid ${C.dark}">Deskripsi</th>
+                <th style="padding:0 0 8px;font-size:10.5px;font-weight:700;color:#A8A29E;text-transform:uppercase;letter-spacing:.1em;text-align:right;border-bottom:2px solid ${C.dark}">Jumlah</th>
+              </tr>
+            </thead>
+            <tbody>${elRows}</tbody>
+          </table>
+
+          ${notesRow}
+
+          <div style="margin-top:32px;display:flex;justify-content:flex-end">
+            <div style="text-align:center">
+              <div style="width:130px;height:58px;border-bottom:1.5px solid #D6D3D1;display:flex;align-items:flex-end;justify-content:center;padding-bottom:4px;margin-bottom:4px">${signImg}</div>
+              <div style="font-size:11.5px;color:#A8A29E;font-family:Georgia,'Times New Roman',serif;font-style:italic">${xss(signLabel)}</div>
+              ${s.storeName ? `<div style="font-size:12.5px;font-weight:700;color:#44403C;margin-top:1px">${xss(s.storeName)}</div>` : ''}
+            </div>
+          </div>
+        </div>
+
+        <!-- Sidebar kanan -->
+        <div style="border:1px solid ${C.border};border-radius:10px;overflow:hidden;background:#fff">
+          <div style="background:${C.softer};padding:14px 16px;border-bottom:1px solid ${C.border}">
+            <div style="font-size:10px;font-weight:700;color:${C.dark};text-transform:uppercase;letter-spacing:.1em">No. Invoice</div>
+            <div style="font-size:13px;font-weight:700;color:#1C1917;margin-top:2px">${xss(inv.number)}</div>
+            <div style="font-size:10px;font-weight:700;color:${C.dark};text-transform:uppercase;letter-spacing:.1em;margin-top:10px">Tanggal</div>
+            <div style="font-size:13px;font-weight:600;color:#1C1917;margin-top:2px">${fmtDate(inv.date)}</div>
+          </div>
+          <div style="padding:14px 16px">
+            <div style="display:flex;justify-content:center;margin-bottom:14px">${stamp_bottom}</div>
+            <div style="font-size:10px;font-weight:700;color:#A8A29E;text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px">Ringkasan</div>
+            <div style="font-size:12.5px;color:#57534E;display:flex;justify-content:space-between;padding:4px 0"><span>Subtotal</span><span style="font-weight:600;color:#292420">${fmtRp(inv.sub)}</span></div>
+            ${inv.disc > 0 ? `<div style="font-size:12.5px;color:#57534E;display:flex;justify-content:space-between;padding:4px 0"><span>Diskon</span><span style="font-weight:600;color:#292420">- ${fmtRp(inv.discAmt)}</span></div>` : ''}
+            ${inv.ongkir > 0 ? `<div style="font-size:12.5px;color:#57534E;display:flex;justify-content:space-between;padding:4px 0"><span>${ongkirLabel}</span><span style="font-weight:600;color:#292420">${fmtRp(inv.ongkir)}</span></div>` : ''}
+            <div style="margin-top:10px;padding:12px 14px;background:${C.dark};border-radius:8px">
+              <div style="font-size:10.5px;font-weight:700;color:${C.text};text-transform:uppercase;letter-spacing:.1em;opacity:.85">Grand Total</div>
+              <div style="font-size:19px;font-weight:900;color:${C.text};margin-top:2px">${fmtRp(inv.grand)}</div>
+            </div>
+            ${dpRow}
+          </div>
+          ${bankInfo ? `<div style="padding:0 16px 16px">${bankInfo.replace('margin-top:16px;', 'margin-top:0;')}</div>` : ''}
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <div style="padding:18px 56px 30px;text-align:center;border-top:3px double ${C.dark}">
+        <div style="font-family:Georgia,'Times New Roman',serif;font-size:13.5px;color:${C.dark};font-style:italic">${xss(thankyou)}</div>
+        <div style="font-size:10px;color:#A8A29E;letter-spacing:.14em;margin-top:6px">NOTASERU · INVOICE PRO</div>
+      </div>
+    </div>`;
+
+  // ── TICKET ──────────────────────────────────────────────────
+  // Gaya struk/receipt sempit di tengah, monospace, garis putus-putus —
+  // struktur & lebar berbeda total dari 5 template lainnya.
+  } else if (tpl === 'ticket') {
+    const tkItems = (inv.items || []).filter(i => i.name).map(item => {
+      const itemTotal = calcItemTotal(item);
+      const hasDisc = item.discItem > 0;
+      return `
+      <div style="padding:7px 0;border-bottom:1px dashed #D4D4D8">
+        <div style="display:flex;justify-content:space-between;gap:8px">
+          <span style="font-size:12.5px;color:#18181B;font-weight:700">${xss(item.name)}</span>
+          <span style="font-size:12.5px;color:#18181B;font-weight:700;white-space:nowrap">${fmtRp(itemTotal)}</span>
+        </div>
+        <div style="font-size:11px;color:#71717A;margin-top:1px">${item.qty} x ${fmtRp(item.price)}${hasDisc ? `  (disc ${item.discItemType==='rupiah' ? fmtRp(item.discItem) : item.discItem+'%'})` : ''}</div>
+      </div>`;
+    }).join('');
+
+    const dashRow = (label, val, bold) => `<div style="display:flex;justify-content:space-between;padding:3px 0;font-size:${bold?'13.5px':'12px'};color:${bold?'#18181B':'#52525B'};font-weight:${bold?'800':'400'}">
+      <span>${label}</span><span>${val}</span></div>`;
+
+    html = `<div style="font-family:'Courier New',Courier,monospace;color:#18181B;width:794px;min-height:1123px;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;background:#F4F4F5;padding:50px 0">
+      <div style="width:380px;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.08);padding:0 28px 26px;position:relative">
+        <!-- notch perforasi atas -->
+        <div style="height:14px;margin:0 -28px 14px;background:radial-gradient(circle at 8px 0, transparent 8px, #fff 8.5px) repeat-x left top / 22px 14px, #F4F4F5"></div>
+
+        <div style="text-align:center;padding-top:2px">
+          <div style="width:44px;height:44px;border-radius:8px;overflow:hidden;background:#F4F4F5;display:flex;align-items:center;justify-content:center;margin:0 auto 8px">${logoImg}</div>
+          <div style="font-size:15px;font-weight:800;letter-spacing:.02em;text-transform:uppercase">${xss(s.storeName||'Nama Toko')}</div>
+          ${s.storeAddress ? `<div style="font-size:10.5px;color:#71717A;margin-top:4px;line-height:1.5">${xss(s.storeAddress)}</div>` : ''}
+          ${s.storePhone ? `<div style="font-size:10.5px;color:#71717A">${xss(s.storePhone)}</div>` : ''}
+        </div>
+
+        <div style="border-top:1px dashed #A1A1AA;margin:14px 0 10px"></div>
+        <div style="text-align:center;font-size:11px;color:#52525B">
+          <div>No. ${xss(inv.number)}</div>
+          <div style="margin-top:2px">${fmtDate(inv.date)}</div>
+        </div>
+        <div style="border-top:1px dashed #A1A1AA;margin:10px 0"></div>
+
+        <div style="font-size:11px;color:#52525B;line-height:1.6">
+          <div><strong style="color:#18181B">Kepada:</strong> ${xss(inv.customer?.name||'-')}</div>
+          ${inv.customer?.phone ? `<div>${xss(inv.customer.phone)}</div>` : ''}
+        </div>
+
+        <div style="border-top:1px dashed #A1A1AA;margin:12px 0 2px"></div>
+        ${tkItems}
+        <div style="border-top:1px dashed #A1A1AA;margin:8px 0 6px"></div>
+
+        ${dashRow('Subtotal', fmtRp(inv.sub))}
+        ${inv.disc > 0 ? dashRow('Diskon', '- ' + fmtRp(inv.discAmt)) : ''}
+        ${inv.ongkir > 0 ? dashRow(ongkirLabel, fmtRp(inv.ongkir)) : ''}
+        <div style="border-top:1.5px dashed #18181B;margin:6px 0"></div>
+        ${dashRow('TOTAL', fmtRp(inv.grand), true)}
+        ${inv.dp > 0 ? dashRow('DP', fmtRp(inv.dp)) : ''}
+        ${inv.dp > 0 ? dashRow('Sisa', fmtRp(inv.sisa), true) : ''}
+
+        ${(s.bankName || s.bankNo) ? `<div style="border-top:1px dashed #A1A1AA;margin:10px 0 8px"></div>
+        <div style="text-align:center;font-size:10.5px;color:#52525B;line-height:1.6">
+          <div>Pembayaran: ${xss(s.bankName||'')} ${xss(s.bankNo||'')}</div>
+          ${s.bankOwner ? `<div>a.n. ${xss(s.bankOwner)}</div>` : ''}
+          ${s.bankNote ? `<div style="margin-top:3px">${xss(s.bankNote)}</div>` : ''}
+        </div>` : ''}
+
+        ${inv.notes ? `<div style="border-top:1px dashed #A1A1AA;margin:10px 0 8px"></div><div style="font-size:10.5px;color:#52525B;text-align:center;line-height:1.5">${xss(inv.notes)}</div>` : ''}
+
+        <div style="border-top:1px dashed #A1A1AA;margin:14px 0 10px"></div>
+        <div style="display:flex;justify-content:center;margin-bottom:6px"><div style="transform:scale(.82)">${stamp_bottom}</div></div>
+        <div style="text-align:center">
+          <div style="width:100px;height:44px;display:flex;align-items:flex-end;justify-content:center;margin:0 auto 2px">${signImg}</div>
+          <div style="font-size:10px;color:#A1A1AA">${xss(signLabel)}</div>
+        </div>
+
+        <div style="text-align:center;font-size:11px;font-style:italic;color:#3F3F46;margin-top:14px">${xss(thankyou)}</div>
+        <div style="text-align:center;font-size:9px;color:#A1A1AA;letter-spacing:.15em;margin-top:8px">· NOTASERU · INVOICE PRO ·</div>
+
+        <!-- notch perforasi bawah -->
+        <div style="height:14px;margin:14px -28px -26px;background:radial-gradient(circle at 8px 14px, transparent 8px, #fff 8.5px) repeat-x left bottom / 22px 14px, #F4F4F5"></div>
       </div>
     </div>`;
   }
@@ -3409,9 +3587,9 @@ function loadSettingsUI() {
       if (el === activeEl) continue;
       // Prioritaskan draft lokal (ketikan belum tersimpan) atas data cloud
       el.value = (draft && draft[key] !== undefined) ? draft[key] : (s[key] || '');
-      // Auto-resize textarea fields
+      // Auto-resize textarea fields (rAF ensures the element is laid out/visible first)
       if (el.tagName === 'TEXTAREA') {
-        setTimeout(() => { el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px'; }, 50);
+        requestAnimationFrame(() => { el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px'; });
       }
     }
   }
