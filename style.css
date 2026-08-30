@@ -157,7 +157,17 @@ img{max-width:100%;display:block;}
 .inv-swipe-btn.active-status{opacity:.35;pointer-events:none;}
 
 /* Card base + smooth spring transition */
-.inv-card{background:var(--bg-card);border-radius:var(--r-md);padding:13px 16px;border:1px solid var(--border-soft);cursor:pointer;transition:transform .38s cubic-bezier(.22,1,.36,1),background .3s,border-color .3s,box-shadow .2s;display:flex;align-items:center;gap:12px;position:relative;z-index:2;will-change:transform;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;touch-action:pan-y;isolation:isolate;-webkit-backface-visibility:hidden;backface-visibility:hidden;}
+.inv-card{background:var(--bg-card);border-radius:var(--r-md);padding:13px 16px;border:1px solid var(--border-soft);cursor:pointer;transition:transform .38s cubic-bezier(.22,1,.36,1),background .3s,border-color .3s,box-shadow .2s;display:flex;align-items:center;gap:12px;position:relative;z-index:2;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;touch-action:pan-y;isolation:isolate;-webkit-backface-visibility:hidden;backface-visibility:hidden;}
+/* BUG FIX #5: will-change:transform dulu dipasang permanen di CSS di atas untuk
+   SEMUA .inv-card sekaligus. Di daftar nota yang panjang, itu bikin Safari/WebKit
+   (iOS Safari & Chrome iOS, keduanya pakai mesin WebKit) mem-promote puluhan kartu
+   jadi layer GPU terpisah SECARA PERMANEN — bukan cuma saat digeser. Begitu jumlah
+   layer ketahanan GPU-nya kelewat, WebKit suka salah komposit: warna dari layer
+   lain (tombol aksi geser yang harusnya ketutup) "bocor" nongol pas scroll cepat,
+   kadang malah nge-flash hitam. Fix-nya: will-change cuma dinyalakan lewat JS pas
+   kartu itu betulan lagi digeser (lihat initSwipeCards di script.js), lalu
+   dimatikan lagi begitu animasinya selesai — jadi paling banter cuma 1 layer
+   ekstra aktif di satu waktu, bukan satu per kartu. */
 /* Long-press visual feedback */
 @keyframes lp-ripple{0%{transform:translate(-50%,-50%) scale(0);opacity:.55}100%{transform:translate(-50%,-50%) scale(1);opacity:0}}
 @keyframes lp-pop{0%{transform:translateX(var(--lp-tx,0)) scale(1)}35%{transform:translateX(var(--lp-tx,0)) scale(1.038)}65%{transform:translateX(var(--lp-tx,0)) scale(.97)}100%{transform:translateX(var(--lp-tx,0)) scale(1)}}

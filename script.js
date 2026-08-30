@@ -1008,11 +1008,31 @@ function quickStatus(id, newStatus, e) {
   function getOpen() { return window._swipeOpenCard || null; }
   function setOpen(v) { window._swipeOpenCard = v || null; }
 
+  // BUG FIX #5: will-change cuma dipasang selagi kartu ini aktif dianimasikan,
+  // lalu dicopot lagi (balik ke 'auto') begitu transition-nya kelar. Ini yang
+  // mencegah numpuknya GPU layer permanen di daftar nota panjang (lihat catatan
+  // di style.css .inv-card) yang bikin warna tombol geser "bocor" pas discroll.
+  function armWillChange(card) {
+    card.style.willChange = 'transform';
+  }
+  function disarmWillChangeAfterTransition(card) {
+    const clear = (e) => {
+      if (e && e.target !== card) return;
+      card.style.willChange = 'auto';
+      card.removeEventListener('transitionend', clear);
+    };
+    card.addEventListener('transitionend', clear);
+    // Jaga-jaga kalau transitionend tidak pernah fire (mis. elemen dilepas dari DOM)
+    setTimeout(() => clear(), 500);
+  }
+
   function closeOpenCard(exceptCard) {
     const o = getOpen();
     if (o && o.card !== exceptCard) {
+      armWillChange(o.card);
       o.card.style.transition = 'transform .38s cubic-bezier(.22,1,.36,1)';
       o.card.style.transform = 'translateX(0)';
+      disarmWillChangeAfterTransition(o.card);
       setOpen(null);
     }
   }
@@ -1120,6 +1140,7 @@ function quickStatus(id, newStatus, e) {
     }
 
     if (!state.moved && state.longPressTimer) clearTimeout(state.longPressTimer);
+    if (!state.moved) armWillChange(state.card); // BUG FIX #5: nyalakan cuma pas mulai digeser beneran
     state.moved = true;
     e.preventDefault();
 
@@ -1168,16 +1189,19 @@ function quickStatus(id, newStatus, e) {
     if (dir === 'left' && curX < -THRESHOLD) {
       card.style.transition = 'transform .38s cubic-bezier(.22,1,.36,1)';
       card.style.transform = `translateX(-${MAX_SLIDE_RIGHT}px)`;
+      disarmWillChangeAfterTransition(card);
       setOpen({ card, dir: 'left' });
       setTimeout(() => { if (navigator.vibrate) navigator.vibrate(30); }, 200);
     } else if (dir === 'right' && curX > THRESHOLD) {
       card.style.transition = 'transform .38s cubic-bezier(.22,1,.36,1)';
       card.style.transform = `translateX(${MAX_SLIDE_LEFT}px)`;
+      disarmWillChangeAfterTransition(card);
       setOpen({ card, dir: 'right' });
       setTimeout(() => { if (navigator.vibrate) navigator.vibrate(30); }, 200);
     } else {
       card.style.transition = 'transform .38s cubic-bezier(.22,1,.36,1)';
       card.style.transform = 'translateX(0)';
+      disarmWillChangeAfterTransition(card);
       const o = getOpen();
       if (o && o.card === card) setOpen(null);
     }
