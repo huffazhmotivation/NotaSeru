@@ -781,8 +781,10 @@ img{max-width:100%;display:block;}
 /* Frosted surfaces — .toast is intentionally excluded: it needs a solid,
    high-contrast background (dark/green/red/amber) to stay readable as a
    status message, especially in light mode where a translucent white
-   toast becomes nearly invisible against the light page background. */
-.top-header,.bottom-nav,.sheet,.sett-card,.sp,.laba-card,
+   toast becomes nearly invisible against the light page background.
+   .bottom-nav is also excluded here on purpose — see below, it gets its
+   frost from a contained pseudo-element instead to avoid a blur artifact. */
+.top-header,.sheet,.sett-card,.sp,.laba-card,
 .auth-box,.header-user-row,#colorPicker,.grup-block-header,.grup-block,
 .stat-pills .sp{
   background:var(--glass-bg)!important;
@@ -790,15 +792,33 @@ img{max-width:100%;display:block;}
   backdrop-filter:var(--glass-blur);
   border-color:var(--glass-border)!important;
 }
+/* .bottom-nav: keep centering transform intact (translateX(-50%) from the
+   base rule above must NOT be overwritten here — only add to it).
+   The frosted blur lives on a ::before pseudo-element clipped with
+   overflow:hidden + the same border-radius, instead of applying
+   backdrop-filter directly on an element that also carries a box-shadow
+   and sits pinned to the viewport edge — that specific combination is
+   what produced the dark smeared "fog" artifact underneath the pill in
+   Chrome/Safari. Splitting it into a clipped inner layer fixes it. */
 .bottom-nav{
+  border-color:var(--glass-border)!important;
+  background:transparent!important;
+  position:fixed;
+  overflow:visible;
   box-shadow:0 10px 24px rgba(20,26,22,.14),0 1px 0 rgba(255,255,255,.4) inset;
-  /* Forces its own compositing layer so the backdrop-filter blur is
-     calculated cleanly instead of smearing into a dark halo underneath
-     the pill near the bottom edge of the viewport (a known Chrome/Safari
-     backdrop-filter artifact on fixed elements sitting close to the edge). */
-  transform:translateZ(0);
-  -webkit-transform:translateZ(0);
-  isolation:isolate;
+  transform:translateX(-50%) translateZ(0);
+  -webkit-transform:translateX(-50%) translateZ(0);
+}
+.bottom-nav::before{
+  content:'';
+  position:absolute;
+  inset:0;
+  border-radius:inherit;
+  overflow:hidden;
+  background:var(--glass-bg);
+  -webkit-backdrop-filter:var(--glass-blur);
+  backdrop-filter:var(--glass-blur);
+  z-index:-1;
 }
 [data-theme="dark"] .bottom-nav{box-shadow:0 10px 24px rgba(0,0,0,.35),0 1px 0 rgba(255,255,255,.08) inset;}
 .top-header{box-shadow:0 1px 0 var(--glass-border) inset;}
