@@ -3776,7 +3776,11 @@ function confirmClear() {
 }
 
 // ── Calculator (floating) ──────────────────
-let calc = { current: '0', previous: null, operator: null, operatorSymbol: null, overwrite: true, exprDisplay: '' };
+// tokens = rangkaian angka & simbol operator yang SUDAH dikonfirmasi (belum dihitung).
+// current = angka yang sedang diketik sekarang.
+// exprDisplay = dipakai untuk menampilkan "expr =" setelah tombol "=" ditekan.
+let calc = { tokens: [], current: '0', overwrite: true, exprDisplay: '' };
+const CALC_OPS = ['+', '−', '×', '÷'];
 
 function openCalculator() {
   renderCalcHistory();
@@ -3786,6 +3790,7 @@ function openCalculator() {
 
 function calcFormatDisplay(str) {
   if (str === '' || str == null) return '0';
+  str = String(str);
   let neg = str.startsWith('-');
   if (neg) str = str.slice(1);
   let [intPart, decPart] = str.split('.');
@@ -3796,15 +3801,21 @@ function calcFormatDisplay(str) {
   return (neg ? '-' : '') + out;
 }
 
+// Susun seluruh rangkaian token (yang sudah dikonfirmasi) jadi satu baris teks,
+// supaya seluruh proses penjumlahan/pengurangan/dst tetap terlihat, bukan cuma operator terakhir.
+function calcTokensText(tokens) {
+  return tokens.map(t => CALC_OPS.includes(t) ? t : calcFormatDisplay(t)).join(' ');
+}
+
 function calcRender() {
   const exprEl = document.getElementById('calcExprLine');
   const mainEl = document.getElementById('calcMain');
   if (!exprEl || !mainEl) return;
-  let top = '';
-  if (calc.operator) top = `${calcFormatDisplay(String(calc.previous))} ${calc.operatorSymbol}`;
-  else if (calc.exprDisplay) top = calc.exprDisplay;
+  let top = calc.exprDisplay || calcTokensText(calc.tokens);
   exprEl.textContent = top;
   mainEl.textContent = calcFormatDisplay(calc.current);
+  // Auto-scroll baris rangkaian ke kanan supaya bagian yang baru diketik selalu terlihat
+  exprEl.scrollLeft = exprEl.scrollWidth;
 }
 
 function calcDigit(d) {
@@ -3820,44 +3831,53 @@ function calcDigit(d) {
   calcRender();
 }
 
+// Tambahkan operator ke rangkaian TANPA langsung menghitung —
+// biar rangkaian penjumlahan/perkalian dsb tetap terlihat semua di atas.
 function calcOp(symbol) {
-  const map = { '+': '+', '−': '-', '×': '*', '÷': '/' };
-  const value = map[symbol];
-  if (!value) return;
-  if (calc.operator && !calc.overwrite) calcCompute();
-  calc.previous = parseFloat(calc.current);
-  calc.operator = value;
-  calc.operatorSymbol = symbol;
+  if (!CALC_OPS.includes(symbol)) return;
+  const last = calc.tokens[calc.tokens.length - 1];
+  if (calc.tokens.length && CALC_OPS.includes(last) && calc.overwrite) {
+    // Operator ditekan dua kali berturut-turut -> ganti operator terakhir saja
+    calc.tokens[calc.tokens.length - 1] = symbol;
+  } else {
+    calc.tokens.push(calc.current);
+    calc.tokens.push(symbol);
+  }
+  calc.current = '0';
   calc.overwrite = true;
   calc.exprDisplay = '';
   calcRender();
 }
 
-function calcCompute() {
-  if (calc.operator == null || calc.previous == null) return;
-  const a = calc.previous, b = parseFloat(calc.current || '0');
-  let r;
-  switch (calc.operator) {
-    case '+': r = a + b; break;
-    case '-': r = a - b; break;
-    case '*': r = a * b; break;
-    case '/': r = b === 0 ? NaN : a / b; break;
+// Hitung seluruh rangkaian dari kiri ke kanan sesuai urutan token yang ditekan.
+function calcEvalTokens(fullTokens) {
+  let r = parseFloat(fullTokens[0] || '0');
+  for (let i = 1; i < fullTokens.length; i += 2) {
+    const op = fullTokens[i];
+    const b = parseFloat(fullTokens[i + 1] || '0');
+    switch (op) {
+      case '+': r = r + b; break;
+      case '−': r = r - b; break;
+      case '×': r = r * b; break;
+      case '÷': r = b === 0 ? NaN : r / b; break;
+    }
   }
-  if (!isFinite(r)) { toast('Tidak bisa dibagi 0', 'err'); calcClearAll(); return; }
-  r = Math.round(r * 1e8) / 1e8;
-  calc.current = String(r);
-  calc.previous = null;
-  calc.operator = null;
-  calc.overwrite = true;
+  return r;
 }
 
 function calcEquals() {
-  if (calc.operator == null) return;
-  const exprText = `${calcFormatDisplay(String(calc.previous))} ${calc.operatorSymbol} ${calcFormatDisplay(calc.current)}`;
-  calcCompute();
-  const resultText = calcFormatDisplay(calc.current);
+  if (!calc.tokens.length) return; // belum ada operator yang ditekan
+  const fullTokens = calc.tokens.concat([calc.current]);
+  const exprText = calcTokensText(fullTokens);
+  let r = calcEvalTokens(fullTokens);
+  if (!isFinite(r)) { toast('Tidak bisa dibagi 0', 'err'); calcClearAll(); return; }
+  r = Math.round(r * 1e8) / 1e8;
+  const resultText = calcFormatDisplay(String(r));
   calcSaveHistory(exprText, resultText);
   calc.exprDisplay = exprText + ' =';
+  calc.tokens = [];
+  calc.current = String(r);
+  calc.overwrite = true;
   calcRender();
 }
 
@@ -3875,14 +3895,23 @@ function calcToggleSign() {
 }
 
 function calcBackspace() {
-  if (calc.overwrite) return;
+  if (calc.overwrite) {
+    // Belum ada digit baru diketik -> hapus operator terakhir dari rangkaian (kalau ada)
+    if (calc.tokens.length && CALC_OPS.includes(calc.tokens[calc.tokens.length - 1])) {
+      calc.tokens.pop();
+      calc.current = calc.tokens.pop() ?? '0';
+      calc.overwrite = false;
+      calcRender();
+    }
+    return;
+  }
   calc.current = calc.current.length > 1 ? calc.current.slice(0, -1) : '0';
   if (calc.current === '-') calc.current = '0';
   calcRender();
 }
 
 function calcClearAll() {
-  calc = { current: '0', previous: null, operator: null, operatorSymbol: null, overwrite: true, exprDisplay: '' };
+  calc = { tokens: [], current: '0', overwrite: true, exprDisplay: '' };
   calcRender();
 }
 

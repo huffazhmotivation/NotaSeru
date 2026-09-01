@@ -335,11 +335,11 @@ img{max-width:100%;display:block;}
 .sheet-body{padding:0 20px 20px;}
 
 /* Calculator FAB */
-.calc-fab{position:fixed;right:18px;bottom:calc(92px + var(--safe-b));width:52px;height:52px;border-radius:50%;background:var(--primary);color:#fff;border:none;box-shadow:var(--sh-pri);display:flex;align-items:center;justify-content:center;z-index:250;cursor:pointer;transition:var(--spring);touch-action:manipulation;}
+.calc-fab{position:fixed;right:18px;bottom:calc(92px + var(--safe-b));width:52px;height:52px;border-radius:50%;background:var(--primary);color:#fff;border:none;box-shadow:var(--sh-pri);display:flex;align-items:center;justify-content:center;z-index:9990;cursor:pointer;transition:var(--spring);touch-action:manipulation;}
 .calc-fab:active{transform:scale(.90);}
 
 /* Calculator sheet */
-#calcSheet{touch-action:manipulation;}
+#calcSheet{touch-action:manipulation;z-index:9985;}
 #calcSheet .sheet-handle,#calcSheet .sheet-hd{cursor:grab;touch-action:none;}
 #calcSheet .sheet-handle:active,#calcSheet .sheet-hd:active{cursor:grabbing;}
 #calcSheet .sheet-body{padding:0 16px 20px;}
