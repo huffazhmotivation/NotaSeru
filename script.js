@@ -3785,7 +3785,24 @@ const CALC_OPS = ['+', '−', '×', '÷'];
 function openCalculator() {
   renderCalcHistory();
   calcRender();
+  document.getElementById('calcFab')?.classList.add('hide');
   openSheet('calcSheet');
+}
+
+// Tutup HANYA sheet kalkulator — sheet lain di belakangnya (mis. Kelola Profit)
+// tetap terbuka. closeSheets() lama menutup SEMUA sheet sekaligus, makanya
+// panel Kelola Profit ikut ketutup kalau kalkulator ditutup.
+function closeCalcSheet() {
+  const sheet = document.getElementById('calcSheet');
+  if (!sheet) return;
+  sheet.classList.remove('visible');
+  document.getElementById('calcFab')?.classList.remove('hide');
+  // Overlay & scroll lock cuma dilepas kalau memang sudah tidak ada sheet lain yang masih terbuka
+  const anyOtherOpen = Array.from(document.querySelectorAll('.sheet.visible')).some(s => s.id !== 'calcSheet');
+  if (!anyOtherOpen) {
+    document.getElementById('overlay')?.classList.remove('visible');
+    document.body.style.overflow = '';
+  }
 }
 
 function calcFormatDisplay(str) {
@@ -3969,16 +3986,29 @@ function calcClearHistory() {
   toast('Riwayat dihapus', 'ok');
 }
 
-// Swipe-down-to-close pada kalkulator (drag handle/header ke bawah)
+// Swipe-down-to-close pada kalkulator SAJA (bukan seluruh sheet yang sedang terbuka).
+// Bisa di-drag dari handle, header, MAUPUN bagian tengah kalkulator (area display),
+// tidak perlu selalu dari atas — tapi tombol angka/operator, input nama, dan riwayat
+// tetap aman disentuh/scroll seperti biasa.
 function initCalcSwipeClose() {
   const sheet = document.getElementById('calcSheet');
   if (!sheet) return;
-  const dragZones = [sheet.querySelector('.sheet-handle'), sheet.querySelector('.sheet-hd')].filter(Boolean);
+  const handleZones = [sheet.querySelector('.sheet-handle'), sheet.querySelector('.sheet-hd')].filter(Boolean);
+  const bodyZone = sheet.querySelector('.sheet-body');
   let startY = 0, deltaY = 0, dragging = false;
 
   function getY(e) { return e.touches ? e.touches[0].clientY : e.clientY; }
 
-  function onStart(e) {
+  // Elemen yang HARUS tetap bisa ditap/discroll normal -> jangan mulai drag-nutup dari sini
+  function isInteractive(el) {
+    return !!el.closest('button, input, textarea, select, .calc-hist-list, .calc-keypad, a');
+  }
+
+  function onStart(e, fromBody) {
+    if (fromBody) {
+      if (isInteractive(e.target)) return; // lagi pencet tombol/ketik nama -> jangan diganggu
+      if (sheet.scrollTop > 0) return;     // lagi scroll baca riwayat -> jangan diganggu
+    }
     dragging = true;
     startY = getY(e);
     deltaY = 0;
@@ -3995,16 +4025,22 @@ function initCalcSwipeClose() {
     dragging = false;
     sheet.style.transition = '';
     sheet.style.transform = '';
-    if (deltaY > 110) closeSheets();
+    if (deltaY > 110) closeCalcSheet(); // <- nutup kalkulator SAJA, sheet lain di belakang tetap terbuka
     deltaY = 0;
   }
 
-  dragZones.forEach(el => {
-    el.addEventListener('touchstart', onStart, { passive: true });
+  handleZones.forEach(el => {
+    el.addEventListener('touchstart', e => onStart(e, false), { passive: true });
     el.addEventListener('touchmove', onMove, { passive: false });
     el.addEventListener('touchend', onEnd, { passive: true });
-    el.addEventListener('mousedown', onStart);
+    el.addEventListener('mousedown', e => onStart(e, false));
   });
+  if (bodyZone) {
+    bodyZone.addEventListener('touchstart', e => onStart(e, true), { passive: true });
+    bodyZone.addEventListener('touchmove', onMove, { passive: false });
+    bodyZone.addEventListener('touchend', onEnd, { passive: true });
+    bodyZone.addEventListener('mousedown', e => onStart(e, true));
+  }
   document.addEventListener('mousemove', e => { if (dragging) onMove(e); });
   document.addEventListener('mouseup', onEnd);
 }
@@ -4021,6 +4057,7 @@ function closeSheets() {
   document.querySelectorAll('.sheet').forEach(s=>s.classList.remove('visible'));
   document.getElementById('overlay')?.classList.remove('visible');
   document.body.style.overflow='';
+  document.getElementById('calcFab')?.classList.remove('hide');
 }
 
 // ── Toast ───────────────────────────────────
