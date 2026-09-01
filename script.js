@@ -3774,6 +3774,171 @@ function confirmClear() {
   localStorage.clear(); toast('Data dihapus','ok'); setTimeout(()=>location.reload(),900);
 }
 
+// ── Calculator (floating) ──────────────────
+let calc = { current: '0', previous: null, operator: null, operatorSymbol: null, overwrite: true, exprDisplay: '' };
+
+function openCalculator() {
+  renderCalcHistory();
+  calcRender();
+  openSheet('calcSheet');
+}
+
+function calcFormatDisplay(str) {
+  if (str === '' || str == null) return '0';
+  let neg = str.startsWith('-');
+  if (neg) str = str.slice(1);
+  let [intPart, decPart] = str.split('.');
+  intPart = intPart.replace(/^0+(?=\d)/, '');
+  if (intPart === '') intPart = '0';
+  let out = Number(intPart).toLocaleString('id-ID');
+  if (decPart !== undefined) out += ',' + decPart;
+  return (neg ? '-' : '') + out;
+}
+
+function calcRender() {
+  const exprEl = document.getElementById('calcExprLine');
+  const mainEl = document.getElementById('calcMain');
+  if (!exprEl || !mainEl) return;
+  let top = '';
+  if (calc.operator) top = `${calcFormatDisplay(String(calc.previous))} ${calc.operatorSymbol}`;
+  else if (calc.exprDisplay) top = calc.exprDisplay;
+  exprEl.textContent = top;
+  mainEl.textContent = calcFormatDisplay(calc.current);
+}
+
+function calcDigit(d) {
+  if (calc.overwrite) {
+    calc.current = d === '.' ? '0.' : d;
+    calc.overwrite = false;
+    calc.exprDisplay = '';
+  } else {
+    if (d === '.' && calc.current.includes('.')) { calcRender(); return; }
+    if (calc.current === '0' && d !== '.') calc.current = d;
+    else calc.current += d;
+  }
+  calcRender();
+}
+
+function calcOp(symbol) {
+  const map = { '+': '+', '−': '-', '×': '*', '÷': '/' };
+  const value = map[symbol];
+  if (!value) return;
+  if (calc.operator && !calc.overwrite) calcCompute();
+  calc.previous = parseFloat(calc.current);
+  calc.operator = value;
+  calc.operatorSymbol = symbol;
+  calc.overwrite = true;
+  calc.exprDisplay = '';
+  calcRender();
+}
+
+function calcCompute() {
+  if (calc.operator == null || calc.previous == null) return;
+  const a = calc.previous, b = parseFloat(calc.current || '0');
+  let r;
+  switch (calc.operator) {
+    case '+': r = a + b; break;
+    case '-': r = a - b; break;
+    case '*': r = a * b; break;
+    case '/': r = b === 0 ? NaN : a / b; break;
+  }
+  if (!isFinite(r)) { toast('Tidak bisa dibagi 0', 'err'); calcClearAll(); return; }
+  r = Math.round(r * 1e8) / 1e8;
+  calc.current = String(r);
+  calc.previous = null;
+  calc.operator = null;
+  calc.overwrite = true;
+}
+
+function calcEquals() {
+  if (calc.operator == null) return;
+  const exprText = `${calcFormatDisplay(String(calc.previous))} ${calc.operatorSymbol} ${calcFormatDisplay(calc.current)}`;
+  calcCompute();
+  const resultText = calcFormatDisplay(calc.current);
+  calcSaveHistory(exprText, resultText);
+  calc.exprDisplay = exprText + ' =';
+  calcRender();
+}
+
+function calcPercent() {
+  const v = parseFloat(calc.current || '0');
+  calc.current = String(v / 100);
+  calc.overwrite = true;
+  calcRender();
+}
+
+function calcToggleSign() {
+  if (calc.current === '0') return;
+  calc.current = calc.current.startsWith('-') ? calc.current.slice(1) : '-' + calc.current;
+  calcRender();
+}
+
+function calcBackspace() {
+  if (calc.overwrite) return;
+  calc.current = calc.current.length > 1 ? calc.current.slice(0, -1) : '0';
+  if (calc.current === '-') calc.current = '0';
+  calcRender();
+}
+
+function calcClearAll() {
+  calc = { current: '0', previous: null, operator: null, operatorSymbol: null, overwrite: true, exprDisplay: '' };
+  calcRender();
+}
+
+function calcCopyCurrent() {
+  calcCopyText(calcFormatDisplay(calc.current));
+}
+
+function calcCopyText(text) {
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(text).then(() => toast('Hasil disalin ✓', 'ok')).catch(() => fallbackCopy(text));
+  } else { fallbackCopy(text); }
+}
+
+function calcEsc(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+function calcSaveHistory(expr, result) {
+  const nameInput = document.getElementById('calcNameInput');
+  const name = nameInput ? nameInput.value.trim() : '';
+  let hist = DB.get('calcHistory', []);
+  hist.unshift({ id: Date.now() + '-' + Math.random().toString(36).slice(2, 7), name, expr, result, ts: Date.now() });
+  if (hist.length > 50) hist = hist.slice(0, 50);
+  DB.set('calcHistory', hist);
+  if (nameInput) nameInput.value = '';
+  renderCalcHistory();
+}
+
+function renderCalcHistory() {
+  const wrap = document.getElementById('calcHistoryList');
+  if (!wrap) return;
+  const hist = DB.get('calcHistory', []);
+  if (!hist.length) {
+    wrap.innerHTML = `<div class="calc-hist-empty">Belum ada riwayat perhitungan</div>`;
+    return;
+  }
+  wrap.innerHTML = hist.map(h => `
+    <div class="calc-hist-item" onclick="calcCopyText('${calcEsc(h.result).replace(/'/g, "\\'")}')">
+      <div class="calc-hist-info">
+        ${h.name ? `<div class="calc-hist-name">${calcEsc(h.name)}</div>` : ''}
+        <div class="calc-hist-expr">${calcEsc(h.expr)}</div>
+        <div class="calc-hist-result">= ${calcEsc(h.result)}</div>
+      </div>
+      <button class="calc-hist-copy" onclick="event.stopPropagation();calcCopyText('${calcEsc(h.result).replace(/'/g, "\\'")}')" title="Salin hasil">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+      </button>
+    </div>
+  `).join('');
+}
+
+function calcClearHistory() {
+  if (!confirm('Hapus semua riwayat perhitungan?')) return;
+  DB.set('calcHistory', []);
+  renderCalcHistory();
+  toast('Riwayat dihapus', 'ok');
+}
+
 // ── Sheets ──────────────────────────────────
 function openSheet(id) {
   // Special handler for sign sheet

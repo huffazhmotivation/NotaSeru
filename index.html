@@ -1084,6 +1084,69 @@
   </div>
 </div>
 
+<!-- Calculator FAB — always floating, on top of every page -->
+<button class="calc-fab" id="calcFab" onclick="openCalculator()" title="Kalkulator">
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="10" x2="8" y2="10.01"/><line x1="12" y1="10" x2="12" y2="10.01"/><line x1="16" y1="10" x2="16" y2="10.01"/><line x1="8" y1="14" x2="8" y2="14.01"/><line x1="12" y1="14" x2="12" y2="14.01"/><line x1="16" y1="14" x2="16" y2="14.01"/><line x1="8" y1="18" x2="8" y2="18.01"/><line x1="12" y1="18" x2="12" y2="18.01"/><line x1="16" y1="18" x2="16" y2="18.01"/></svg>
+</button>
+
+<!-- Calculator Sheet -->
+<div class="sheet" id="calcSheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-hd">
+    <div class="sheet-title">Kalkulator</div>
+    <button class="sheet-close" onclick="closeSheets()" title="Tutup">✕</button>
+  </div>
+  <div class="sheet-body">
+    <div class="calc-name-field">
+      <input type="text" id="calcNameInput" class="form-input" placeholder="Nama perhitungan (opsional), misal: Ongkir + Barang">
+    </div>
+    <div class="calc-display">
+      <div class="calc-expr-line" id="calcExprLine"></div>
+      <div class="calc-main-row">
+        <div class="calc-main" id="calcMain">0</div>
+        <button class="calc-copy-btn" onclick="calcCopyCurrent()" title="Salin hasil">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+        </button>
+      </div>
+    </div>
+    <div class="calc-keypad">
+      <button class="calc-btn calc-btn-fn" onclick="calcClearAll()">AC</button>
+      <button class="calc-btn calc-btn-fn" onclick="calcBackspace()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 4H8l-7 8 7 8h13a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2z"/><line x1="18" y1="9" x2="12" y2="15"/><line x1="12" y1="9" x2="18" y2="15"/></svg>
+      </button>
+      <button class="calc-btn calc-btn-fn" onclick="calcPercent()">%</button>
+      <button class="calc-btn calc-btn-op" onclick="calcOp('÷')">÷</button>
+
+      <button class="calc-btn" onclick="calcDigit('7')">7</button>
+      <button class="calc-btn" onclick="calcDigit('8')">8</button>
+      <button class="calc-btn" onclick="calcDigit('9')">9</button>
+      <button class="calc-btn calc-btn-op" onclick="calcOp('×')">×</button>
+
+      <button class="calc-btn" onclick="calcDigit('4')">4</button>
+      <button class="calc-btn" onclick="calcDigit('5')">5</button>
+      <button class="calc-btn" onclick="calcDigit('6')">6</button>
+      <button class="calc-btn calc-btn-op" onclick="calcOp('−')">−</button>
+
+      <button class="calc-btn" onclick="calcDigit('1')">1</button>
+      <button class="calc-btn" onclick="calcDigit('2')">2</button>
+      <button class="calc-btn" onclick="calcDigit('3')">3</button>
+      <button class="calc-btn calc-btn-op" onclick="calcOp('+')">+</button>
+
+      <button class="calc-btn calc-btn-fn" onclick="calcToggleSign()">±</button>
+      <button class="calc-btn" onclick="calcDigit('0')">0</button>
+      <button class="calc-btn" onclick="calcDigit('.')">,</button>
+      <button class="calc-btn calc-btn-eq" onclick="calcEquals()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="5" y1="9" x2="19" y2="9"/><line x1="5" y1="15" x2="19" y2="15"/></svg>
+      </button>
+    </div>
+    <div class="calc-hist-hd">
+      <div class="calc-hist-title">Riwayat Perhitungan</div>
+      <button class="calc-hist-clear" onclick="calcClearHistory()">Hapus Semua</button>
+    </div>
+    <div class="calc-hist-list" id="calcHistoryList"></div>
+  </div>
+</div>
+
 </div><!-- #app -->
 <script src="script.js"></script>
 <script src="auth.js"></script>
