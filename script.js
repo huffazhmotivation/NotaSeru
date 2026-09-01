@@ -42,6 +42,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   registerSW();
   populateEkspedisiSelect();
   initDiscToggle();
+  initCalcSwipeClose();
   // Auth: wrap try-catch supaya error apapun tidak bikin blank
   try {
     if (typeof initAuth === 'function') await initAuth();
@@ -3937,6 +3938,46 @@ function calcClearHistory() {
   DB.set('calcHistory', []);
   renderCalcHistory();
   toast('Riwayat dihapus', 'ok');
+}
+
+// Swipe-down-to-close pada kalkulator (drag handle/header ke bawah)
+function initCalcSwipeClose() {
+  const sheet = document.getElementById('calcSheet');
+  if (!sheet) return;
+  const dragZones = [sheet.querySelector('.sheet-handle'), sheet.querySelector('.sheet-hd')].filter(Boolean);
+  let startY = 0, deltaY = 0, dragging = false;
+
+  function getY(e) { return e.touches ? e.touches[0].clientY : e.clientY; }
+
+  function onStart(e) {
+    dragging = true;
+    startY = getY(e);
+    deltaY = 0;
+    sheet.style.transition = 'none';
+  }
+  function onMove(e) {
+    if (!dragging) return;
+    deltaY = Math.max(0, getY(e) - startY);
+    sheet.style.transform = `translateX(-50%) translateY(${deltaY}px)`;
+    if (e.cancelable) e.preventDefault();
+  }
+  function onEnd() {
+    if (!dragging) return;
+    dragging = false;
+    sheet.style.transition = '';
+    sheet.style.transform = '';
+    if (deltaY > 110) closeSheets();
+    deltaY = 0;
+  }
+
+  dragZones.forEach(el => {
+    el.addEventListener('touchstart', onStart, { passive: true });
+    el.addEventListener('touchmove', onMove, { passive: false });
+    el.addEventListener('touchend', onEnd, { passive: true });
+    el.addEventListener('mousedown', onStart);
+  });
+  document.addEventListener('mousemove', e => { if (dragging) onMove(e); });
+  document.addEventListener('mouseup', onEnd);
 }
 
 // ── Sheets ──────────────────────────────────
