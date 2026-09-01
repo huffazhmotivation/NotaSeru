@@ -710,8 +710,14 @@ function renderInvList() {
   
   // Sort by date desc (same as before), tapi grup jadi satu blok
   const sorted = [...f].sort((a,b) => new Date(b.date||b.createdAt) - new Date(a.date||a.createdAt));
-  
+
+  let lastMonthKey = null;
   for (const inv of sorted) {
+    const mKey = monthYearKey(inv.date || inv.createdAt);
+    if (mKey !== lastMonthKey) {
+      htmlParts.push(monthDividerHTML(inv.date || inv.createdAt));
+      lastMonthKey = mKey;
+    }
     if (inv.grupKey && inv.grupIds && inv.grupIds.length > 0) {
       if (renderedGrupKeys.has(inv.grupKey)) continue; // sudah dirender
       renderedGrupKeys.add(inv.grupKey);
@@ -726,6 +732,19 @@ function renderInvList() {
   }
   
   list.innerHTML = htmlParts.join('');
+}
+
+// Key unik per bulan+tahun, untuk deteksi pergantian bulan pada daftar nota
+function monthYearKey(s) {
+  if (!s) return 'unknown';
+  try { const d = new Date(s); return d.getFullYear() + '-' + d.getMonth(); } catch { return 'unknown'; }
+}
+
+// Garis pemisah minimalist antar bulan pada daftar nota
+function monthDividerHTML(s) {
+  let label = '-';
+  try { label = new Date(s).toLocaleDateString('id-ID', { month: 'long', year: 'numeric' }); } catch {}
+  return `<div class="month-divider"><span>${xss(label)}</span></div>`;
 }
 
 // Palette warna untuk grup (berurutan)
