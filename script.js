@@ -3866,18 +3866,27 @@ function calcOp(symbol) {
   calcRender();
 }
 
-// Hitung seluruh rangkaian dari kiri ke kanan sesuai urutan token yang ditekan.
+// Hitung seluruh rangkaian sesuai urutan operasi matematika standar (× dan ÷ duluan,
+// baru + dan −) — supaya hasilnya sama persis dengan kalkulator bawaan iOS/Android.
 function calcEvalTokens(fullTokens) {
-  let r = parseFloat(fullTokens[0] || '0');
+  // Tahap 1: selesaikan semua × dan ÷ dulu, sisain cuma angka + operator +/− di antaranya
+  let vals = [parseFloat(fullTokens[0] || '0')];
+  let ops = [];
   for (let i = 1; i < fullTokens.length; i += 2) {
     const op = fullTokens[i];
     const b = parseFloat(fullTokens[i + 1] || '0');
-    switch (op) {
-      case '+': r = r + b; break;
-      case '−': r = r - b; break;
-      case '×': r = r * b; break;
-      case '÷': r = b === 0 ? NaN : r / b; break;
+    if (op === '×' || op === '÷') {
+      const last = vals[vals.length - 1];
+      vals[vals.length - 1] = op === '×' ? last * b : (b === 0 ? NaN : last / b);
+    } else {
+      vals.push(b);
+      ops.push(op);
     }
+  }
+  // Tahap 2: baru jumlahkan/kurangkan dari kiri ke kanan
+  let r = vals[0];
+  for (let i = 0; i < ops.length; i++) {
+    r = ops[i] === '+' ? r + vals[i + 1] : r - vals[i + 1];
   }
   return r;
 }
