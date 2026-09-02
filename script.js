@@ -440,6 +440,17 @@ function recalc() {
   setText('subtotalDisplay', fmtRp(sub));
   setText('grandDisplay', fmtRp(grand));
   setText('sisaDisplay', fmtRp(sisa));
+  syncStatusFromDp(dp, grand);
+}
+
+// Sinkronkan dropdown status nota mengikuti nominal DP yang diisi:
+// DP kosong/0 -> "Belum Bayar", DP kurang dari total -> "DP", DP >= total nota -> "Lunas".
+function syncStatusFromDp(dp, grand) {
+  const statusEl = document.getElementById('invStatus');
+  if (!statusEl) return;
+  if (dp <= 0) { statusEl.value = 'belum'; return; }
+  if (grand <= 0) return;
+  statusEl.value = dp >= grand ? 'lunas' : 'dp';
 }
 
 function saveInvoice() {
@@ -3304,7 +3315,7 @@ function renderDashboard() {
   const mi = invs.filter(i => { const d = new Date(i.date||i.createdAt); return d.getMonth()===m && d.getFullYear()===y; });
   // Pengeluaran: dari tab pengeluaran bulan ini
   const me = exps.filter(e => { const d = new Date(e.date); return d.getMonth()===m && d.getFullYear()===y; });
-  const income = mi.reduce((s,i) => s + (i.grand||0), 0);
+  const income = mi.reduce((s,i) => s + invActualIncome(i), 0);
   const expense = me.reduce((s,e) => s + (e.amount||0), 0);
   const laba = income - expense;
   setText('heroOmzet', fmtRp(income));
@@ -3365,15 +3376,38 @@ function switchFinTab(tab) {
   _finTab = tab;
   const il = document.getElementById('finIncomeList'), el = document.getElementById('finExpenseList');
   const bi = document.getElementById('finTabIncome'), be = document.getElementById('finTabExpense');
+  const addBtn = document.getElementById('finAddBtn');
   if (tab === 'income') {
     if (il) il.style.display = ''; if (el) el.style.display = 'none';
     if (bi) { bi.style.background = 'var(--primary)'; bi.style.color = '#fff'; }
     if (be) { be.style.background = 'var(--bg-input)'; be.style.color = 'var(--txt-2)'; }
+    if (addBtn) addBtn.title = 'Buat Nota';
   } else {
     if (el) el.style.display = ''; if (il) il.style.display = 'none';
     if (be) { be.style.background = 'var(--primary)'; be.style.color = '#fff'; }
     if (bi) { bi.style.background = 'var(--bg-input)'; bi.style.color = 'var(--txt-2)'; }
+    if (addBtn) addBtn.title = 'Tambah Pengeluaran';
   }
+}
+
+// Tombol "+" di header Keuangan: ikut tab yang sedang aktif.
+// Pemasukan berasal dari Nota, jadi arahkan ke form buat nota, bukan form pengeluaran.
+function openFinAddSheet() {
+  if (_finTab === 'income') {
+    nav('invoice-form');
+  } else {
+    openExpenseSheet();
+  }
+}
+
+// Uang yang benar-benar sudah masuk dari sebuah nota:
+// Lunas = total nota, DP = hanya sebesar nominal DP-nya, Belum Bayar = 0.
+// (Beda dengan "Omset" yang tetap menghitung nilai penuh tiap nota terlepas dari status bayar.)
+function invActualIncome(inv) {
+  if (!inv) return 0;
+  if (inv.status === 'lunas') return inv.grand || 0;
+  if (inv.status === 'dp') return inv.dp || 0;
+  return 0;
 }
 
 function renderFinancePage() {
@@ -3384,6 +3418,7 @@ function renderFinancePage() {
   const filtExps = exps.filter(e => { const d = new Date(e.date); return d >= from && d <= to; });
 
   const totalOmset = filtInvs.reduce((s,i) => s+(i.grand||0), 0);
+  const totalIncome = filtInvs.reduce((s,i) => s+invActualIncome(i), 0);
   const totalExp = filtExps.reduce((s,e) => s+(e.amount||0), 0);
   const totalLaba = totalOmset - totalExp;
 
@@ -3393,7 +3428,7 @@ function renderFinancePage() {
   if (labaEl) { labaEl.textContent = fmtRp(totalLaba); labaEl.style.color = totalLaba >= 0 ? 'var(--primary)' : 'var(--danger)'; }
   const labaNote = document.getElementById('finLabaNote');
   if (labaNote) labaNote.textContent = totalLaba >= 0 ? 'Profit' : 'Rugi';
-  setText('finIncome', fmtRp(totalOmset));
+  setText('finIncome', fmtRp(totalIncome));
   setText('finExpense', fmtRp(totalExp));
 
   // Build monthly data for chart
@@ -3418,13 +3453,16 @@ function renderFinancePage() {
     if (!filtInvs.length) {
       incList.innerHTML = emptyHTML('wallet','Belum Ada Pemasukan','Tidak ada invoice di periode ini');
     } else {
+      // byStatus = uang yang sudah masuk per status (Lunas: total nota, DP: nominal DP saja)
       const byStatus = { lunas:0, dp:0, belum:0 };
-      filtInvs.forEach(i => { byStatus[i.status] = (byStatus[i.status]||0) + (i.grand||0); });
+      filtInvs.forEach(i => { byStatus[i.status || 'belum'] = (byStatus[i.status || 'belum']||0) + invActualIncome(i); });
+      // belumNilai = nilai nota yang belum dibayar sama sekali, sekadar info (bukan pemasukan)
+      const belumNilai = filtInvs.filter(i => (i.status||'belum') === 'belum').reduce((s,i) => s+(i.grand||0), 0);
       incList.innerHTML = `
         <div style="display:flex;flex-direction:column;gap:8px">
           ${byStatus.lunas ? `<div style="display:flex;justify-content:space-between;align-items:center;padding:11px 14px;background:var(--success-soft);border:1px solid rgba(16,185,129,0.35);border-radius:var(--r-md)"><div style="font-size:13px;font-weight:600;color:var(--success)">✓ Lunas</div><div style="font-size:13px;font-weight:700;color:var(--success)">${fmtRp(byStatus.lunas)}</div></div>` : ''}
-          ${byStatus.dp ? `<div style="display:flex;justify-content:space-between;align-items:center;padding:11px 14px;background:var(--warning-soft);border:1px solid rgba(245,158,11,0.35);border-radius:var(--r-md)"><div style="font-size:13px;font-weight:600;color:var(--warning)">◐ DP / Uang Muka</div><div style="font-size:13px;font-weight:700;color:var(--warning)">${fmtRp(byStatus.dp)}</div></div>` : ''}
-          ${byStatus.belum ? `<div style="display:flex;justify-content:space-between;align-items:center;padding:11px 14px;background:var(--danger-soft);border:1px solid rgba(244,63,94,0.35);border-radius:var(--r-md)"><div style="font-size:13px;font-weight:600;color:var(--danger)">✗ Belum Bayar</div><div style="font-size:13px;font-weight:700;color:var(--danger)">${fmtRp(byStatus.belum)}</div></div>` : ''}
+          ${byStatus.dp ? `<div style="display:flex;justify-content:space-between;align-items:center;padding:11px 14px;background:var(--warning-soft);border:1px solid rgba(245,158,11,0.35);border-radius:var(--r-md)"><div style="font-size:13px;font-weight:600;color:var(--warning)">◐ DP / Uang Muka Diterima</div><div style="font-size:13px;font-weight:700;color:var(--warning)">${fmtRp(byStatus.dp)}</div></div>` : ''}
+          ${belumNilai ? `<div style="display:flex;justify-content:space-between;align-items:center;padding:11px 14px;background:var(--danger-soft);border:1px solid rgba(244,63,94,0.35);border-radius:var(--r-md)"><div style="font-size:13px;font-weight:600;color:var(--danger)">✗ Belum Bayar (nilai nota)</div><div style="font-size:13px;font-weight:700;color:var(--danger)">${fmtRp(belumNilai)}</div></div>` : ''}
           <div style="font-size:11px;color:var(--txt-3);text-align:center;margin-top:2px">${filtInvs.length} nota · Lihat detail di tab Nota</div>
         </div>`;
     }
