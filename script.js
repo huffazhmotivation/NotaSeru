@@ -3311,14 +3311,20 @@ function renderDashboard() {
   const m = now.getMonth(), y = now.getFullYear();
   const invs = DB.get('invoices', []);
   const exps = DB.get('expenses', []);
-  // Pemasukan: dari nota (invoices) bulan ini
+  const incs = DB.get('incomes', []);
+  // Omzet: nilai penuh nota bulan ini (accrual, semua status)
   const mi = invs.filter(i => { const d = new Date(i.date||i.createdAt); return d.getMonth()===m && d.getFullYear()===y; });
   // Pengeluaran: dari tab pengeluaran bulan ini
   const me = exps.filter(e => { const d = new Date(e.date); return d.getMonth()===m && d.getFullYear()===y; });
-  const income = mi.reduce((s,i) => s + invActualIncome(i), 0);
+  // Pemasukan lain di luar nota bulan ini
+  const mInc = incs.filter(i => { const d = new Date(i.date||i.createdAt); return d.getMonth()===m && d.getFullYear()===y; });
+  const omset = mi.reduce((s,i) => s + (i.grand||0), 0);
+  const incomeLain = mInc.reduce((s,i) => s + (i.amount||0), 0);
+  // Pemasukan: uang yang benar-benar sudah masuk (Lunas + DP nota) + pemasukan lain di luar nota
+  const income = mi.reduce((s,i) => s + invActualIncome(i), 0) + incomeLain;
   const expense = me.reduce((s,e) => s + (e.amount||0), 0);
-  const laba = income - expense;
-  setText('heroOmzet', fmtRp(income));
+  const laba = omset + incomeLain - expense;
+  setText('heroOmzet', fmtRp(omset));
   setText('dashIncome', fmtRpShort(income));
   setText('dashExpense', fmtRpShort(expense));
   setText('dashCount', mi.length.toString());
@@ -3381,7 +3387,7 @@ function switchFinTab(tab) {
     if (il) il.style.display = ''; if (el) el.style.display = 'none';
     if (bi) { bi.style.background = 'var(--primary)'; bi.style.color = '#fff'; }
     if (be) { be.style.background = 'var(--bg-input)'; be.style.color = 'var(--txt-2)'; }
-    if (addBtn) addBtn.title = 'Buat Nota';
+    if (addBtn) addBtn.title = 'Tambah Pemasukan';
   } else {
     if (el) el.style.display = ''; if (il) il.style.display = 'none';
     if (be) { be.style.background = 'var(--primary)'; be.style.color = '#fff'; }
@@ -3391,10 +3397,11 @@ function switchFinTab(tab) {
 }
 
 // Tombol "+" di header Keuangan: ikut tab yang sedang aktif.
-// Pemasukan berasal dari Nota, jadi arahkan ke form buat nota, bukan form pengeluaran.
+// Tab Pemasukan -> form "Tambah Pemasukan" (pemasukan di luar Nota, mis. modal/jasa lain-lain).
+// Tab Pengeluaran -> form "Tambah Pengeluaran" seperti biasa.
 function openFinAddSheet() {
   if (_finTab === 'income') {
-    nav('invoice-form');
+    openIncomeSheet();
   } else {
     openExpenseSheet();
   }
@@ -3414,13 +3421,17 @@ function renderFinancePage() {
   const { from, to } = getFinDateRange();
   const invs = DB.get('invoices', []);
   const exps = DB.get('expenses', []);
+  const incs = DB.get('incomes', []);
   const filtInvs = invs.filter(i => { const d = new Date(i.date||i.createdAt); return d >= from && d <= to; });
   const filtExps = exps.filter(e => { const d = new Date(e.date); return d >= from && d <= to; });
+  const filtIncs = incs.filter(i => { const d = new Date(i.date||i.createdAt); return d >= from && d <= to; });
 
   const totalOmset = filtInvs.reduce((s,i) => s+(i.grand||0), 0);
-  const totalIncome = filtInvs.reduce((s,i) => s+invActualIncome(i), 0);
+  const totalIncomeNota = filtInvs.reduce((s,i) => s+invActualIncome(i), 0);
+  const totalIncomeLain = filtIncs.reduce((s,i) => s+(i.amount||0), 0);
+  const totalIncome = totalIncomeNota + totalIncomeLain;
   const totalExp = filtExps.reduce((s,e) => s+(e.amount||0), 0);
-  const totalLaba = totalOmset - totalExp;
+  const totalLaba = totalOmset + totalIncomeLain - totalExp;
 
   setText('finOmset', fmtRp(totalOmset));
   setText('finOmsetNote', `${filtInvs.length} nota`);
@@ -3441,30 +3452,53 @@ function renderFinancePage() {
     if (key==='omset') months[mk].count++;
   };
   filtInvs.forEach(i => addM(i.date||i.createdAt, 'omset', i.grand||0));
+  filtIncs.forEach(i => addM(i.date||i.createdAt, 'omset', i.amount||0));
   filtExps.forEach(e => addM(e.date, 'exp', e.amount||0));
   const sortedM = Object.entries(months).sort((a,b) => a[0].localeCompare(b[0]));
 
   // Draw chart
   drawFinChart(sortedM);
 
-  // Render income list (tanpa riwayat nota - cukup summary)
+  // Render income list: ringkasan status nota + riwayat pemasukan lain di luar nota
   const incList = document.getElementById('finIncomeList');
   if (incList) {
-    if (!filtInvs.length) {
-      incList.innerHTML = emptyHTML('wallet','Belum Ada Pemasukan','Tidak ada invoice di periode ini');
+    if (!filtInvs.length && !filtIncs.length) {
+      incList.innerHTML = emptyHTML('wallet','Belum Ada Pemasukan','Tidak ada invoice/pemasukan di periode ini');
     } else {
       // byStatus = uang yang sudah masuk per status (Lunas: total nota, DP: nominal DP saja)
       const byStatus = { lunas:0, dp:0, belum:0 };
       filtInvs.forEach(i => { byStatus[i.status || 'belum'] = (byStatus[i.status || 'belum']||0) + invActualIncome(i); });
       // belumNilai = nilai nota yang belum dibayar sama sekali, sekadar info (bukan pemasukan)
       const belumNilai = filtInvs.filter(i => (i.status||'belum') === 'belum').reduce((s,i) => s+(i.grand||0), 0);
+      const catIco = { modal:'💰', jasa:'🧾', aset:'📦', hutang:'🤝', lainnya:'✨' };
+      const sortedIncs = [...filtIncs].sort((a,b) => new Date(b.date)-new Date(a.date));
       incList.innerHTML = `
         <div style="display:flex;flex-direction:column;gap:8px">
           ${byStatus.lunas ? `<div style="display:flex;justify-content:space-between;align-items:center;padding:11px 14px;background:var(--success-soft);border:1px solid rgba(16,185,129,0.35);border-radius:var(--r-md)"><div style="font-size:13px;font-weight:600;color:var(--success)">✓ Lunas</div><div style="font-size:13px;font-weight:700;color:var(--success)">${fmtRp(byStatus.lunas)}</div></div>` : ''}
           ${byStatus.dp ? `<div style="display:flex;justify-content:space-between;align-items:center;padding:11px 14px;background:var(--warning-soft);border:1px solid rgba(245,158,11,0.35);border-radius:var(--r-md)"><div style="font-size:13px;font-weight:600;color:var(--warning)">◐ DP / Uang Muka Diterima</div><div style="font-size:13px;font-weight:700;color:var(--warning)">${fmtRp(byStatus.dp)}</div></div>` : ''}
           ${belumNilai ? `<div style="display:flex;justify-content:space-between;align-items:center;padding:11px 14px;background:var(--danger-soft);border:1px solid rgba(244,63,94,0.35);border-radius:var(--r-md)"><div style="font-size:13px;font-weight:600;color:var(--danger)">✗ Belum Bayar (nilai nota)</div><div style="font-size:13px;font-weight:700;color:var(--danger)">${fmtRp(belumNilai)}</div></div>` : ''}
-          <div style="font-size:11px;color:var(--txt-3);text-align:center;margin-top:2px">${filtInvs.length} nota · Lihat detail di tab Nota</div>
-        </div>`;
+          ${filtInvs.length ? `<div style="font-size:11px;color:var(--txt-3);text-align:center;margin-top:2px">${filtInvs.length} nota · Lihat detail di tab Nota</div>` : ''}
+        </div>
+        ${sortedIncs.length ? `
+        <div style="font-size:11px;font-weight:700;color:var(--txt-3);text-transform:uppercase;letter-spacing:.06em;margin:14px 0 8px">Pemasukan Lain (Di Luar Nota)</div>
+        <div style="display:flex;flex-direction:column;gap:7px">
+          ${sortedIncs.map(i => `
+          <div style="display:flex;align-items:center;gap:12px;padding:12px 14px;background:var(--bg-card);border:1px solid var(--border-soft);border-radius:var(--r-md)">
+            <div style="width:38px;height:38px;border-radius:var(--r-sm);background:var(--success-soft);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">${catIco[i.category]||catIco.lainnya}</div>
+            <div style="flex:1;min-width:0">
+              <div style="font-size:13px;font-weight:600;color:var(--txt-1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${xss(i.name)}</div>
+              <div style="font-size:11px;color:var(--txt-3)">${fmtDate(i.date)} · ${xss(i.category||'lainnya')}</div>
+            </div>
+            <div style="text-align:right;flex-shrink:0">
+              <div style="font-size:14px;font-weight:700;color:var(--success)">+${fmtRp(i.amount)}</div>
+              <div style="display:flex;gap:6px;justify-content:flex-end;margin-top:6px">
+                <button onclick="openIncomeSheet('${i.id}')" style="padding:4px 10px;border-radius:6px;background:var(--warning-soft);color:var(--warning);border:none;font-size:11px;font-weight:600;cursor:pointer;font-family:var(--font)">Edit</button>
+                <button onclick="delIncome('${i.id}')" style="padding:4px 10px;border-radius:6px;background:var(--danger-soft);color:var(--danger);border:none;font-size:11px;font-weight:600;cursor:pointer;font-family:var(--font)">Hapus</button>
+              </div>
+            </div>
+          </div>`).join('')}
+        </div>` : ''}
+      `;
     }
   }
 
@@ -3652,12 +3686,59 @@ function saveExpense() {
   DB.set('expenses', exps);
   closeSheets(); toast('Pengeluaran disimpan ✓', 'ok');
   renderExpensePage();
+  if (typeof renderFinancePage === 'function') renderFinancePage();
 }
 
 function delExp(id) {
   if (!confirm('Hapus pengeluaran ini?')) return;
   DB.set('expenses', DB.get('expenses',[]).filter(e => e.id !== id));
   toast('Dihapus', 'ok'); renderExpensePage();
+  if (typeof renderFinancePage === 'function') renderFinancePage();
+}
+
+// ── Pemasukan di luar Nota (mis. modal masuk, jasa lain, piutang tertagih) ──
+function openIncomeSheet(id = null) {
+  if (id) {
+    const inc = DB.get('incomes',[]).find(x => x.id === id); if (!inc) return;
+    setText('incSheetTitle', 'Edit Pemasukan');
+    document.getElementById('editIncId').value = inc.id;
+    document.getElementById('incName').value = inc.name;
+    document.getElementById('incCat').value = inc.category || 'lainnya';
+    document.getElementById('incAmount').value = fmtRp(inc.amount);
+    document.getElementById('incDate').value = inc.date;
+    document.getElementById('incNotes').value = inc.notes||'';
+  } else {
+    setText('incSheetTitle','Tambah Pemasukan');
+    document.getElementById('editIncId').value = '';
+    document.getElementById('incName').value = '';
+    document.getElementById('incCat').value = 'lainnya';
+    document.getElementById('incAmount').value = '';
+    document.getElementById('incDate').value = new Date().toISOString().split('T')[0];
+    document.getElementById('incNotes').value = '';
+  }
+  openSheet('incomeSheet');
+}
+
+function saveIncome() {
+  const name = document.getElementById('incName').value.trim();
+  const amount = parseMoney(document.getElementById('incAmount').value);
+  const date = document.getElementById('incDate').value;
+  if (!name) { toast('Nama wajib diisi', 'err'); return; }
+  if (!amount) { toast('Nominal wajib diisi', 'err'); return; }
+  const incs = DB.get('incomes', []);
+  const iid = document.getElementById('editIncId').value;
+  const inc = { id: iid||Date.now().toString(), name, amount, date, category: document.getElementById('incCat').value, notes: document.getElementById('incNotes').value };
+  if (iid) { const idx = incs.findIndex(i => i.id === iid); inc.createdAt = idx !== -1 ? incs[idx].createdAt : Date.now(); if (idx !== -1) incs[idx]=inc; else incs.unshift(inc); }
+  else { inc.createdAt = Date.now(); incs.unshift(inc); }
+  DB.set('incomes', incs);
+  closeSheets(); toast('Pemasukan disimpan ✓', 'ok');
+  renderFinancePage();
+}
+
+function delIncome(id) {
+  if (!confirm('Hapus pemasukan ini?')) return;
+  DB.set('incomes', DB.get('incomes',[]).filter(i => i.id !== id));
+  toast('Dihapus', 'ok'); renderFinancePage();
 }
 
 // ── Settings ────────────────────────────────

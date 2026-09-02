@@ -903,6 +903,30 @@
   </div>
 </div>
 
+<!-- Pemasukan di luar Nota (mis. modal masuk, pendapatan lain-lain) -->
+<div class="sheet" id="incomeSheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-hd"><div class="sheet-title" id="incSheetTitle">Tambah Pemasukan</div><button class="sheet-close" onclick="closeSheets()">✕</button></div>
+  <div class="sheet-body">
+    <input type="hidden" id="editIncId">
+    <div class="form-group"><label class="form-label">Nama Pemasukan</label><input type="text" class="form-input" id="incName" placeholder="Contoh: Modal tambahan, Jual barang bekas"></div>
+    <div class="form-group"><label class="form-label">Kategori</label>
+      <select class="form-select" id="incCat">
+        <option value="lainnya">Lainnya</option>
+        <option value="modal">Modal / Suntikan Dana</option>
+        <option value="jasa">Jasa / Komisi</option>
+        <option value="aset">Jual Aset</option>
+        <option value="hutang">Piutang Tertagih</option>
+      </select>
+    </div>
+    <div class="form-group"><label class="form-label">Nominal</label><input type="text" class="form-input" id="incAmount" placeholder="Rp 0" oninput="fmtInline(this)"></div>
+    <div class="form-group"><label class="form-label">Tanggal</label><input type="date" class="form-input" id="incDate"></div>
+    <div class="form-group"><label class="form-label">Catatan</label><textarea class="form-textarea" id="incNotes" rows="2" placeholder="Opsional..."></textarea></div>
+    <button class="btn btn-primary btn-block" onclick="saveIncome()">Simpan Pemasukan</button>
+  </div>
+</div>
+
+
 <!-- Invoice Action Sheet -->
 <div class="sheet" id="invActionSheet">
   <div class="sheet-handle"></div>
