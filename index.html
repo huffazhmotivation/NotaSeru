@@ -170,6 +170,18 @@
     </div>
   </div>
 
+  <!-- CTA Buat Nota — dibuat mencolok agar langsung terlihat -->
+  <div class="cta-add-nota" onclick="nav('invoice-form')">
+    <div class="cta-add-nota-ic">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.4" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+    </div>
+    <div class="cta-add-nota-txt">
+      <div class="cta-add-nota-title">Buat Nota Baru</div>
+      <div class="cta-add-nota-sub">Invoice profesional siap dalam hitungan detik</div>
+    </div>
+    <svg class="cta-add-nota-arrow" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+  </div>
+
   <!-- Laba bersih -->
   <div class="laba-card">
     <div class="laba-left">
@@ -726,14 +738,14 @@
       <div class="section-title" style="margin-bottom:12px">Template Nota</div>
       <div class="sett-card" style="padding:12px 16px">
         <div class="template-grid" id="templateGrid">
-          <div class="tpl-card active" data-tpl="classic" onclick="selectTemplate('classic',this)">
+          <div class="tpl-card active" data-tpl="classic" onclick="previewTemplate('classic',this)">
             <div class="tpl-preview tpl-classic">
               <div class="tpl-logo-sm"></div>
               <div class="tpl-lines"><div></div><div></div><div class="tpl-accent"></div></div>
             </div>
             <div class="tpl-name">Classic</div>
           </div>
-          <div class="tpl-card" data-tpl="modern" onclick="selectTemplate('modern',this)">
+          <div class="tpl-card" data-tpl="modern" onclick="previewTemplate('modern',this)">
             <div class="tpl-preview tpl-modern">
               <div class="tpl-top-bar"></div>
               <div class="tpl-logo-sm"></div>
@@ -741,14 +753,14 @@
             </div>
             <div class="tpl-name">Modern</div>
           </div>
-          <div class="tpl-card" data-tpl="minimal" onclick="selectTemplate('minimal',this)">
+          <div class="tpl-card" data-tpl="minimal" onclick="previewTemplate('minimal',this)">
             <div class="tpl-preview tpl-minimal">
               <div class="tpl-lines"><div class="tpl-title-line"></div><div></div><div></div></div>
               <div class="tpl-logo-right"></div>
             </div>
             <div class="tpl-name">Minimal</div>
           </div>
-          <div class="tpl-card" data-tpl="bold" onclick="selectTemplate('bold',this)">
+          <div class="tpl-card" data-tpl="bold" onclick="previewTemplate('bold',this)">
             <div class="tpl-preview tpl-bold">
               <div class="tpl-header-bold">
                 <div class="tpl-logo-bold"></div>
@@ -758,7 +770,7 @@
             </div>
             <div class="tpl-name">Bold</div>
           </div>
-          <div class="tpl-card" data-tpl="elegant" onclick="selectTemplate('elegant',this)">
+          <div class="tpl-card" data-tpl="elegant" onclick="previewTemplate('elegant',this)">
             <div class="tpl-preview tpl-elegant">
               <div class="tpl-el-head"></div>
               <div class="tpl-el-body">
@@ -768,7 +780,7 @@
             </div>
             <div class="tpl-name">Elegant</div>
           </div>
-          <div class="tpl-card" data-tpl="ticket" onclick="selectTemplate('ticket',this)">
+          <div class="tpl-card" data-tpl="ticket" onclick="previewTemplate('ticket',this)">
             <div class="tpl-preview tpl-ticket">
               <div class="tpl-tk-body">
                 <div class="tpl-tk-title"></div>
@@ -779,7 +791,34 @@
             </div>
             <div class="tpl-name">Struk</div>
           </div>
+          <div class="tpl-card" data-tpl="korporat" onclick="previewTemplate('korporat',this)">
+            <div class="tpl-preview tpl-korporat">
+              <div class="tpl-kp-side"></div>
+              <div class="tpl-kp-main"><div></div><div></div><div class="tpl-accent"></div></div>
+            </div>
+            <div class="tpl-name">Korporat</div>
+            <div class="tpl-pro-badge">PRO</div>
+          </div>
+          <div class="tpl-card" data-tpl="signature" onclick="previewTemplate('signature',this)">
+            <div class="tpl-preview tpl-signature">
+              <div class="tpl-sg-head"></div>
+              <div class="tpl-sg-lines"><div></div><div class="tpl-accent"></div><div></div></div>
+            </div>
+            <div class="tpl-name">Signature</div>
+            <div class="tpl-pro-badge">PRO</div>
+          </div>
+          <div class="tpl-card" data-tpl="nordic" onclick="previewTemplate('nordic',this)">
+            <div class="tpl-preview tpl-nordic">
+              <div class="tpl-nd-card">
+                <div class="tpl-nd-top"><div class="tpl-nd-logo"></div><div class="tpl-nd-chip"></div></div>
+                <div class="tpl-nd-lines"><div></div><div></div></div>
+              </div>
+            </div>
+            <div class="tpl-name">Nordic</div>
+            <div class="tpl-pro-badge">PRO</div>
+          </div>
         </div>
+        <div style="text-align:center;font-size:11px;color:var(--txt-3);margin-top:10px">Ketuk template untuk lihat preview nota asli</div>
         <!-- Template Color Picker -->
         <div style="padding:10px 0 4px;border-top:1px solid var(--border-soft);margin-top:8px">
           <div style="font-size:10px;font-weight:700;color:var(--txt-3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">Nuansa Warna</div>
@@ -1194,6 +1233,26 @@
       </div>
     </div>
     <button onclick="applyCustomColor()" style="margin-top:14px;width:100%;padding:12px;border-radius:10px;background:var(--primary);color:#fff;border:none;font-size:14px;font-weight:700;cursor:pointer">Gunakan Warna Ini</button>
+  </div>
+</div>
+
+<!-- Template Preview Modal — preview nota REAL sebelum dipakai -->
+<div class="tpl-preview-modal" id="tplPreviewModal">
+  <div class="tpl-preview-modal-hd">
+    <button class="tpl-preview-close" onclick="closeTplPreviewModal()">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+    <div class="tpl-preview-modal-title"><small>Preview Template</small><span id="tplPreviewModalTitle">Classic</span></div>
+    <div style="width:32px;flex-shrink:0"></div>
+  </div>
+  <div class="tpl-preview-modal-body">
+    <div class="preview-wrap" id="tplPreviewWrap" style="padding-bottom:0">
+      <div class="inv-preview-scaler" id="tplPreviewScaler"><div class="inv-preview" id="tplPreviewContent"></div></div>
+    </div>
+  </div>
+  <div class="tpl-preview-modal-footer">
+    <div class="tpl-preview-color-row" id="tplPreviewColorRow"></div>
+    <button class="tpl-preview-use-btn" onclick="confirmTemplateFromPreview()">Gunakan Template Ini</button>
   </div>
 </div>
 

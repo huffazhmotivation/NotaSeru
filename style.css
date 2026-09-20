@@ -432,7 +432,8 @@ img{max-width:100%;display:block;}
 .template-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
 .tpl-color-dot.active{border-color:var(--txt-1)!important;transform:scale(1.25);box-shadow:0 0 0 2px var(--bg-card),0 0 0 4px var(--txt-1);}
 .tpl-color-dot:active{transform:scale(.92);}
-.tpl-card{cursor:pointer;border:2px solid var(--border);border-radius:var(--r-sm);padding:6px;transition:var(--spring);text-align:center;background:var(--bg-input);}
+.tpl-card{position:relative;cursor:pointer;border:2px solid var(--border);border-radius:var(--r-sm);padding:6px;transition:var(--spring);text-align:center;background:var(--bg-input);}
+.tpl-pro-badge{position:absolute;top:4px;right:4px;background:linear-gradient(135deg,#F5C518,#D4AF37);color:#3A2E00;font-size:7.5px;font-weight:900;letter-spacing:.03em;padding:2px 5px;border-radius:5px;box-shadow:0 1px 3px rgba(0,0,0,.25);z-index:2;pointer-events:none;}
 .tpl-card.active{border-color:var(--primary);background:var(--primary-soft);}
 .tpl-card:active{transform:scale(.95);}
 .tpl-preview{height:56px;border-radius:5px;overflow:hidden;margin-bottom:5px;position:relative;background:#fff;border:1px solid var(--border-soft);}
@@ -482,6 +483,57 @@ img{max-width:100%;display:block;}
 .tpl-ticket .tpl-tk-title{width:60%;height:3px;background:#111827;border-radius:2px;}
 .tpl-ticket .tpl-tk-dash{width:75%;border-top:1px dashed #A1A1AA;height:0;}
 .tpl-ticket .tpl-tk-line{width:65%;height:2px;background:#E5E7EB;border-radius:2px;}
+
+/* Korporat: sidebar gelap kiri + konten kanan — kesan letterhead korporat */
+.tpl-korporat{display:flex;}
+.tpl-korporat .tpl-kp-side{width:34%;background:#1F2937;flex-shrink:0;}
+.tpl-korporat .tpl-kp-main{flex:1;display:flex;flex-direction:column;gap:3px;padding:7px 6px;justify-content:center;}
+.tpl-korporat .tpl-kp-main div{height:2.5px;background:#E5E7EB;border-radius:2px;}
+.tpl-korporat .tpl-kp-main .tpl-accent{background:#D97706!important;width:55%;}
+
+/* Signature: header hitam + garis emas tipis — kesan premium/mewah */
+.tpl-signature{display:flex;flex-direction:column;background:#fff;}
+.tpl-signature .tpl-sg-head{height:24px;background:#111111;display:flex;align-items:center;justify-content:center;gap:4px;}
+.tpl-signature .tpl-sg-head::before,.tpl-signature .tpl-sg-head::after{content:'';width:12px;height:1.5px;background:#D4AF37;}
+.tpl-signature .tpl-sg-lines{padding:7px 8px;display:flex;flex-direction:column;gap:3px;flex:1;justify-content:center;}
+.tpl-signature .tpl-sg-lines div{height:2.5px;background:#E5E7EB;border-radius:2px;}
+.tpl-signature .tpl-sg-lines .tpl-accent{background:#D4AF37!important;width:45%;margin:0 auto;}
+
+/* Nordic: kartu putih melayang dengan shadow + chip status — gaya SaaS modern */
+.tpl-nordic{display:flex;align-items:center;justify-content:center;background:#F1F3F6;}
+.tpl-nordic .tpl-nd-card{width:80%;height:78%;background:#fff;border-radius:6px;box-shadow:0 3px 8px rgba(0,0,0,.1);padding:5px 6px;display:flex;flex-direction:column;gap:3px;}
+.tpl-nordic .tpl-nd-top{display:flex;justify-content:space-between;align-items:center;}
+.tpl-nordic .tpl-nd-logo{width:8px;height:8px;border-radius:3px;background:#D97706;}
+.tpl-nordic .tpl-nd-chip{width:14px;height:5px;border-radius:4px;background:#BBF7D0;}
+.tpl-nordic .tpl-nd-lines div{height:2px;background:#E5E7EB;border-radius:2px;margin-top:3px;}
+
+/* ── Template Preview Modal (popup preview nota real) ── */
+.tpl-preview-modal{position:fixed;inset:0;background:var(--bg);z-index:900;display:flex;flex-direction:column;transform:translateY(100%);transition:transform .32s cubic-bezier(.32,.72,0,1);}
+.tpl-preview-modal.visible{transform:translateY(0);}
+.tpl-preview-modal-hd{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:calc(var(--safe-t) + 14px) 16px 14px;background:var(--bg-card);border-bottom:1px solid var(--border-soft);flex-shrink:0;}
+.tpl-preview-close{width:32px;height:32px;border-radius:50%;background:var(--bg-input);border:none;display:flex;align-items:center;justify-content:center;color:var(--txt-2);font-size:15px;cursor:pointer;flex-shrink:0;font-family:var(--font);}
+.tpl-preview-close:active{transform:scale(.9);}
+.tpl-preview-modal-title{font-size:15px;font-weight:800;color:var(--txt-1);text-align:center;flex:1;}
+.tpl-preview-modal-title small{display:block;font-size:10.5px;font-weight:700;color:var(--primary);text-transform:uppercase;letter-spacing:.08em;margin-bottom:1px;}
+.tpl-preview-modal-body{flex:1;overflow-y:auto;padding:18px 16px 24px;-webkit-overflow-scrolling:touch;}
+.tpl-preview-modal-footer{flex-shrink:0;padding:14px 16px calc(var(--safe-b) + 14px);background:var(--bg-card);border-top:1px solid var(--border-soft);display:flex;flex-direction:column;gap:12px;}
+.tpl-preview-color-row{display:flex;gap:9px;justify-content:center;align-items:center;}
+.tpl-preview-dot{width:26px;height:26px;border-radius:8px;border:3px solid transparent;cursor:pointer;padding:0;transition:var(--ease);}
+.tpl-preview-dot.active{border-color:var(--txt-1);transform:scale(1.15);box-shadow:0 0 0 2px var(--bg-card);}
+.tpl-preview-dot:active{transform:scale(.92);}
+.tpl-preview-use-btn{width:100%;padding:13px;border-radius:var(--r-md);background:var(--primary);color:#fff;border:none;font-size:14px;font-weight:800;cursor:pointer;font-family:var(--font);box-shadow:var(--sh-pri);transition:var(--ease);}
+.tpl-preview-use-btn:active{transform:scale(.97);}
+
+/* ── Dashboard CTA: Tambah/Buat Nota — dibuat mencolok ── */
+.cta-add-nota{margin:16px 20px 6px;background:linear-gradient(135deg,var(--primary),var(--primary-dark));border-radius:var(--r-lg);padding:16px 16px 16px 14px;display:flex;align-items:center;gap:13px;cursor:pointer;box-shadow:0 10px 26px var(--primary-glow),0 4px 14px rgba(0,0,0,.08);transition:var(--spring);position:relative;overflow:hidden;}
+.cta-add-nota::after{content:'';position:absolute;top:-30px;right:-20px;width:110px;height:110px;border-radius:50%;background:rgba(255,255,255,.10);}
+.cta-add-nota:active{transform:scale(.97);}
+.cta-add-nota-ic{width:46px;height:46px;border-radius:var(--r-full);background:rgba(255,255,255,.22);display:flex;align-items:center;justify-content:center;flex-shrink:0;position:relative;z-index:1;animation:ctaPulse 2.2s ease-in-out infinite;}
+.cta-add-nota-txt{flex:1;min-width:0;position:relative;z-index:1;}
+.cta-add-nota-title{font-size:15px;font-weight:800;color:#fff;letter-spacing:-.01em;}
+.cta-add-nota-sub{font-size:11px;color:rgba(255,255,255,.78);margin-top:2px;}
+.cta-add-nota-arrow{color:rgba(255,255,255,.9);flex-shrink:0;position:relative;z-index:1;}
+@keyframes ctaPulse{0%,100%{box-shadow:0 0 0 0 rgba(255,255,255,.4);}50%{box-shadow:0 0 0 7px rgba(255,255,255,0);}}
 
 /* Logo area bigger in settings */
 .logo-area{background:var(--bg-card);border:2px dashed var(--border);border-radius:var(--r-lg);padding:28px 22px;text-align:center;cursor:pointer;transition:var(--ease);margin-bottom:16px;}

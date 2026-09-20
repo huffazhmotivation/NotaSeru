@@ -1735,6 +1735,81 @@ function saveGrupData() {
 // Pass persist=false when just reflecting a value that's already known
 // (restoring a draft, opening an existing invoice, or re-syncing the UI),
 // so opening an old invoice never silently changes the user's default.
+// ── Template Preview Popup ──────────────────
+// Menampilkan preview nota REAL (data contoh) sebelum user memilih
+// template, supaya ada bayangan jelas seperti apa nota akan terlihat.
+let _tplPreviewName = 'classic';
+let _tplPreviewColor = 'amber';
+
+function buildSampleInvoiceForPreview(tpl, color) {
+  const items = [
+    { name: 'Kaos Polos Combed 30s', qty: 2, price: 85000, discItem: 0, discItemType: 'persen' },
+    { name: 'Celana Jeans Slim Fit', qty: 1, price: 250000, discItem: 10, discItemType: 'persen' },
+    { name: 'Topi Baseball Custom', qty: 3, price: 45000, discItem: 0, discItemType: 'persen' },
+  ];
+  const sub = items.reduce((a, it) => a + calcItemTotal(it), 0);
+  const ongkir = 15000;
+  const disc = 0, discAmt = 0;
+  const grand = sub - discAmt + ongkir;
+  return {
+    number: 'INV-DEMO-001',
+    date: new Date().toISOString().slice(0, 10),
+    status: 'lunas',
+    customer: { name: 'Budi Santoso', phone: '0812-3456-7890', address: 'Jl. Melati No. 12, Jakarta Selatan' },
+    items, sub, disc, discType: 'persen', discAmt,
+    ongkir, ekspedisi: 'JNE Reguler',
+    dp: 0, sisa: 0, grand,
+    notes: 'Barang mohon dicek sebelum dikirim. Terima kasih sudah berbelanja!',
+    template: tpl,
+    tplColor: color,
+  };
+}
+
+const TPL_PREVIEW_COLOR_SWATCHES = { amber: '#D97706', navy: '#1D4ED8', green: '#15803D', purple: '#7C3AED', gray: '#374151' };
+
+function previewTemplate(name, el) {
+  _tplPreviewName = name;
+  _tplPreviewColor = curTplColor || 'amber';
+  const titleEl = document.getElementById('tplPreviewModalTitle');
+  if (titleEl) titleEl.textContent = (el?.querySelector('.tpl-name')?.textContent) || name;
+  renderTplPreviewColorDots();
+  renderTplPreviewContent();
+  document.getElementById('tplPreviewModal')?.classList.add('visible');
+  document.body.style.overflow = 'hidden';
+}
+
+function renderTplPreviewColorDots() {
+  const row = document.getElementById('tplPreviewColorRow');
+  if (!row) return;
+  row.innerHTML = Object.keys(TPL_PREVIEW_COLOR_SWATCHES).map(k =>
+    `<button class="tpl-preview-dot${k === _tplPreviewColor ? ' active' : ''}" style="background:${TPL_PREVIEW_COLOR_SWATCHES[k]}" onclick="setTplPreviewColor('${k}')" title="${k}"></button>`
+  ).join('');
+}
+
+function setTplPreviewColor(color) {
+  _tplPreviewColor = color;
+  renderTplPreviewColorDots();
+  renderTplPreviewContent();
+}
+
+function renderTplPreviewContent() {
+  const inv = buildSampleInvoiceForPreview(_tplPreviewName, _tplPreviewColor);
+  buildPreview(inv, 'tplPreviewContent');
+}
+
+function closeTplPreviewModal() {
+  document.getElementById('tplPreviewModal')?.classList.remove('visible');
+  document.body.style.overflow = '';
+}
+
+function confirmTemplateFromPreview() {
+  const cardEl = document.querySelector(`.tpl-card[data-tpl="${_tplPreviewName}"]`);
+  selectTemplate(_tplPreviewName, cardEl, true);
+  selectTplColor(_tplPreviewColor, true);
+  closeTplPreviewModal();
+  toast('Template diterapkan ✓', 'ok');
+}
+
 function selectTemplate(name, el, persist = true) {
   curTemplate = name;
   document.querySelectorAll('.tpl-card').forEach(c => c.classList.toggle('active', c.dataset.tpl === name));
@@ -1870,7 +1945,7 @@ function getInvoiceHTML(inv) {
   return _buildInvoiceHTML(inv);
 }
 
-function buildPreview(inv) {
+function buildPreview(inv, targetId = 'invoicePreview') {
   const s = DB.get('settings', {});
   const tpl = inv.template || curTemplate || 'classic';
   const colorKey = inv.tplColor || curTplColor || 'amber';
@@ -2433,17 +2508,244 @@ function buildPreview(inv) {
         <div style="height:14px;margin:14px -28px -26px;background:radial-gradient(circle at 8px 14px, transparent 8px, #fff 8.5px) repeat-x left bottom / 22px 14px, #F4F4F5"></div>
       </div>
     </div>`;
+
+  // ── KORPORAT ────────────────────────────────────────────────
+  // Sidebar gelap di kiri berisi identitas & data invoice, konten
+  // utama di kanan — kesan letterhead korporat yang formal & rapi.
+  } else if (tpl === 'korporat') {
+    html = `<div style="font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',Arial,sans-serif;color:#111827;width:794px;min-height:1123px;box-sizing:border-box;display:flex">
+      <!-- Sidebar -->
+      <div style="width:230px;background:${C.darker};padding:40px 26px;display:flex;flex-direction:column;justify-content:space-between;flex-shrink:0">
+        <div>
+          <div style="width:56px;height:56px;border-radius:12px;overflow:hidden;background:rgba(255,255,255,.12);display:flex;align-items:center;justify-content:center;margin-bottom:18px">${logoImg}</div>
+          <div style="font-size:17px;font-weight:800;color:#fff;line-height:1.3">${xss(s.storeName||'Nama Toko')}</div>
+          ${s.storeAddress ? `<div style="font-size:11px;color:rgba(255,255,255,.55);margin-top:8px;line-height:1.6">${xss(s.storeAddress)}</div>` : ''}
+          ${s.storePhone ? `<div style="font-size:11px;color:rgba(255,255,255,.55);margin-top:4px">${xss(s.storePhone)}</div>` : ''}
+          <div style="height:1px;background:rgba(255,255,255,.15);margin:22px 0"></div>
+          <div style="font-size:10px;font-weight:700;color:rgba(255,255,255,.45);text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px">Ditagihkan kepada</div>
+          <div style="font-size:14px;font-weight:700;color:#fff">${xss(inv.customer?.name||'-')}</div>
+          ${inv.customer?.phone ? `<div style="font-size:11px;color:rgba(255,255,255,.5);margin-top:3px">${xss(inv.customer.phone)}</div>` : ''}
+          ${inv.customer?.address ? `<div style="font-size:11px;color:rgba(255,255,255,.4);margin-top:2px;line-height:1.5">${xss(inv.customer.address)}</div>` : ''}
+          <div style="height:1px;background:rgba(255,255,255,.15);margin:22px 0"></div>
+          <div style="font-size:10px;font-weight:700;color:rgba(255,255,255,.45);text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px">No. Invoice</div>
+          <div style="font-size:13px;font-weight:700;color:#fff">${xss(inv.number)}</div>
+          <div style="font-size:10px;font-weight:700;color:rgba(255,255,255,.45);text-transform:uppercase;letter-spacing:.1em;margin-top:14px;margin-bottom:6px">Tanggal</div>
+          <div style="font-size:13px;font-weight:600;color:#fff">${fmtDate(inv.date)}</div>
+        </div>
+        <div style="transform:scale(.92);transform-origin:left bottom">${stamp_bottom}</div>
+      </div>
+
+      <!-- Konten -->
+      <div style="flex:1;padding:40px 40px 32px;display:flex;flex-direction:column">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:26px">
+          <div style="font-size:30px;font-weight:900;color:#111827;letter-spacing:-.03em">INVOICE</div>
+          <div style="font-size:10.5px;font-weight:700;color:${C.dark};text-transform:uppercase;letter-spacing:.1em;padding:6px 14px;border:1.5px solid ${C.border};border-radius:999px;background:${C.softer}">NotaSeru Pro</div>
+        </div>
+
+        <table style="width:100%;border-collapse:collapse">
+          <thead><tr style="border-bottom:2px solid #111827">
+            <th style="padding:0 0 10px;font-size:11px;font-weight:700;color:#6B7280;text-transform:uppercase;letter-spacing:.06em;text-align:left">Deskripsi</th>
+            <th style="padding:0 0 10px;font-size:11px;font-weight:700;color:#6B7280;text-transform:uppercase;letter-spacing:.06em;text-align:center">Qty</th>
+            <th style="padding:0 0 10px;font-size:11px;font-weight:700;color:#6B7280;text-transform:uppercase;letter-spacing:.06em;text-align:right">Harga</th>
+            <th style="padding:0 0 10px;font-size:11px;font-weight:700;color:#6B7280;text-transform:uppercase;letter-spacing:.06em;text-align:right">Total</th>
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+
+        <div style="margin-top:22px;display:flex;justify-content:flex-end">
+          <div style="width:280px">
+            ${totalsTable}
+            <div style="margin-top:10px;padding:14px 16px;background:${C.darker};border-radius:8px;display:flex;justify-content:space-between;align-items:center">
+              <span style="font-size:14px;font-weight:700;color:#fff">GRAND TOTAL</span>
+              <span style="font-size:20px;font-weight:900;color:#fff">${fmtRp(inv.grand)}</span>
+            </div>
+            ${dpRow}
+          </div>
+        </div>
+
+        ${bankInfo}${notesRow}
+        <div style="flex:1"></div>
+
+        <div style="display:flex;justify-content:flex-end;margin-top:24px">
+          <div style="text-align:center">
+            <div style="width:130px;height:56px;border-bottom:1.5px solid #CBD5E1;display:flex;align-items:flex-end;justify-content:center;padding-bottom:4px;margin-bottom:4px">${signImg}</div>
+            <div style="font-size:12px;color:#9CA3AF">${xss(signLabel)}</div>
+            ${s.storeName ? `<div style="font-size:13px;font-weight:600;color:#6B7280;margin-top:1px">${xss(s.storeName)}</div>` : ''}
+          </div>
+        </div>
+
+        <div style="text-align:center;margin-top:18px;padding-top:14px;border-top:1px solid #E5E7EB">
+          <div style="font-size:12px;color:${C.dark};font-style:italic">${xss(thankyou)}</div>
+        </div>
+      </div>
+    </div>`;
+
+  // ── SIGNATURE ───────────────────────────────────────────────
+  // Nuansa hitam elegan + aksen emas tipis, tipografi serif —
+  // kesan premium/butik, berbeda total dari template lainnya.
+  } else if (tpl === 'signature') {
+    html = `<div style="font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',Arial,sans-serif;color:#1A1A1A;width:794px;min-height:1123px;box-sizing:border-box;display:flex;flex-direction:column;background:#fff">
+      <!-- Header hitam -->
+      <div style="background:#111111;padding:46px 56px 32px;text-align:center;position:relative">
+        <div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,transparent,${C.main},transparent)"></div>
+        <div style="width:54px;height:54px;border-radius:50%;overflow:hidden;background:rgba(255,255,255,.08);border:1.5px solid ${C.main};display:flex;align-items:center;justify-content:center;margin:0 auto 14px">${logoImg}</div>
+        <div style="font-family:Georgia,'Times New Roman',serif;font-size:23px;font-weight:700;color:#fff;letter-spacing:.05em">${xss(s.storeName||'Nama Toko')}</div>
+        <div style="font-size:10.5px;color:rgba(255,255,255,.5);margin-top:6px;letter-spacing:.03em">${[s.storeAddress, s.storePhone].filter(Boolean).map(xss).join(' &nbsp;·&nbsp; ')}</div>
+        <div style="display:flex;align-items:center;justify-content:center;gap:10px;margin-top:20px">
+          <div style="width:34px;height:1px;background:${C.main}"></div>
+          <div style="font-size:11px;font-weight:700;color:${C.main};letter-spacing:.4em;text-transform:uppercase">Invoice</div>
+          <div style="width:34px;height:1px;background:${C.main}"></div>
+        </div>
+      </div>
+
+      <!-- Meta -->
+      <div style="padding:30px 56px 0;display:flex;justify-content:space-between;gap:24px">
+        <div>
+          <div style="font-size:10px;font-weight:700;color:#9CA3AF;text-transform:uppercase;letter-spacing:.12em;margin-bottom:5px">Ditagihkan kepada</div>
+          <div style="font-family:Georgia,'Times New Roman',serif;font-size:18px;font-weight:700;color:#111">${xss(inv.customer?.name||'-')}</div>
+          ${inv.customer?.phone ? `<div style="font-size:12px;color:#6B7280;margin-top:2px">${xss(inv.customer.phone)}</div>` : ''}
+          ${inv.customer?.address ? `<div style="font-size:11.5px;color:#9CA3AF;margin-top:1px;line-height:1.5">${xss(inv.customer.address)}</div>` : ''}
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:10px;font-weight:700;color:#9CA3AF;text-transform:uppercase;letter-spacing:.12em;margin-bottom:5px">No. Invoice</div>
+          <div style="font-size:14px;font-weight:700;color:#111">${xss(inv.number)}</div>
+          <div style="font-size:10px;font-weight:700;color:#9CA3AF;text-transform:uppercase;letter-spacing:.12em;margin-top:10px;margin-bottom:5px">Tanggal</div>
+          <div style="font-size:13px;font-weight:600;color:#111">${fmtDate(inv.date)}</div>
+        </div>
+      </div>
+
+      <!-- Body -->
+      <div style="flex:1;padding:26px 56px 32px">
+        <table style="width:100%;border-collapse:collapse">
+          <thead><tr style="border-bottom:2px solid #111">
+            <th style="padding:0 0 10px;font-size:11px;font-weight:700;color:#9CA3AF;text-transform:uppercase;letter-spacing:.08em;text-align:left">Deskripsi</th>
+            <th style="padding:0 0 10px;font-size:11px;font-weight:700;color:#9CA3AF;text-transform:uppercase;letter-spacing:.08em;text-align:center">Qty</th>
+            <th style="padding:0 0 10px;font-size:11px;font-weight:700;color:#9CA3AF;text-transform:uppercase;letter-spacing:.08em;text-align:right">Harga</th>
+            <th style="padding:0 0 10px;font-size:11px;font-weight:700;color:#9CA3AF;text-transform:uppercase;letter-spacing:.08em;text-align:right">Total</th>
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+
+        <div style="margin-top:22px;display:flex;justify-content:flex-end">
+          <div style="width:280px">
+            ${totalsTable}
+            <div style="margin-top:10px;padding:14px 18px;background:#111;border-radius:6px;display:flex;justify-content:space-between;align-items:center;border:1px solid ${C.main}">
+              <span style="font-size:12.5px;font-weight:700;color:${C.main};letter-spacing:.06em;text-transform:uppercase">Grand Total</span>
+              <span style="font-size:20px;font-weight:900;color:#fff">${fmtRp(inv.grand)}</span>
+            </div>
+            ${dpRow}
+          </div>
+        </div>
+
+        ${bankInfo}${notesRow}
+
+        <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-top:30px">
+          <div>${stamp_bottom}</div>
+          <div style="text-align:center">
+            <div style="width:130px;height:58px;border-bottom:1.5px solid #D6D3D1;display:flex;align-items:flex-end;justify-content:center;padding-bottom:4px;margin-bottom:4px">${signImg}</div>
+            <div style="font-size:11.5px;color:#9CA3AF;font-family:Georgia,'Times New Roman',serif;font-style:italic">${xss(signLabel)}</div>
+            ${s.storeName ? `<div style="font-size:12.5px;font-weight:700;color:#374151;margin-top:1px">${xss(s.storeName)}</div>` : ''}
+          </div>
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <div style="background:#111;padding:16px 56px;text-align:center">
+        <div style="font-family:Georgia,'Times New Roman',serif;font-size:12.5px;color:${C.main};font-style:italic">${xss(thankyou)}</div>
+        <div style="font-size:9.5px;color:rgba(255,255,255,.35);letter-spacing:.2em;margin-top:5px">NOTASERU · SIGNATURE EDITION</div>
+      </div>
+    </div>`;
+
+  // ── NORDIC ──────────────────────────────────────────────────
+  // Kartu putih melayang dengan shadow lembut + chip status —
+  // gaya invoice SaaS modern yang bersih dan lapang.
+  } else if (tpl === 'nordic') {
+    html = `<div style="font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',Arial,sans-serif;color:#111827;width:794px;min-height:1123px;box-sizing:border-box;background:${C.softer};padding:36px;display:flex;flex-direction:column">
+      <div style="background:#fff;border-radius:20px;box-shadow:0 10px 40px rgba(0,0,0,.06);flex:1;display:flex;flex-direction:column;overflow:hidden">
+
+        <!-- Header -->
+        <div style="padding:36px 44px 24px;display:flex;justify-content:space-between;align-items:flex-start">
+          <div style="display:flex;align-items:center;gap:12px">
+            <div style="width:48px;height:48px;border-radius:12px;overflow:hidden;background:${C.soft};display:flex;align-items:center;justify-content:center;flex-shrink:0">${logoImg}</div>
+            <div>
+              <div style="font-size:16px;font-weight:800;color:#111827">${xss(s.storeName||'Nama Toko')}</div>
+              ${s.storeAddress ? `<div style="font-size:11px;color:#9CA3AF;margin-top:2px">${xss(s.storeAddress)}</div>` : ''}
+            </div>
+          </div>
+          <div style="padding:7px 14px;border-radius:999px;background:${sc}18;color:${sc};font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;white-space:nowrap">${sl}</div>
+        </div>
+
+        <div style="margin:0 44px;height:1px;background:#F1F5F9"></div>
+
+        <!-- Meta grid -->
+        <div style="padding:22px 44px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px">
+          <div>
+            <div style="font-size:10px;font-weight:700;color:#9CA3AF;text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px">Kepada</div>
+            <div style="font-size:14px;font-weight:700;color:#111827">${xss(inv.customer?.name||'-')}</div>
+            ${inv.customer?.phone ? `<div style="font-size:11.5px;color:#6B7280;margin-top:2px">${xss(inv.customer.phone)}</div>` : ''}
+          </div>
+          <div>
+            <div style="font-size:10px;font-weight:700;color:#9CA3AF;text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px">No. Invoice</div>
+            <div style="font-size:14px;font-weight:700;color:#111827">${xss(inv.number)}</div>
+          </div>
+          <div>
+            <div style="font-size:10px;font-weight:700;color:#9CA3AF;text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px">Tanggal</div>
+            <div style="font-size:14px;font-weight:700;color:#111827">${fmtDate(inv.date)}</div>
+          </div>
+        </div>
+
+        <div style="padding:0 44px;flex:1">
+          <table style="width:100%;border-collapse:collapse">
+            <thead><tr style="background:${C.softer}">
+              <th style="padding:10px 12px;font-size:11px;font-weight:700;color:${C.dark};text-transform:uppercase;letter-spacing:.06em;text-align:left;border-radius:8px 0 0 8px">Deskripsi</th>
+              <th style="padding:10px 12px;font-size:11px;font-weight:700;color:${C.dark};text-transform:uppercase;letter-spacing:.06em;text-align:center">Qty</th>
+              <th style="padding:10px 12px;font-size:11px;font-weight:700;color:${C.dark};text-transform:uppercase;letter-spacing:.06em;text-align:right">Harga</th>
+              <th style="padding:10px 12px;font-size:11px;font-weight:700;color:${C.dark};text-transform:uppercase;letter-spacing:.06em;text-align:right;border-radius:0 8px 8px 0">Total</th>
+            </tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+
+          <div style="margin-top:20px;display:flex;justify-content:flex-end">
+            <div style="width:280px">
+              ${totalsTable}
+              <div style="margin-top:10px;padding:14px 16px;background:${C.main};border-radius:12px;display:flex;justify-content:space-between;align-items:center">
+                <span style="font-size:13px;font-weight:700;color:#fff">Grand Total</span>
+                <span style="font-size:19px;font-weight:900;color:#fff">${fmtRp(inv.grand)}</span>
+              </div>
+              ${dpRow}
+            </div>
+          </div>
+
+          ${bankInfo}${notesRow}
+        </div>
+
+        <!-- Footer -->
+        <div style="padding:22px 44px 32px;display:flex;justify-content:space-between;align-items:flex-end">
+          <div style="font-size:12px;color:#9CA3AF;font-style:italic;max-width:340px">${xss(thankyou)}</div>
+          <div style="text-align:center">
+            <div style="width:120px;height:52px;border-bottom:1.5px solid #E5E7EB;display:flex;align-items:flex-end;justify-content:center;padding-bottom:4px;margin-bottom:4px">${signImg}</div>
+            <div style="font-size:11px;color:#9CA3AF">${xss(signLabel)}</div>
+          </div>
+        </div>
+      </div>
+      <div style="text-align:center;margin-top:14px;font-size:10px;color:#9CA3AF;letter-spacing:.12em">NOTASERU · INVOICE PRO</div>
+    </div>`;
   }
 
-  document.getElementById('invoicePreview').innerHTML = html;
-  window._lastInvoiceHTML = html;
-  // Auto-scale preview to fit screen
-  requestAnimationFrame(scalePreview);
+  const targetEl = document.getElementById(targetId);
+  if (targetEl) targetEl.innerHTML = html;
+  if (targetId === 'invoicePreview') {
+    window._lastInvoiceHTML = html;
+    // Auto-scale preview to fit screen
+    requestAnimationFrame(() => scalePreview('previewWrap', 'previewScaler'));
+  } else {
+    requestAnimationFrame(() => scalePreview('tplPreviewWrap', 'tplPreviewScaler'));
+  }
 }
 
-function scalePreview() {
-  const wrap = document.getElementById('previewWrap');
-  const scaler = document.getElementById('previewScaler');
+function scalePreview(wrapId = 'previewWrap', scalerId = 'previewScaler') {
+  const wrap = document.getElementById(wrapId);
+  const scaler = document.getElementById(scalerId);
   if (!wrap || !scaler) return;
   // Available width = wrap width minus padding (32px total)
   const available = wrap.clientWidth - 32;
@@ -2458,7 +2760,10 @@ function scalePreview() {
   wrap.style.height = (scaledH + 20) + 'px';
   wrap.style.minHeight = '';
 }
-window.addEventListener('resize', () => { if (curPage === 'preview') scalePreview(); });
+window.addEventListener('resize', () => {
+  if (curPage === 'preview') scalePreview('previewWrap', 'previewScaler');
+  if (document.getElementById('tplPreviewModal')?.classList.contains('visible')) scalePreview('tplPreviewWrap', 'tplPreviewScaler');
+});
 
 
 // ── Export ──────────────────────────────────
