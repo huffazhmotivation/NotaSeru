@@ -374,6 +374,11 @@ img{max-width:100%;display:block;}
 .calc-hist-result{font-size:14px;font-weight:800;color:var(--primary);margin-top:1px;}
 .calc-hist-copy{flex-shrink:0;width:30px;height:30px;border-radius:var(--r-full);background:var(--bg-card);border:1px solid var(--border-soft);color:var(--txt-2);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:var(--ease);}
 .calc-hist-copy:active{transform:scale(.9);color:var(--primary);}
+.calc-hist-actions{display:flex;gap:6px;flex-shrink:0;}
+.calc-hist-act{flex-shrink:0;width:28px;height:28px;border-radius:var(--r-full);background:var(--bg-card);border:1px solid var(--border-soft);color:var(--txt-2);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:var(--ease);}
+.calc-hist-act:active{transform:scale(.9);color:var(--primary);}
+.calc-hist-act-danger{color:var(--danger);}
+.calc-hist-act-danger:active{color:var(--danger);}
 
 /* Action sheet */
 .as-item{display:flex;align-items:center;gap:14px;padding:13px 20px;cursor:pointer;transition:var(--ease);}
@@ -433,7 +438,6 @@ img{max-width:100%;display:block;}
 .tpl-color-dot.active{border-color:var(--txt-1)!important;transform:scale(1.25);box-shadow:0 0 0 2px var(--bg-card),0 0 0 4px var(--txt-1);}
 .tpl-color-dot:active{transform:scale(.92);}
 .tpl-card{position:relative;cursor:pointer;border:2px solid var(--border);border-radius:var(--r-sm);padding:6px;transition:var(--spring);text-align:center;background:var(--bg-input);}
-.tpl-pro-badge{position:absolute;top:4px;right:4px;background:linear-gradient(135deg,#F5C518,#D4AF37);color:#3A2E00;font-size:7.5px;font-weight:900;letter-spacing:.03em;padding:2px 5px;border-radius:5px;box-shadow:0 1px 3px rgba(0,0,0,.25);z-index:2;pointer-events:none;}
 .tpl-card.active{border-color:var(--primary);background:var(--primary-soft);}
 .tpl-card:active{transform:scale(.95);}
 .tpl-preview{height:56px;border-radius:5px;overflow:hidden;margin-bottom:5px;position:relative;background:#fff;border:1px solid var(--border-soft);}
@@ -506,6 +510,33 @@ img{max-width:100%;display:block;}
 .tpl-nordic .tpl-nd-logo{width:8px;height:8px;border-radius:3px;background:#D97706;}
 .tpl-nordic .tpl-nd-chip{width:14px;height:5px;border-radius:4px;background:#BBF7D0;}
 .tpl-nordic .tpl-nd-lines div{height:2px;background:#E5E7EB;border-radius:2px;margin-top:3px;}
+
+/* Formal: kop surat dengan garis tebal + tabel bergaris penuh */
+.tpl-formal{display:flex;flex-direction:column;padding:5px;gap:3px;}
+.tpl-formal .tpl-fm-head{display:flex;justify-content:space-between;align-items:center;}
+.tpl-formal .tpl-fm-logo{width:10px;height:10px;background:#E5E7EB;border-radius:2px;}
+.tpl-formal .tpl-fm-line{height:3px;width:55%;background:#111827;border-radius:1px;}
+.tpl-formal .tpl-fm-rule{height:2px;background:#111827;}
+.tpl-formal .tpl-fm-grid{flex:1;border:1px solid #D1D5DB;display:flex;flex-direction:column;margin-top:1px;}
+.tpl-formal .tpl-fm-grid div{flex:1;border-bottom:1px solid #E5E7EB;}
+.tpl-formal .tpl-fm-grid div:last-child{border-bottom:none;}
+
+/* Ledger: baris bernomor ala buku besar + total bergaris aksen */
+.tpl-ledger{display:flex;flex-direction:column;padding:5px;gap:3px;}
+.tpl-ledger .tpl-lg-head{display:flex;justify-content:space-between;align-items:center;border-bottom:1.5px solid #111827;padding-bottom:3px;}
+.tpl-ledger .tpl-lg-logo{width:9px;height:9px;background:#E5E7EB;border-radius:2px;}
+.tpl-ledger .tpl-lg-title{height:5px;width:26px;background:#111827;border-radius:1px;}
+.tpl-ledger .tpl-lg-rows{display:flex;flex-direction:column;gap:2px;margin-top:2px;flex:1;justify-content:center;}
+.tpl-ledger .tpl-lg-rows div{height:3px;background:#E5E7EB;border-radius:1px;}
+.tpl-ledger .tpl-lg-rows div:nth-child(even){background:#F3F4F6;}
+.tpl-ledger .tpl-lg-total{height:3px;width:50%;align-self:flex-end;background:#D97706;border-radius:1px;}
+
+/* Garis: minimalis Swiss — hanya garis-garis tipis, tanpa kotak warna */
+.tpl-garis{display:flex;flex-direction:column;padding:7px 8px;justify-content:center;gap:5px;background:#fff;}
+.tpl-garis .tpl-gr-title{height:5px;width:55%;background:#111827;border-radius:1px;}
+.tpl-garis .tpl-gr-rule{height:1.5px;background:#111827;}
+.tpl-garis .tpl-gr-line{height:2px;background:#E5E7EB;border-radius:1px;}
+.tpl-garis .tpl-gr-total{height:3px;width:38%;align-self:flex-end;background:#D97706;border-radius:1px;}
 
 /* ── Template Preview Modal (popup preview nota real) ── */
 .tpl-preview-modal{position:fixed;inset:0;background:var(--bg);z-index:900;display:flex;flex-direction:column;transform:translateY(100%);transition:transform .32s cubic-bezier(.32,.72,0,1);}

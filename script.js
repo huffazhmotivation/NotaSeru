@@ -2730,6 +2730,293 @@ function buildPreview(inv, targetId = 'invoicePreview') {
       </div>
       <div style="text-align:center;margin-top:14px;font-size:10px;color:#9CA3AF;letter-spacing:.12em">NOTASERU · INVOICE PRO</div>
     </div>`;
+
+  // ── FORMAL ──────────────────────────────────────────────────
+  // Kop surat resmi ala dokumen bisnis Indonesia: garis tebal,
+  // tabel bergaris penuh, dan blok tanda tangan dua kolom.
+  } else if (tpl === 'formal') {
+    const formalRows = (inv.items || []).filter(i => i.name).map((item) => {
+      const itemTotal = calcItemTotal(item);
+      const hasDisc = item.discItem > 0;
+      const discLabel = hasDisc ? (item.discItemType === 'rupiah' ? `disc ${fmtRp(item.discItem)}/pcs` : `disc ${item.discItem}%`) : '';
+      return `
+      <tr>
+        <td style="padding:10px 12px;font-size:13px;color:#111827;border:1px solid #D1D5DB">${xss(item.name)}${hasDisc ? `<div style="font-size:10.5px;color:${C.dark};margin-top:2px">${discLabel}</div>` : ''}</td>
+        <td style="padding:10px 12px;font-size:13px;color:#374151;border:1px solid #D1D5DB;text-align:center">${item.qty}</td>
+        <td style="padding:10px 12px;font-size:13px;color:#374151;border:1px solid #D1D5DB;text-align:right">${fmtRp(item.price)}</td>
+        <td style="padding:10px 12px;font-size:13px;font-weight:700;color:#111827;border:1px solid #D1D5DB;text-align:right">${fmtRp(itemTotal)}</td>
+      </tr>`;
+    }).join('');
+
+    html = `<div style="font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',Arial,sans-serif;color:#111827;width:794px;min-height:1123px;box-sizing:border-box;padding:44px 52px;display:flex;flex-direction:column">
+      <!-- Kop surat -->
+      <div style="display:flex;align-items:center;gap:14px;padding-bottom:16px">
+        <div style="width:54px;height:54px;border-radius:8px;overflow:hidden;background:${C.softer};border:1px solid ${C.border};display:flex;align-items:center;justify-content:center;flex-shrink:0">${logoImg}</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:19px;font-weight:800;color:#111827;letter-spacing:-.01em">${xss(s.storeName||'Nama Toko')}</div>
+          <div style="font-size:11.5px;color:#6B7280;margin-top:2px;line-height:1.5">${[s.storeAddress, s.storePhone].filter(Boolean).map(xss).join(' &nbsp;·&nbsp; ')}</div>
+        </div>
+        <div style="text-align:right;flex-shrink:0">
+          <div style="font-size:11px;font-weight:700;color:${C.dark};text-transform:uppercase;letter-spacing:.14em">Invoice</div>
+          <div style="font-size:14px;font-weight:700;color:#111827;margin-top:2px">${xss(inv.number)}</div>
+        </div>
+      </div>
+      <div style="height:3px;background:#111827;position:relative"><div style="position:absolute;left:0;top:0;height:3px;width:120px;background:${C.main}"></div></div>
+      <div style="height:1px;background:#D1D5DB;margin-top:3px"></div>
+
+      <!-- Meta boxed -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;margin-top:22px;border:1px solid #D1D5DB">
+        <div style="padding:14px 18px;border-right:1px solid #D1D5DB">
+          <div style="font-size:10px;font-weight:700;color:#9CA3AF;text-transform:uppercase;letter-spacing:.1em;margin-bottom:5px">Kepada Yth.</div>
+          <div style="font-size:15px;font-weight:700;color:#111827">${xss(inv.customer?.name||'-')}</div>
+          ${inv.customer?.phone ? `<div style="font-size:12px;color:#6B7280;margin-top:2px">${xss(inv.customer.phone)}</div>` : ''}
+          ${inv.customer?.address ? `<div style="font-size:11.5px;color:#9CA3AF;margin-top:1px;line-height:1.5">${xss(inv.customer.address)}</div>` : ''}
+        </div>
+        <div style="padding:14px 18px">
+          <div style="display:flex;justify-content:space-between;margin-bottom:8px">
+            <span style="font-size:11px;color:#6B7280">Tanggal</span>
+            <span style="font-size:12.5px;font-weight:700;color:#111827">${fmtDate(inv.date)}</span>
+          </div>
+          <div style="display:flex;justify-content:space-between">
+            <span style="font-size:11px;color:#6B7280">Status</span>
+            <span style="font-size:12.5px;font-weight:700;color:${sc}">${sl}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tabel bergaris penuh -->
+      <div style="margin-top:22px">
+        <table style="width:100%;border-collapse:collapse;border:1px solid #D1D5DB">
+          <thead>
+            <tr style="background:${C.softer}">
+              <th style="padding:9px 12px;font-size:11px;font-weight:700;color:${C.dark};text-transform:uppercase;letter-spacing:.05em;text-align:left;border:1px solid #D1D5DB">Deskripsi</th>
+              <th style="padding:9px 12px;font-size:11px;font-weight:700;color:${C.dark};text-transform:uppercase;letter-spacing:.05em;text-align:center;border:1px solid #D1D5DB;width:50px">Qty</th>
+              <th style="padding:9px 12px;font-size:11px;font-weight:700;color:${C.dark};text-transform:uppercase;letter-spacing:.05em;text-align:right;border:1px solid #D1D5DB">Harga</th>
+              <th style="padding:9px 12px;font-size:11px;font-weight:700;color:${C.dark};text-transform:uppercase;letter-spacing:.05em;text-align:right;border:1px solid #D1D5DB">Total</th>
+            </tr>
+          </thead>
+          <tbody>${formalRows}</tbody>
+        </table>
+      </div>
+
+      <!-- Totals boxed -->
+      <div style="margin-top:18px;display:flex;justify-content:flex-end">
+        <div style="width:300px;border:1px solid #D1D5DB">
+          <div style="padding:10px 16px">
+            <div style="display:flex;justify-content:space-between;padding:4px 0;font-size:12.5px;color:#6B7280"><span>Subtotal</span><span style="font-weight:600;color:#111827">${fmtRp(inv.sub)}</span></div>
+            ${inv.disc > 0 ? `<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:12.5px;color:#6B7280"><span>Diskon</span><span style="font-weight:600;color:#111827">- ${fmtRp(inv.discAmt)}</span></div>` : ''}
+            ${inv.ongkir > 0 ? `<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:12.5px;color:#6B7280"><span>${ongkirLabel}</span><span style="font-weight:600;color:#111827">${fmtRp(inv.ongkir)}</span></div>` : ''}
+          </div>
+          <div style="padding:12px 16px;border-top:2px solid #111827;display:flex;justify-content:space-between;align-items:center">
+            <span style="font-size:13px;font-weight:800;color:#111827;text-transform:uppercase;letter-spacing:.04em">Grand Total</span>
+            <span style="font-size:19px;font-weight:900;color:${C.dark}">${fmtRp(inv.grand)}</span>
+          </div>
+          ${inv.dp > 0 ? `<div style="padding:10px 16px;border-top:1px solid #D1D5DB;display:flex;justify-content:space-between;font-size:12px"><span style="color:#6B7280">DP</span><span style="font-weight:700;color:#111827">${fmtRp(inv.dp)}</span></div><div style="padding:10px 16px;border-top:1px solid #D1D5DB;display:flex;justify-content:space-between;font-size:12.5px"><span style="font-weight:700;color:#111827">Sisa Pembayaran</span><span style="font-weight:900;color:${C.dark}">${fmtRp(inv.sisa)}</span></div>` : ''}
+        </div>
+      </div>
+
+      ${bankInfo}${notesRow}
+
+      <div style="flex:1"></div>
+
+      <!-- Blok tanda tangan dua kolom -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:28px">
+        <div style="text-align:center">
+          <div style="font-size:12px;color:#6B7280;margin-bottom:50px">Yang Menerima</div>
+          <div style="border-top:1px solid #111827;padding-top:4px;font-size:11px;color:#9CA3AF">( &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; )</div>
+        </div>
+        <div style="text-align:center">
+          <div style="font-size:12px;color:#6B7280;margin-bottom:6px">${xss(signLabel)}</div>
+          <div style="height:44px;display:flex;align-items:flex-end;justify-content:center">${signImg}</div>
+          <div style="border-top:1px solid #111827;padding-top:4px;font-size:12px;font-weight:700;color:#111827">${xss(s.storeName||'')}</div>
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <div style="margin-top:20px;padding-top:14px;border-top:1px solid #D1D5DB;display:flex;justify-content:space-between;align-items:center">
+        <div style="font-size:12px;color:#6B7280;font-style:italic">${xss(thankyou)}</div>
+        <div style="font-size:10px;color:#9CA3AF;letter-spacing:.1em">NOTASERU · INVOICE PRO</div>
+      </div>
+    </div>`;
+
+  // ── LEDGER ──────────────────────────────────────────────────
+  // Gaya buku besar/akuntansi: baris bernomor, angka rata kanan,
+  // total ditandai garis aksen tipis — bukan kotak warna solid.
+  } else if (tpl === 'ledger') {
+    const ledgerRows = (inv.items || []).filter(i => i.name).map((item, idx) => {
+      const itemTotal = calcItemTotal(item);
+      const hasDisc = item.discItem > 0;
+      return `
+      <tr style="background:${idx % 2 === 1 ? '#FAFAFA' : '#fff'}">
+        <td style="padding:9px 10px;font-size:11.5px;color:#9CA3AF;border-bottom:1px solid #E5E7EB">${String(idx+1).padStart(2,'0')}</td>
+        <td style="padding:9px 10px;font-size:13px;color:#111827;border-bottom:1px solid #E5E7EB">${xss(item.name)}${hasDisc ? `<div style="font-size:10.5px;color:${C.dark};margin-top:1px">disc ${item.discItemType==='rupiah' ? fmtRp(item.discItem) : item.discItem+'%'}</div>` : ''}</td>
+        <td style="padding:9px 10px;font-size:12.5px;color:#374151;border-bottom:1px solid #E5E7EB;text-align:center">${item.qty}</td>
+        <td style="padding:9px 10px;font-size:12.5px;color:#374151;border-bottom:1px solid #E5E7EB;text-align:right">${fmtRp(item.price)}</td>
+        <td style="padding:9px 10px;font-size:12.5px;font-weight:700;color:#111827;border-bottom:1px solid #E5E7EB;text-align:right">${fmtRp(itemTotal)}</td>
+      </tr>`;
+    }).join('');
+
+    html = `<div style="font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',Arial,sans-serif;color:#111827;width:794px;min-height:1123px;box-sizing:border-box;padding:46px 52px;display:flex;flex-direction:column">
+      <!-- Header -->
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:20px;border-bottom:1px solid #E5E7EB">
+        <div style="display:flex;align-items:center;gap:10px">
+          <div style="width:38px;height:38px;border-radius:8px;overflow:hidden;background:#F3F4F6;display:flex;align-items:center;justify-content:center;flex-shrink:0">${logoImg}</div>
+          <div>
+            <div style="font-size:14.5px;font-weight:800;color:#111827">${xss(s.storeName||'Nama Toko')}</div>
+            ${s.storeAddress ? `<div style="font-size:10.5px;color:#9CA3AF;margin-top:1px">${xss(s.storeAddress)}</div>` : ''}
+          </div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:22px;font-weight:900;color:#111827;letter-spacing:-.02em">INVOICE</div>
+          <div style="font-size:11.5px;color:#9CA3AF;margin-top:2px">${xss(inv.number)}</div>
+        </div>
+      </div>
+
+      <!-- Meta ala software billing -->
+      <div style="display:flex;justify-content:space-between;margin-top:18px;padding:14px 0;border-bottom:1px solid #E5E7EB">
+        <div>
+          <div style="font-size:9.5px;font-weight:700;color:#9CA3AF;text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px">Tagihan untuk</div>
+          <div style="font-size:14px;font-weight:700;color:#111827">${xss(inv.customer?.name||'-')}</div>
+          ${inv.customer?.phone ? `<div style="font-size:11px;color:#6B7280;margin-top:1px">${xss(inv.customer.phone)}</div>` : ''}
+        </div>
+        <div style="display:flex;gap:28px">
+          <div>
+            <div style="font-size:9.5px;font-weight:700;color:#9CA3AF;text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px">Tanggal</div>
+            <div style="font-size:12.5px;font-weight:700;color:#111827">${fmtDate(inv.date)}</div>
+          </div>
+          <div>
+            <div style="font-size:9.5px;font-weight:700;color:#9CA3AF;text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px">Status</div>
+            <div style="font-size:12.5px;font-weight:700;color:${sc}">${sl}</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tabel ledger -->
+      <div style="margin-top:8px;flex:1">
+        <table style="width:100%;border-collapse:collapse">
+          <thead>
+            <tr style="border-bottom:2px solid #111827">
+              <th style="padding:8px 10px;font-size:10px;font-weight:700;color:#9CA3AF;text-transform:uppercase;letter-spacing:.06em;text-align:left">No</th>
+              <th style="padding:8px 10px;font-size:10px;font-weight:700;color:#9CA3AF;text-transform:uppercase;letter-spacing:.06em;text-align:left">Deskripsi</th>
+              <th style="padding:8px 10px;font-size:10px;font-weight:700;color:#9CA3AF;text-transform:uppercase;letter-spacing:.06em;text-align:center">Qty</th>
+              <th style="padding:8px 10px;font-size:10px;font-weight:700;color:#9CA3AF;text-transform:uppercase;letter-spacing:.06em;text-align:right">Harga</th>
+              <th style="padding:8px 10px;font-size:10px;font-weight:700;color:#9CA3AF;text-transform:uppercase;letter-spacing:.06em;text-align:right">Total</th>
+            </tr>
+          </thead>
+          <tbody>${ledgerRows}</tbody>
+        </table>
+
+        <div style="margin-top:16px;display:flex;justify-content:flex-end">
+          <div style="width:270px">
+            <div style="display:flex;justify-content:space-between;padding:5px 0;font-size:12.5px;color:#6B7280"><span>Subtotal</span><span style="font-weight:600;color:#111827">${fmtRp(inv.sub)}</span></div>
+            ${inv.disc > 0 ? `<div style="display:flex;justify-content:space-between;padding:5px 0;font-size:12.5px;color:#6B7280"><span>Diskon</span><span style="font-weight:600;color:#111827">- ${fmtRp(inv.discAmt)}</span></div>` : ''}
+            ${inv.ongkir > 0 ? `<div style="display:flex;justify-content:space-between;padding:5px 0;font-size:12.5px;color:#6B7280"><span>${ongkirLabel}</span><span style="font-weight:600;color:#111827">${fmtRp(inv.ongkir)}</span></div>` : ''}
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;margin-top:4px;border-top:3px solid ${C.main}">
+              <span style="font-size:13px;font-weight:800;color:#111827;text-transform:uppercase;letter-spacing:.04em">Grand Total</span>
+              <span style="font-size:19px;font-weight:900;color:#111827">${fmtRp(inv.grand)}</span>
+            </div>
+            ${inv.dp > 0 ? `<div style="display:flex;justify-content:space-between;padding:5px 0;margin-top:2px;font-size:12px;color:#6B7280"><span>DP</span><span style="font-weight:700;color:#111827">${fmtRp(inv.dp)}</span></div><div style="display:flex;justify-content:space-between;padding:5px 0;font-size:13px"><span style="font-weight:800;color:#111827">Sisa Pembayaran</span><span style="font-weight:900;color:${C.dark}">${fmtRp(inv.sisa)}</span></div>` : ''}
+          </div>
+        </div>
+
+        ${bankInfo}${notesRow}
+      </div>
+
+      <!-- Tanda tangan -->
+      <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-top:20px">
+        <div>${stamp_bottom}</div>
+        <div style="text-align:center">
+          <div style="width:120px;height:54px;border-bottom:1.5px solid #CBD5E1;display:flex;align-items:flex-end;justify-content:center;padding-bottom:4px;margin-bottom:4px">${signImg}</div>
+          <div style="font-size:11.5px;color:#9CA3AF">${xss(signLabel)}</div>
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <div style="margin-top:20px;padding-top:14px;border-top:1px solid #E5E7EB;display:flex;justify-content:space-between;align-items:center">
+        <div style="font-size:12px;color:#6B7280;font-style:italic">${xss(thankyou)}</div>
+        <div style="font-size:10px;color:#9CA3AF;letter-spacing:.1em">NOTASERU · INVOICE PRO</div>
+      </div>
+    </div>`;
+
+  // ── GARIS ───────────────────────────────────────────────────
+  // Minimalis ala Swiss: tanpa kotak/warna latar, hanya garis tipis
+  // dan tipografi besar — sangat berbeda dari template lain.
+  } else if (tpl === 'garis') {
+    const garisRows = (inv.items || []).filter(i => i.name).map((item) => {
+      const itemTotal = calcItemTotal(item);
+      const hasDisc = item.discItem > 0;
+      return `
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;padding:14px 0;border-bottom:1px solid #F0F0F0">
+        <div style="flex:1;padding-right:16px">
+          <div style="font-size:14px;color:#111827">${xss(item.name)}</div>
+          <div style="font-size:11.5px;color:#9CA3AF;margin-top:2px">${item.qty} × ${fmtRp(item.price)}${hasDisc ? ` &nbsp;·&nbsp; disc ${item.discItemType==='rupiah' ? fmtRp(item.discItem) : item.discItem+'%'}` : ''}</div>
+        </div>
+        <div style="font-size:14.5px;font-weight:700;color:#111827;white-space:nowrap">${fmtRp(itemTotal)}</div>
+      </div>`;
+    }).join('');
+
+    html = `<div style="font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',Arial,sans-serif;color:#111827;width:794px;min-height:1123px;box-sizing:border-box;padding:56px 64px;display:flex;flex-direction:column">
+      <!-- Header -->
+      <div style="display:flex;justify-content:space-between;align-items:flex-start">
+        <div>
+          <div style="font-size:11px;font-weight:700;color:#9CA3AF;text-transform:uppercase;letter-spacing:.2em;margin-bottom:10px">Invoice</div>
+          <div style="font-size:26px;font-weight:800;color:#111827;letter-spacing:-.02em">${xss(s.storeName||'Nama Toko')}</div>
+          ${s.storeAddress ? `<div style="font-size:12px;color:#9CA3AF;margin-top:6px;line-height:1.5;max-width:320px">${xss(s.storeAddress)}</div>` : ''}
+          ${s.storePhone ? `<div style="font-size:12px;color:#9CA3AF">${xss(s.storePhone)}</div>` : ''}
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:12px;color:#9CA3AF">${xss(inv.number)}</div>
+          <div style="font-size:12px;color:#9CA3AF;margin-top:3px">${fmtDate(inv.date)}</div>
+          <div style="font-size:12px;font-weight:700;color:${sc};margin-top:8px">${sl}</div>
+        </div>
+      </div>
+
+      <div style="height:1px;background:#111827;margin:28px 0 0"></div>
+
+      <!-- Customer -->
+      <div style="padding:18px 0 6px">
+        <div style="font-size:10.5px;font-weight:700;color:#9CA3AF;text-transform:uppercase;letter-spacing:.14em;margin-bottom:5px">Ditagihkan kepada</div>
+        <div style="font-size:17px;font-weight:700;color:#111827">${xss(inv.customer?.name||'-')}</div>
+        ${inv.customer?.phone ? `<div style="font-size:12.5px;color:#9CA3AF;margin-top:2px">${xss(inv.customer.phone)}</div>` : ''}
+        ${inv.customer?.address ? `<div style="font-size:12px;color:#9CA3AF;margin-top:1px;line-height:1.5">${xss(inv.customer.address)}</div>` : ''}
+      </div>
+
+      <!-- Item: baris polos dipisah garis tipis -->
+      <div style="border-top:1px solid #111827;margin-top:12px">
+        ${garisRows}
+      </div>
+
+      <!-- Total: baris polos rata kanan -->
+      <div style="margin-top:20px;display:flex;flex-direction:column;align-items:flex-end;gap:6px">
+        <div style="display:flex;gap:40px;font-size:13px;color:#9CA3AF"><span>Subtotal</span><span style="color:#374151;font-weight:600">${fmtRp(inv.sub)}</span></div>
+        ${inv.disc > 0 ? `<div style="display:flex;gap:40px;font-size:13px;color:#9CA3AF"><span>Diskon</span><span style="color:#374151;font-weight:600">- ${fmtRp(inv.discAmt)}</span></div>` : ''}
+        ${inv.ongkir > 0 ? `<div style="display:flex;gap:40px;font-size:13px;color:#9CA3AF"><span>${ongkirLabel}</span><span style="color:#374151;font-weight:600">${fmtRp(inv.ongkir)}</span></div>` : ''}
+        <div style="margin-top:8px;padding-top:12px;border-top:2px solid #111827;display:flex;gap:40px;align-items:baseline">
+          <span style="font-size:13px;font-weight:700;color:#111827;text-transform:uppercase;letter-spacing:.08em">Grand Total</span>
+          <span style="font-size:26px;font-weight:900;color:#111827">${fmtRp(inv.grand)}</span>
+        </div>
+        <div style="width:100%;height:3px;background:${C.main};margin-top:-4px"></div>
+        ${inv.dp > 0 ? `<div style="display:flex;gap:40px;font-size:13px;color:#9CA3AF;margin-top:8px"><span>DP</span><span style="color:#374151;font-weight:600">${fmtRp(inv.dp)}</span></div><div style="display:flex;gap:40px;font-size:14px"><span style="font-weight:700;color:#111827">Sisa Pembayaran</span><span style="font-weight:900;color:${C.dark}">${fmtRp(inv.sisa)}</span></div>` : ''}
+      </div>
+
+      ${bankInfo}${notesRow}
+
+      <div style="flex:1"></div>
+
+      <!-- Tanda tangan -->
+      <div style="display:flex;justify-content:flex-end;margin-top:28px">
+        <div style="text-align:center">
+          <div style="width:130px;height:56px;display:flex;align-items:flex-end;justify-content:center">${signImg}</div>
+          <div style="width:130px;border-top:1px solid #111827;padding-top:5px;font-size:11.5px;color:#9CA3AF">${xss(signLabel)}</div>
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <div style="margin-top:24px;padding-top:16px;border-top:1px solid #E5E7EB;display:flex;justify-content:space-between;align-items:center">
+        <div style="font-size:12px;color:#9CA3AF;font-style:italic">${xss(thankyou)}</div>
+        <div style="font-size:10px;color:#D1D5DB;letter-spacing:.14em">NOTASERU · INVOICE PRO</div>
+      </div>
+    </div>`;
   }
 
   const targetEl = document.getElementById(targetId);
@@ -4085,7 +4372,8 @@ function loadSettingsUI() {
 
 function applyAppearance() {
   const s = DB.get('settings', {});
-  if (s.darkMode) { document.documentElement.setAttribute('data-theme','dark'); const t = document.getElementById('darkToggle'); if (t) t.checked = true; }
+  if (s.darkMode) { document.documentElement.setAttribute('data-theme','dark'); }
+  updateThemeToggleIcon();
   if (s.themeColor) {
     document.documentElement.setAttribute('data-color', s.themeColor);
     setTimeout(() => { document.querySelectorAll('#colorPicker .color-opt').forEach(el => el.classList.toggle('active', el.dataset.c === s.themeColor)); }, 50);
@@ -4140,6 +4428,21 @@ function uploadLogo(input) {
 function toggleDark(on) {
   document.documentElement.setAttribute('data-theme', on ? 'dark' : 'light');
   const s = DB.get('settings', {}); s.darkMode = on; DB.set('settings', s);
+  updateThemeToggleIcon();
+}
+
+// Toggle mode gelap/terang dari icon di top bar halaman utama
+function toggleThemeFromHero() {
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  toggleDark(!isDark);
+}
+
+function updateThemeToggleIcon() {
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  const sun = document.getElementById('themeIconSun');
+  const moon = document.getElementById('themeIconMoon');
+  if (sun) sun.style.display = isDark ? 'none' : '';
+  if (moon) moon.style.display = isDark ? '' : 'none';
 }
 
 function setColor(c, el) {
@@ -4418,17 +4721,46 @@ function renderCalcHistory() {
     return;
   }
   wrap.innerHTML = hist.map(h => `
-    <div class="calc-hist-item" onclick="calcCopyText('${calcEsc(h.result).replace(/'/g, "\\'")}')">
-      <div class="calc-hist-info">
+    <div class="calc-hist-item">
+      <div class="calc-hist-info" onclick="calcCopyText('${calcEsc(h.result).replace(/'/g, "\\'")}')">
         ${h.name ? `<div class="calc-hist-name">${calcEsc(h.name)}</div>` : ''}
         <div class="calc-hist-expr">${calcEsc(h.expr)}</div>
         <div class="calc-hist-result">= ${calcEsc(h.result)}</div>
       </div>
-      <button class="calc-hist-copy" onclick="event.stopPropagation();calcCopyText('${calcEsc(h.result).replace(/'/g, "\\'")}')" title="Salin hasil">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-      </button>
+      <div class="calc-hist-actions">
+        <button class="calc-hist-act" onclick="event.stopPropagation();calcRenameHistory('${h.id}')" title="Ganti nama">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+        </button>
+        <button class="calc-hist-act" onclick="event.stopPropagation();calcCopyText('${calcEsc(h.result).replace(/'/g, "\\'")}')" title="Salin hasil">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+        </button>
+        <button class="calc-hist-act calc-hist-act-danger" onclick="event.stopPropagation();calcDeleteHistoryItem('${h.id}')" title="Hapus">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+        </button>
+      </div>
     </div>
   `).join('');
+}
+
+function calcRenameHistory(id) {
+  const hist = DB.get('calcHistory', []);
+  const item = hist.find(h => h.id === id);
+  if (!item) return;
+  const name = prompt('Nama perhitungan:', item.name || '');
+  if (name === null) return; // dibatalkan
+  item.name = name.trim();
+  DB.set('calcHistory', hist);
+  renderCalcHistory();
+  toast('Nama riwayat diperbarui ✓', 'ok');
+}
+
+function calcDeleteHistoryItem(id) {
+  if (!confirm('Hapus riwayat perhitungan ini?')) return;
+  let hist = DB.get('calcHistory', []);
+  hist = hist.filter(h => h.id !== id);
+  DB.set('calcHistory', hist);
+  renderCalcHistory();
+  toast('Riwayat dihapus', 'ok');
 }
 
 function calcClearHistory() {
