@@ -704,6 +704,28 @@
       </div>
     </div>
 
+    <!-- Pesan WhatsApp -->
+    <div class="sett-section">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+        <div class="section-title">Pesan WhatsApp</div>
+        <button onclick="resetWaTemplate()" style="padding:5px 10px;border-radius:var(--r-full);background:var(--bg-input);color:var(--txt-2);border:none;font-size:11px;font-weight:600;cursor:pointer;font-family:var(--font)">Reset Default</button>
+      </div>
+      <div class="sett-card" style="padding:12px 16px">
+        <textarea id="settWaTemplate" class="form-input" rows="5" style="background:var(--bg-input);font-size:13px;padding:10px 12px;resize:none;overflow:hidden;line-height:1.6;width:100%;box-sizing:border-box;font-family:var(--font)" placeholder="Halo kak, berikut invoice pesanan Anda 🙏" maxlength="600" oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px';_saveSettingsDraft()"></textarea>
+        <div style="margin-top:10px;font-size:11px;color:var(--txt-3);line-height:1.7">
+          Pakai kode berikut, otomatis diganti data nota saat dikirim:<br>
+          <code style="background:var(--bg-input);padding:1px 5px;border-radius:4px">{nomor}</code>
+          <code style="background:var(--bg-input);padding:1px 5px;border-radius:4px">{nama}</code>
+          <code style="background:var(--bg-input);padding:1px 5px;border-radius:4px">{total}</code>
+          <code style="background:var(--bg-input);padding:1px 5px;border-radius:4px">{toko}</code>
+          <code style="background:var(--bg-input);padding:1px 5px;border-radius:4px">{tanggal}</code>
+          <code style="background:var(--bg-input);padding:1px 5px;border-radius:4px">{alamat}</code>
+          <code style="background:var(--bg-input);padding:1px 5px;border-radius:4px">{hp}</code>
+          <code style="background:var(--bg-input);padding:1px 5px;border-radius:4px">{status}</code>
+        </div>
+      </div>
+    </div>
+
     <!-- Katalog Produk -->
     <div class="sett-section">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">

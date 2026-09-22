@@ -3707,20 +3707,46 @@ function invFilename() {
   return inv?.number || 'invoice';
 }
 
-// Helper: get WA message text
+// Template pesan WA default (dipakai kalau user belum custom di Pengaturan)
+const DEFAULT_WA_TEMPLATE = 'Halo kak, berikut invoice pesanan Anda 🙏\n\n📋 *{nomor}*\n👤 {nama}\n💰 Total: {total}\n\n_Terima kasih sudah berbelanja di {toko}_ ✨';
+
+// Helper: get WA message text — pakai template custom dari Pengaturan kalau ada
 function waMessage() {
   const inv = DB.get('invoices', []).find(i => i.id === curInvId);
   const s = DB.get('settings', {});
-  return `Halo kak, berikut invoice pesanan Anda 🙏\n\n📋 *${inv?.number || 'Invoice'}*\n👤 ${inv?.customer?.name || ''}\n💰 Total: ${fmtRp(inv?.grand || 0)}\n\n_Terima kasih sudah berbelanja di ${s.storeName || 'toko kami'}_ ✨`;
+  const tpl = (s.waTemplate && s.waTemplate.trim()) ? s.waTemplate : DEFAULT_WA_TEMPLATE;
+  return fillWaTemplate(tpl, inv, s);
 }
 
-// Helper: get customer WA URL
-function waURL(text) {
+// Ganti semua placeholder {nomor} {nama} {total} {toko} {tanggal} {alamat} {hp} {status} dengan data nota
+function fillWaTemplate(tpl, inv, s) {
+  const map = {
+    nomor: inv?.number || 'Invoice',
+    nama: inv?.customer?.name || '',
+    total: fmtRp(inv?.grand || 0),
+    toko: s.storeName || 'toko kami',
+    tanggal: inv?.date ? fmtDate(inv.date) : '',
+    alamat: inv?.customer?.address || '',
+    hp: inv?.customer?.phone || '',
+    status: inv?.status === 'lunas' ? 'Lunas' : (inv?.status === 'dp' ? 'DP' : 'Belum Bayar')
+  };
+  return tpl.replace(/\{(nomor|nama|total|toko|tanggal|alamat|hp|status)\}/g, (_, key) => map[key]);
+}
+
+// Helper: nomor WA pelanggan yang sudah dinormalisasi (awalan 0 -> 62), kosong kalau belum diisi di nota
+function custWaNumber() {
   const inv = DB.get('invoices', []).find(i => i.id === curInvId);
   const phone = inv?.customer?.phone?.replace(/[^0-9]/g, '') || '';
+  if (!phone) return '';
+  return phone.startsWith('0') ? '62' + phone.slice(1) : phone;
+}
+
+// Helper: get customer WA URL — otomatis ke nomor pelanggan di nota kalau ada, kalau tidak biarkan pilih manual
+function waURL(text) {
+  const waNum = custWaNumber();
   const msg = encodeURIComponent(text);
-  return phone
-    ? `https://wa.me/${phone.startsWith('0') ? '62' + phone.slice(1) : phone}?text=${msg}`
+  return waNum
+    ? `https://wa.me/${waNum}?text=${msg}`
     : `https://wa.me/?text=${msg}`;
 }
 
@@ -4338,7 +4364,7 @@ function loadSettingsUI() {
   // Update tampilan akun setiap kali settings dibuka
   if (typeof updateSettAkunRow === 'function') updateSettAkunRow();
   const s = DB.get('settings', {});
-  const fields = { settName:'storeName', settAddr:'storeAddress', settPhone:'storePhone', settEmail:'storeEmail', settBank:'bankName', settBankNo:'bankNo', settBankOwner:'bankOwner', settThankyou:'thankyou', settSignLabel:'signLabel', settBankNote:'bankNote' };
+  const fields = { settName:'storeName', settAddr:'storeAddress', settPhone:'storePhone', settEmail:'storeEmail', settBank:'bankName', settBankNo:'bankNo', settBankOwner:'bankOwner', settThankyou:'thankyou', settSignLabel:'signLabel', settBankNote:'bankNote', settWaTemplate:'waTemplate' };
   const activeEl = document.activeElement;
   // Ambil draft lokal (ketikan yang belum disimpan) agar sync cloud tidak menimpa
   let draft = null;
@@ -4349,7 +4375,9 @@ function loadSettingsUI() {
       // Jangan overwrite field yang sedang diketik user (mencegah teks hilang saat sync)
       if (el === activeEl) continue;
       // Prioritaskan draft lokal (ketikan belum tersimpan) atas data cloud
-      el.value = (draft && draft[key] !== undefined) ? draft[key] : (s[key] || '');
+      // Untuk template pesan WA, tampilkan default terisi (bukan kosong) kalau user belum pernah custom
+      const fallback = (key === 'waTemplate') ? DEFAULT_WA_TEMPLATE : '';
+      el.value = (draft && draft[key] !== undefined) ? draft[key] : (s[key] || fallback);
       // Auto-resize textarea fields (rAF ensures the element is laid out/visible first)
       if (el.tagName === 'TEXTAREA') {
         requestAnimationFrame(() => { el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px'; });
@@ -4382,7 +4410,7 @@ function applyAppearance() {
 
 function saveSettings() {
   const s = DB.get('settings', {});
-  const fields = { settName:'storeName', settAddr:'storeAddress', settPhone:'storePhone', settEmail:'storeEmail', settBank:'bankName', settBankNo:'bankNo', settBankOwner:'bankOwner', settThankyou:'thankyou', settSignLabel:'signLabel', settBankNote:'bankNote' };
+  const fields = { settName:'storeName', settAddr:'storeAddress', settPhone:'storePhone', settEmail:'storeEmail', settBank:'bankName', settBankNo:'bankNo', settBankOwner:'bankOwner', settThankyou:'thankyou', settSignLabel:'signLabel', settBankNote:'bankNote', settWaTemplate:'waTemplate' };
   for (const [id, key] of Object.entries(fields)) {
     const el = document.getElementById(id); if (el) s[key] = el.value.trim();
   }
@@ -4398,13 +4426,23 @@ function saveSettings() {
 // Tidak push ke cloud — hanya pelindung sementara sampai user klik Simpan.
 function _saveSettingsDraft() {
   try {
-    const fields = { settName:'storeName', settAddr:'storeAddress', settPhone:'storePhone', settEmail:'storeEmail', settBank:'bankName', settBankNo:'bankNo', settBankOwner:'bankOwner', settThankyou:'thankyou', settSignLabel:'signLabel', settBankNote:'bankNote' };
+    const fields = { settName:'storeName', settAddr:'storeAddress', settPhone:'storePhone', settEmail:'storeEmail', settBank:'bankName', settBankNo:'bankNo', settBankOwner:'bankOwner', settThankyou:'thankyou', settSignLabel:'signLabel', settBankNote:'bankNote', settWaTemplate:'waTemplate' };
     const draft = {};
     for (const [id, key] of Object.entries(fields)) {
       const el = document.getElementById(id); if (el) draft[key] = el.value;
     }
     localStorage.setItem('ns3_settingsDraft', JSON.stringify(draft));
   } catch {}
+}
+
+function resetWaTemplate() {
+  const el = document.getElementById('settWaTemplate');
+  if (el) {
+    el.value = DEFAULT_WA_TEMPLATE;
+    el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px';
+    _saveSettingsDraft();
+  }
+  toast('Template pesan direset ke default', 'ok');
 }
 
 function uploadLogo(input) {
