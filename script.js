@@ -161,6 +161,8 @@ function nav(page) {
   if (page === 'settings') { renderCatalogList(); renderEkspedisiList(); selectTemplate(curTemplate || 'classic', null, false); selectTplColor(curTplColor || 'amber', false); }
   const el = document.getElementById('page-' + page);
   if (el) { el.classList.add('active'); curPage = page; window.scrollTo(0,0); }
+  // Sembunyikan FAB "Tambah Nota" saat sudah di form nota (biar tidak dobel/nyangkut isian)
+  document.getElementById('addNotaFab')?.classList.toggle('hide', page === 'invoice-form');
   // BUG FIX: textarea auto-resize dihitung dengan benar hanya ketika elemen
   // sudah terlihat (display:block). Sebelumnya loadSettingsUI() cuma dipanggil
   // sekali saat boot, saat halaman settings masih display:none, sehingga
@@ -170,6 +172,14 @@ function nav(page) {
 }
 
 function goBack() { nav(prevPage !== curPage ? prevPage : 'dashboard'); }
+
+// Selalu buka form nota KOSONG untuk nota baru — reset paksa curInvId & draft
+// biar tidak nyangkut ke sesi edit sebelumnya (ini penyebab bug "+" malah edit nota lama).
+function addNewInvoice() {
+  curInvId = null;
+  clearFormDraft();
+  nav('invoice-form');
+}
 
 // ── WA Chat Parser ───────────────────────────
 function parseWAForm(text) {
