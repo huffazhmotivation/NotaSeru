@@ -5844,7 +5844,12 @@ function _stmtFmtDate(d) {
   return d.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
-var _STMT_COLS = '20px 58px minmax(0,1fr) 66px 98px 96px';
+// NOTE: menggunakan flexbox dengan lebar kolom fixed (bukan CSS grid) secara
+// sengaja. html2canvas kadang salah menghitung lebar kolom "fr"/minmax pada
+// CSS grid, yang menyebabkan teks KETERANGAN "tertutup"/tumpang tindih dengan
+// kolom sebelahnya di hasil render PDF. Flexbox dengan width fixed jauh lebih
+// stabil dirender oleh html2canvas.
+var _STMT_COL_NO = 20, _STMT_COL_TGL = 58, _STMT_COL_TIPE = 66, _STMT_COL_NOMINAL = 98, _STMT_COL_SALDO = 96, _STMT_COL_GAP = 10;
 
 function _stmtRowsHTML(pageRows, rowStartNo) {
   if (!pageRows.length) return '';
@@ -5859,31 +5864,32 @@ function _stmtRowsHTML(pageRows, rowStartNo) {
     var amtSign = isIn ? '+' : '\u2212';
     var saldoColor = r.saldo < 0 ? '#A32C2C' : '#1E293B';
     return '' +
-    '<div style="display:grid;grid-template-columns:' + _STMT_COLS + ';column-gap:10px;align-items:center;' +
+    '<div style="display:flex;align-items:center;gap:' + _STMT_COL_GAP + 'px;' +
       'min-height:44px;padding:11px 14px;' + zebra + 'border-bottom:1px solid #DEE3EC;box-sizing:border-box">' +
-      '<div style="font-size:10px;line-height:1.3;color:#B4BAC4;font-weight:700">' + no + '</div>' +
-      '<div style="font-size:10px;line-height:1.35;color:#6B7280;font-weight:700">' + _stmtFmtDate(r.date) + '</div>' +
-      '<div style="min-width:0;overflow:hidden;padding-right:4px">' +
-        '<div style="font-size:11.5px;line-height:14px;font-weight:700;color:#1E293B;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + _stmtEsc(r.desc) + '</div>' +
+      '<div style="flex:0 0 ' + _STMT_COL_NO + 'px;width:' + _STMT_COL_NO + 'px;font-size:10px;line-height:1.3;color:#B4BAC4;font-weight:700">' + no + '</div>' +
+      '<div style="flex:0 0 ' + _STMT_COL_TGL + 'px;width:' + _STMT_COL_TGL + 'px;font-size:10px;line-height:1.35;color:#6B7280;font-weight:700">' + _stmtFmtDate(r.date) + '</div>' +
+      '<div style="flex:1 1 auto;min-width:0;overflow:hidden;padding-right:4px">' +
+        '<div style="font-size:11.5px;line-height:15px;font-weight:700;color:#1E293B;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + _stmtEsc(r.desc) + '</div>' +
         (r.sub ? '<div style="font-size:9.5px;line-height:13px;color:#9CA3AF;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px">' + _stmtEsc(r.sub) + '</div>' : '') +
       '</div>' +
-      '<div style="display:flex;justify-content:center;align-items:center;height:100%">' +
-        '<span style="display:inline-block;font-size:8.5px;font-weight:700;line-height:1;padding:5px 10px 4px;border-radius:5px;background:' + pillBg + ';color:' + pillFg + ';white-space:nowrap;box-sizing:border-box">' + pillLabel + '</span>' +
+      '<div style="flex:0 0 ' + _STMT_COL_TIPE + 'px;width:' + _STMT_COL_TIPE + 'px;display:flex;justify-content:center">' +
+        '<span style="display:inline-block;height:20px;line-height:20px;padding:0 10px;border-radius:5px;background:' + pillBg + ';color:' + pillFg + ';font-size:8.5px;font-weight:700;white-space:nowrap;box-sizing:border-box;text-align:center">' + pillLabel + '</span>' +
       '</div>' +
-      '<div style="text-align:right;font-size:11px;line-height:1.3;font-weight:700;color:' + amtColor + ';white-space:nowrap">' + amtSign + '&nbsp;' + fmtRp(r.amount).replace('Rp','Rp\u00A0') + '</div>' +
-      '<div style="text-align:right;font-size:10.5px;line-height:1.3;font-weight:700;color:' + saldoColor + ';white-space:nowrap">' + fmtRp(r.saldo) + '</div>' +
+      '<div style="flex:0 0 ' + _STMT_COL_NOMINAL + 'px;width:' + _STMT_COL_NOMINAL + 'px;text-align:right;font-size:11px;line-height:1.3;font-weight:700;color:' + amtColor + ';white-space:nowrap">' + amtSign + '&nbsp;' + fmtRp(r.amount).replace('Rp','Rp\u00A0') + '</div>' +
+      '<div style="flex:0 0 ' + _STMT_COL_SALDO + 'px;width:' + _STMT_COL_SALDO + 'px;text-align:right;font-size:10.5px;line-height:1.3;font-weight:700;color:' + saldoColor + ';white-space:nowrap">' + fmtRp(r.saldo) + '</div>' +
     '</div>';
   }).join('');
 }
 
 function _stmtTableHeadHTML() {
-  var th = function(label, align) {
-    return '<div style="font-size:8.5px;font-weight:700;color:rgba(255,255,255,.72);letter-spacing:.08em;text-align:' + (align || 'left') + ';">' + label + '</div>';
+  var th = function(label, width, align) {
+    return '<div style="' + (width ? ('flex:0 0 ' + width + 'px;width:' + width + 'px;') : 'flex:1 1 auto;min-width:0;') +
+      'font-size:8.5px;font-weight:700;color:rgba(255,255,255,.72);letter-spacing:.08em;text-align:' + (align || 'left') + ';">' + label + '</div>';
   };
   return '' +
-  '<div style="display:grid;grid-template-columns:' + _STMT_COLS + ';column-gap:10px;align-items:center;' +
+  '<div style="display:flex;align-items:center;gap:' + _STMT_COL_GAP + 'px;' +
     'padding:12px 14px;background:linear-gradient(90deg,#1E3A8A,#1D4ED8);border-radius:10px 10px 0 0;box-sizing:border-box">' +
-    th('NO') + th('TGL') + th('KETERANGAN') + th('TIPE', 'center') + th('NOMINAL', 'right') + th('SALDO', 'right') +
+    th('NO', _STMT_COL_NO) + th('TGL', _STMT_COL_TGL) + th('KETERANGAN', null) + th('TIPE', _STMT_COL_TIPE, 'center') + th('NOMINAL', _STMT_COL_NOMINAL, 'right') + th('SALDO', _STMT_COL_SALDO, 'right') +
   '</div>';
 }
 
@@ -5917,9 +5923,19 @@ function _stmtLetterheadHTML(ctx) {
 
 function _stmtSummaryHTML(ctx) {
   var card = function(label, value, color, iconBg, iconFg, icon) {
+    // Ikon dirender pakai SVG <text> dengan dominant-baseline="central" alih-alih
+    // div+line-height, karena posisi vertikal glyph unicode (↑ ↓ Σ) terhadap
+    // line-height berbeda-beda antar font/engine sehingga terlihat "meleset"
+    // dari titik tengah kotak. SVG dominant-baseline mengunci ke tengah asli
+    // metrik font sehingga presisi di semua platform.
+    var iconSVG = '' +
+      '<svg width="30" height="30" viewBox="0 0 30 30" style="display:block">' +
+        '<rect width="30" height="30" rx="9" fill="' + iconBg + '"></rect>' +
+        '<text x="15" y="16" text-anchor="middle" dominant-baseline="central" font-size="15" font-weight="900" fill="' + iconFg + '" font-family="Manrope,-apple-system,Helvetica,Arial,sans-serif">' + icon + '</text>' +
+      '</svg>';
     return '' +
     '<div style="flex:1;background:#ffffff;border:1.5px solid #D7DEE8;border-radius:14px;padding:14px 16px;box-sizing:border-box;box-shadow:0 1px 4px rgba(15,23,42,.06)">' +
-      '<div style="width:30px;height:30px;border-radius:9px;background:' + iconBg + ';display:flex;align-items:center;justify-content:center;color:' + iconFg + ';font-size:14px;font-weight:900;line-height:1;margin-bottom:10px">' + icon + '</div>' +
+      '<div style="width:30px;height:30px;margin-bottom:10px">' + iconSVG + '</div>' +
       '<div style="font-size:8.5px;font-weight:700;color:#94A3B8;letter-spacing:.09em;line-height:1.3">' + label + '</div>' +
       '<div style="font-size:17px;font-weight:800;color:' + color + ';margin-top:5px;letter-spacing:-.01em;line-height:1.2;white-space:nowrap">' + value + '</div>' +
     '</div>';
