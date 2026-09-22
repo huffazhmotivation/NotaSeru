@@ -3803,11 +3803,13 @@ async function exportPDF() {
           if (e.name === 'AbortError') { toast('Dibatalkan', ''); return; }
         }
       }
-      // Fallback: download + tampilkan sheet (termasuk tombol share-ulang
-      // yang aman dipakai di Chrome/WebView, lihat shareNative())
+      // Fallback: download langsung (tanpa popup) + toast kecil yang bisa
+      // diketuk untuk buka share sheet bawaan HP (perlu 1 ketuk baru di
+      // Chrome/WebView, karena gesture klik awal sudah "basi" setelah
+      // proses render tadi — lihat catatan di shareNative()).
       pdf.save(`${fname}.pdf`);
       toast('PDF diunduh ✓', 'ok');
-      openShareSheet('pdf', pdfBlob, fname, file);
+      if (navigator.share) toastShare('Ketuk untuk bagikan PDF', file);
     } else {
       // jsPDF belum load, fallback PNG
       toast('PDF library belum siap, coba lagi', 'err');
@@ -3844,14 +3846,15 @@ async function exportPNG() {
         // fallback ke download
       }
     }
-    // Fallback: langsung download + buka share sheet custom
+    // Fallback: langsung download (tanpa popup) + toast kecil yang bisa
+    // diketuk untuk buka share sheet bawaan HP
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.download = `${fname}.png`;
     a.href = url; a.click();
     setTimeout(function(){ URL.revokeObjectURL(url); }, 5000);
     toast('Gambar diunduh ✓', 'ok');
-    openShareSheet('png', blob, fname, file);
+    if (navigator.share) toastShare('Ketuk untuk bagikan PNG', file);
   } catch (e) { toast('Gagal: ' + e.message, 'err'); }
 }
 
@@ -3929,7 +3932,6 @@ async function shareNative() {
   try {
     if (navigator.canShare && navigator.canShare({ files: [file] })) {
       await navigator.share({ title: file.name, text: waMessage(), files: [file] });
-      closeSheets();
     } else {
       toast('Browser ini tidak mendukung share file', 'err');
     }
@@ -3937,6 +3939,23 @@ async function shareNative() {
     if (e.name === 'AbortError') return; // user batal, bukan error
     toast('Gagal membagikan: ' + e.message, 'err');
   }
+}
+
+// Toast kecil yang bisa DIKETUK untuk membuka share sheet bawaan HP —
+// dipakai sebagai pengganti popup besar. Ketukan pada toast ini adalah
+// gesture baru & langsung, jadi navigator.share() di dalam shareNative()
+// aman dipanggil dari sini walau proses render sebelumnya lama.
+function toastShare(msg, file) {
+  window._lastShareFile = file;
+  const wrap = document.getElementById('toastWrap'); if (!wrap) return;
+  const t = document.createElement('div');
+  t.className = 'toast';
+  t.style.cursor = 'pointer';
+  t.style.pointerEvents = 'auto'; // .toast-wrap induknya pointer-events:none
+  t.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg><span>${msg}</span>`;
+  t.onclick = () => { t.remove(); shareNative(); };
+  wrap.appendChild(t);
+  setTimeout(() => { t.style.cssText = 'opacity:0;transform:translateY(-8px) scale(.95);transition:.3s'; setTimeout(() => t.remove(), 300); }, 4500);
 }
 
 function shareViaEmail(fname, type, objUrl) {
