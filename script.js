@@ -1409,11 +1409,16 @@ function openInvAction(id) {
   const inv = DB.get('invoices', []).find(i => i.id === id); if (!inv) return;
   curInvId = id;
   setText('invActionTitle', inv.customer?.name || 'Nota');
+  // Kalau nota ini sudah tergabung dalam Grup Nota, "Kelola Profit" langsung
+  // buka analisis profit GRUP (bukan profit per-nota sendiri), karena omset &
+  // pengeluarannya sudah dikelola sebagai satu kesatuan di level grup.
+  const isGrup = !!inv.grupKey;
+  const profitSub = isGrup ? 'Nota ini bagian dari grup · lihat profit grup' : 'Catat pengeluaran &amp; lihat profit bersih';
   document.getElementById('invActionContent').innerHTML = `
     <div class="as-item" onclick="viewInv('${id}');closeSheets()"><div class="as-ic" style="background:var(--primary-soft);color:var(--primary)"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></div><div><div class="as-label">Lihat Invoice</div><div class="as-sub">Preview &amp; export</div></div></div>
     <div class="as-item" onclick="editInv('${id}');closeSheets()"><div class="as-ic" style="background:var(--warning-soft);color:var(--warning)"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></div><div><div class="as-label">Edit Nota</div><div class="as-sub">Ubah data nota</div></div></div>
     <div class="as-item" onclick="dupInv('${id}');closeSheets()"><div class="as-ic" style="background:var(--success-soft);color:var(--success)"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></div><div><div class="as-label">Duplikat Nota</div><div class="as-sub">Buat salinan nota ini</div></div></div>
-    <div class="as-item" onclick="closeSheets();setTimeout(()=>openProfitDrawer('${id}'),260)"><div class="as-ic" style="background:var(--primary-soft);color:var(--primary)"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg></div><div><div class="as-label">Kelola Profit</div><div class="as-sub">Catat pengeluaran &amp; lihat profit bersih</div></div></div>
+    <div class="as-item" onclick="closeSheets();setTimeout(()=>openProfitDrawer('${id}'),260)"><div class="as-ic" style="background:var(--primary-soft);color:var(--primary)"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg></div><div><div class="as-label">Kelola Profit${isGrup ? ' Grup' : ''}</div><div class="as-sub">${profitSub}</div></div></div>
     <div class="as-div"></div>
     <div class="as-item" onclick="delInv('${id}');closeSheets()"><div class="as-ic" style="background:var(--danger-soft);color:var(--danger)"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg></div><div><div class="as-label" style="color:var(--danger)">Hapus Nota</div><div class="as-sub">Tidak bisa dibatalkan</div></div></div>`;
   openSheet('invActionSheet');
@@ -1478,6 +1483,15 @@ function delInv(id) {
 function openProfitDrawer(id, e) {
   e && e.stopPropagation();
   const inv = DB.get('invoices', []).find(i => i.id === id); if (!inv) return;
+  // Kalau nota ini sudah tergabung dalam Grup Nota, alihkan ke analisis profit
+  // GRUP — omset & pengeluarannya memang dikelola bersama di level grup, jadi
+  // "Kelola Profit" per-nota individual tidak relevan lagi buat nota ini.
+  if (inv.grupKey) {
+    const card = document.getElementById('inv-card-' + id);
+    if (card) { card.style.transition = 'transform .38s cubic-bezier(.22,1,.36,1)'; card.style.transform = 'translateX(0)'; window._swipeOpenCard = null; }
+    openGrupProfitByKey(inv.grupKey);
+    return;
+  }
   // Close swipe card
   const card = document.getElementById('inv-card-' + id);
   if (card) { card.style.transition = 'transform .38s cubic-bezier(.22,1,.36,1)'; card.style.transform = 'translateX(0)'; window._swipeOpenCard = null; }
@@ -4108,6 +4122,19 @@ function renderDashboard() {
 
 // ── Finance Tab ──────────────────────────────
 let _finPeriod = '1m', _finCustomFrom = null, _finCustomTo = null, _finTab = 'income';
+let _finExpSourceFilter = 'all'; // 'all' | 'nota:<id>' | 'grup:<key>' | 'manual'
+
+// Ikon outline minimalist per kategori pengeluaran — dipakai di tab Keuangan
+// maupun halaman Pengeluaran, biar konsisten satu gaya di seluruh app.
+const EXPENSE_CAT_ICONS = {
+  operasional: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>',
+  bahan: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>',
+  transport: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="1" y="3" width="15" height="13" rx="2"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>',
+  marketing: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>',
+  gaji: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>',
+  utilitas: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>',
+  lainnya: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>'
+};
 
 function getFinDateRange() {
   const now = new Date();
@@ -4273,15 +4300,56 @@ function renderFinancePage() {
   // Render expense list
   const expList = document.getElementById('finExpenseList');
   if (expList) {
-    const catIco = { operasional:'⚙️', bahan:'📦', transport:'🚚', marketing:'📣', gaji:'👤', utilitas:'⚡', lainnya:'🗂️' };
-    const sorted = [...filtExps].sort((a,b) => new Date(b.date)-new Date(a.date));
+    // Kumpulkan sumber unik (nota/grup) dari pengeluaran yang ada di periode ini,
+    // supaya bisa difilter pisah per-nota — biar kelihatan jelas pengeluaran
+    // mana yang berasal dari nota yang mana.
+    const sourceMap = new Map(); // key -> { label, count }
+    let manualCount = 0;
+    filtExps.forEach(e => {
+      if (e.sourceType === 'nota' && e.sourceNotaId) {
+        const key = 'nota:' + e.sourceNotaId;
+        if (!sourceMap.has(key)) {
+          const srcInv = invs.find(i => i.id === e.sourceNotaId);
+          const label = srcInv ? (srcInv.customer?.name || srcInv.number || 'Nota') : 'Nota (dihapus)';
+          sourceMap.set(key, { label, count: 0 });
+        }
+        sourceMap.get(key).count++;
+      } else if (e.sourceType === 'grup' && e.sourceGrupKey) {
+        const key = 'grup:' + e.sourceGrupKey;
+        if (!sourceMap.has(key)) sourceMap.set(key, { label: e.sourceGrupName || 'Grup Nota', count: 0 });
+        sourceMap.get(key).count++;
+      } else {
+        manualCount++;
+      }
+    });
+    // Kalau sumber yang lagi dipilih sudah tidak ada di periode ini, balik ke "Semua"
+    if (_finExpSourceFilter !== 'all' && _finExpSourceFilter !== 'manual' && !sourceMap.has(_finExpSourceFilter)) {
+      _finExpSourceFilter = 'all';
+    }
+    const hasSources = sourceMap.size > 0;
+    const filterChips = hasSources ? `
+      <div style="display:flex;gap:6px;overflow-x:auto;padding-bottom:8px;margin-bottom:8px;-webkit-overflow-scrolling:touch">
+        <button class="chip${_finExpSourceFilter==='all'?' active':''}" style="white-space:nowrap;flex-shrink:0" onclick="setFinExpSourceFilter('all')">Semua</button>
+        ${Array.from(sourceMap.entries()).map(([key,v]) => `<button class="chip${_finExpSourceFilter===key?' active':''}" style="white-space:nowrap;flex-shrink:0" onclick="setFinExpSourceFilter('${key}')">${xss(v.label)} · ${v.count}</button>`).join('')}
+        ${manualCount ? `<button class="chip${_finExpSourceFilter==='manual'?' active':''}" style="white-space:nowrap;flex-shrink:0" onclick="setFinExpSourceFilter('manual')">Manual · ${manualCount}</button>` : ''}
+      </div>` : '';
+
+    const visibleExps = filtExps.filter(e => {
+      if (_finExpSourceFilter === 'all') return true;
+      if (_finExpSourceFilter === 'manual') return e.sourceType !== 'nota' && e.sourceType !== 'grup';
+      if (_finExpSourceFilter.startsWith('nota:')) return e.sourceType === 'nota' && ('nota:' + e.sourceNotaId) === _finExpSourceFilter;
+      if (_finExpSourceFilter.startsWith('grup:')) return e.sourceType === 'grup' && ('grup:' + e.sourceGrupKey) === _finExpSourceFilter;
+      return true;
+    });
+    const sorted = [...visibleExps].sort((a,b) => new Date(b.date)-new Date(a.date));
     if (!sorted.length) {
-      expList.innerHTML = emptyHTML('expense','Belum Ada Pengeluaran','Tambah pengeluaran dengan tombol +');
+      expList.innerHTML = filterChips + emptyHTML('expense','Belum Ada Pengeluaran','Tambah pengeluaran dengan tombol +');
     } else {
-      expList.innerHTML = `<div style="font-size:11px;font-weight:700;color:var(--txt-3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Riwayat Pengeluaran</div>` +
+      expList.innerHTML = filterChips +
+        `<div style="font-size:11px;font-weight:700;color:var(--txt-3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Riwayat Pengeluaran</div>` +
         sorted.map(e => `
         <div style="display:flex;align-items:center;gap:12px;padding:12px 14px;background:var(--bg-card);border:1px solid var(--border-soft);border-radius:var(--r-md);margin-bottom:7px">
-          <div style="width:38px;height:38px;border-radius:var(--r-sm);background:var(--danger-soft);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">${catIco[e.cat]||'🗂️'}</div>
+          <div style="width:38px;height:38px;border-radius:var(--r-sm);background:var(--danger-soft);color:var(--danger);display:flex;align-items:center;justify-content:center;flex-shrink:0">${EXPENSE_CAT_ICONS[e.cat]||EXPENSE_CAT_ICONS.lainnya}</div>
           <div style="flex:1;min-width:0">
             <div style="font-size:13px;font-weight:600;color:var(--txt-1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${xss(e.name)}</div>
             <div style="font-size:11px;color:var(--txt-3)">${e.date} · ${xss(e.cat||'lainnya')}${e.sourceType==='nota'?' · <span style=\"color:var(--primary);font-weight:600\">Dari Nota</span>':e.sourceType==='grup'?' · <span style=\"color:#5B4B8A;font-weight:600\">Dari Grup</span>':''}</div>
@@ -4383,6 +4451,11 @@ function drawFinChart(sortedM) {
   });
 }
 
+function setFinExpSourceFilter(key) {
+  _finExpSourceFilter = key;
+  renderFinancePage();
+}
+
 // Legacy shim – renderIncomePage is no longer needed but kept as alias
 function renderMonthChips() {}
 function renderIncomePage() { renderFinancePage(); }
@@ -4397,7 +4470,7 @@ function renderExpensePage() {
   setText('expTotalVal', fmtRp(total));
   const el = document.getElementById('expMonthLbl');
   if (el) el.textContent = new Date(y,m,1).toLocaleDateString('id-ID', { month:'long', year:'numeric' });
-  const catIco = { operasional:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>', bahan:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>', transport:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="1" y="3" width="15" height="13" rx="2"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>', marketing:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>', gaji:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>', utilitas:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>', lainnya:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>' };
+  const catIco = EXPENSE_CAT_ICONS;
   const list = document.getElementById('expList'); if (!list) return;
   const sorted = [...exps].sort((a,b) => new Date(b.date)-new Date(a.date));
   if (!sorted.length) { list.innerHTML = emptyHTML('expense', 'Belum Ada Pengeluaran', 'Catat pengeluaran pertama Anda'); return; }
