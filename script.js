@@ -4613,7 +4613,7 @@ function applyAppearance() {
   }
 }
 
-function saveSettings(silent) {
+function saveSettings() {
   const s = DB.get('settings', {});
   const fields = { settName:'storeName', settAddr:'storeAddress', settPhone:'storePhone', settEmail:'storeEmail', settBank:'bankName', settBankNo:'bankNo', settBankOwner:'bankOwner', settThankyou:'thankyou', settSignLabel:'signLabel', settBankNote:'bankNote', settWaTemplate:'waTemplate' };
   for (const [id, key] of Object.entries(fields)) {
@@ -4623,18 +4623,12 @@ function saveSettings(silent) {
   try { localStorage.removeItem('ns3_settingsDraft'); } catch {}
   DB.set('settings', s);
   renderDashboard();
-  if (!silent) toast('Pengaturan disimpan ✓', 'ok');
+  toast('Pengaturan disimpan ✓', 'ok');
 }
 
 // Simpan ketikan sementara ke localStorage agar tidak hilang saat sync cloud masuk.
 // Dipanggil dari oninput pada field settings di HTML.
-// FIX: sebelumnya draft ini HANYA disimpan lokal dan baru masuk ke data settings
-// yang sesungguhnya kalau user pencet tombol centang "Simpan" — kalau lupa
-// pencet, perubahan (mis. template pesan WA custom) hilang begitu pindah halaman.
-// Sekarang draft tetap ditulis (untuk proteksi saat sync cloud masuk di tengah
-// ketikan), TAPI juga auto-commit ke settings asli beberapa saat setelah user
-// berhenti mengetik, supaya custom apapun otomatis kepakai tanpa wajib pencet Simpan.
-let _settingsAutoSaveTimer = null;
+// Tidak push ke cloud — hanya pelindung sementara sampai user klik Simpan.
 function _saveSettingsDraft() {
   try {
     const fields = { settName:'storeName', settAddr:'storeAddress', settPhone:'storePhone', settEmail:'storeEmail', settBank:'bankName', settBankNo:'bankNo', settBankOwner:'bankOwner', settThankyou:'thankyou', settSignLabel:'signLabel', settBankNote:'bankNote', settWaTemplate:'waTemplate' };
@@ -4644,8 +4638,6 @@ function _saveSettingsDraft() {
     }
     localStorage.setItem('ns3_settingsDraft', JSON.stringify(draft));
   } catch {}
-  clearTimeout(_settingsAutoSaveTimer);
-  _settingsAutoSaveTimer = setTimeout(() => { saveSettings(true); }, 1200);
 }
 
 function resetWaTemplate() {
