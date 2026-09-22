@@ -161,6 +161,8 @@ function nav(page) {
   if (page === 'settings') { renderCatalogList(); renderEkspedisiList(); selectTemplate(curTemplate || 'classic', null, false); selectTplColor(curTplColor || 'amber', false); }
   const el = document.getElementById('page-' + page);
   if (el) { el.classList.add('active'); curPage = page; window.scrollTo(0,0); }
+  // Sembunyikan FAB "Tambah Nota" saat sudah di form nota (biar tidak dobel/nyangkut isian)
+  document.getElementById('addNotaFab')?.classList.toggle('hide', page === 'invoice-form');
   // BUG FIX: textarea auto-resize dihitung dengan benar hanya ketika elemen
   // sudah terlihat (display:block). Sebelumnya loadSettingsUI() cuma dipanggil
   // sekali saat boot, saat halaman settings masih display:none, sehingga
@@ -171,27 +173,179 @@ function nav(page) {
 
 function goBack() { nav(prevPage !== curPage ? prevPage : 'dashboard'); }
 
-// ── WA Chat Parser ───────────────────────────
+// Selalu buka form nota KOSONG untuk nota baru — reset paksa curInvId & draft
+// biar tidak nyangkut ke sesi edit sebelumnya (ini penyebab bug "+" malah edit nota lama).
+function addNewInvoice() {
+  curInvId = null;
+  clearFormDraft();
+  nav('invoice-form');
+}
+
+// ── WA Chat Parser — pintar, auto-deteksi Nama/HP/Alamat/Pesanan ────
+// dari berbagai gaya chat WA, walau tanpa label ("Nama:" dst) & urutan bebas.
+// Prinsip kehati-hatian: field cuma diisi kalau memang ada penanda yang jelas
+// (label, kata kunci, atau pola kalimat umum) — kalau ambigu, dibiarkan kosong,
+// TIDAK asal dorong teks yang tidak jelas ke daftar pesanan.
+
+const WA_LABELS = {
+  name:    /^(nama\s*(?:pelanggan|penerima|customer|lengkap)?|name|penerima|atas\s*nama|a\.?n\.?)\s*[:\-=]\s*(.+)$/i,
+  phone:   /^(no\.?\s*(?:hp|wa|telp|telepon|kontak)?|nomor\s*(?:hp|wa|telp|telepon)?|hp|wa|whatsapp|telp|telepon|kontak)\s*[:\-=]\s*(.+)$/i,
+  address: /^(alamat\s*(?:kirim|pengiriman|lengkap)?|address|lokasi|domisili)\s*[:\-=]\s*(.+)$/i,
+  order:   /^(pesanan|order|item|barang|produk|pesan(?:an)?|qty|jumlah\s*pesanan|catatan\s*pesanan)\s*[:\-=]\s*(.+)$/i,
+};
+
+// Kata sapaan/basa-basi yang dibuang dari awal baris sebelum dijadikan nama/pesanan
+const WA_GREETINGS = /^(halo|hallo|hai|hi+|min|kak|ka|gan|sis|bro|assalamualaikum|assalamu'?alaikum|selamat\s*(pagi|siang|sore|malam)|permisi|mohon\s*maaf|maaf(?:\s*ka?k)?)\b[\s,.:!-]*/i;
+
+// Nomor HP Indonesia — dicari di seluruh teks (bukan cuma baris berlabel), format: 08xx / +628xx / 628xx
+const PHONE_REGEX = /(?:\+?62|0)8[0-9][\d\-\s]{7,13}\d/;
+
+// Kata kunci penanda baris alamat, walau tanpa label eksplisit
+const ADDR_KEYWORDS = /\b(jl\.?|jalan|gg\.?|gang|rt\s*[.\/]?\s*\d|rw\s*\d|no\.?\s*\d|kec\.?|kelurahan|kab\.?|kabupaten|kota|provinsi|blok|komplek|perumahan|ds\.?|dusun|desa)\b/i;
+
+// Kata kunci penanda baris/kalimat pesanan, walau tanpa label eksplisit
+const ORDER_KEYWORDS = /\b(pesan|order|beli|pcs|box|kg|lusin|kodi|paket|ukuran|size|warna)\b/i;
+
+// Kata penanda batas dipakai lookahead supaya field yang nyambung di satu baris/paragraf
+// (tanpa newline) tidak saling "kemakan" satu sama lain.
+const WA_BOUNDARY = '(?:no\\.?\\s*hp|nomor\\s*hp|no\\.?\\s*wa|nomor\\s*wa|hp\\s*saya|wa\\s*saya|\\bhp\\b|\\bwa\\b|telp\\w*|alamat\\w*|kirim\\s*ke|lokasi|domisili|pesan\\w*|\\border\\b|\\bbeli\\b|\\bnama\\b|\\bsaya\\b)';
+
+function waStripEdges(s) {
+  return s.replace(/^[\s,.:;\-]+/, '').replace(/[\s,.:;\-]+$/, '').trim();
+}
+function waLineClean(line) { return line.replace(WA_GREETINGS, '').trim(); }
+
 function parseWAForm(text) {
   if (!text || !text.trim()) return null;
+  const raw = text.trim();
+  const lines = raw.split('\n').map(l => l.trim()).filter(Boolean);
+  if (!lines.length) return null;
   const result = {};
-  const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
-  const patterns = {
-    name: /^(nama\s*pelanggan|nama)\s*[:\-]\s*(.+)$/i,
-    phone: /^(no\s*hp|no\.?\s*hp|nomor\s*hp|hp|telepon|whatsapp|wa)\s*[:\-]\s*(.+)$/i,
-    address: /^(alamat|alamat\s*pengiriman)\s*[:\-]\s*(.+)$/i,
-    order: /^(pesanan|order|item|barang)\s*[:\-]\s*(.+)$/i,
-  };
-  for (const line of lines) {
-    for (const [key, pattern] of Object.entries(patterns)) {
-      const match = line.match(pattern);
-      if (match && !result[key]) {
-        result[key] = match[2].trim();
+  const usedLines = new Set();
+
+  // 1) Label eksplisit per baris — paling akurat, urutan baris bebas
+  lines.forEach((line, idx) => {
+    for (const [key, pattern] of Object.entries(WA_LABELS)) {
+      if (result[key]) continue;
+      const m = line.match(pattern);
+      if (m && m[2] && m[2].trim()) { result[key] = m[2].trim(); usedLines.add(idx); }
+    }
+  });
+
+  // 1b) Header field tanpa isi di baris yg sama (mis. "Pesanan:" doang lalu daftar item di baris berikutnya)
+  // -> kumpulkan baris-baris sesudahnya sampai ketemu baris kosong / label field lain / akhir teks
+  if (!result.order) {
+    const hdrIdx = lines.findIndex((line, i) => !usedLines.has(i) && /^(pesanan|order|item|barang|produk|pesan(?:an)?|catatan\s*pesanan)\s*[:\-=]?\s*$/i.test(line));
+    if (hdrIdx !== -1) {
+      usedLines.add(hdrIdx);
+      const collected = [];
+      for (let i = hdrIdx + 1; i < lines.length; i++) {
+        if (usedLines.has(i)) break;
+        const isOtherLabel = Object.values(WA_LABELS).some(p => p.test(lines[i]));
+        if (isOtherLabel) break;
+        collected.push(lines[i]);
+        usedLines.add(i);
       }
+      if (collected.length) result.order = collected.join(', ');
     }
   }
+
+  // 2) Nomor HP — scan seluruh teks, reliable walau nyempil di tengah kalimat tanpa label
+  if (!result.phone) {
+    const m = raw.match(PHONE_REGEX);
+    if (m) result.phone = m[0].trim();
+  }
+
+  // 3) Alamat gaya kalimat/paragraf — anchor "alamat"/"kirim ke"/"lokasi", berhenti di boundary field lain
+  if (!result.address) {
+    let m = raw.match(new RegExp(`\\b(?:alamat(?:\\s*(?:kirim\\s*ke|pengiriman|lengkap))?|kirim\\s*ke|lokasi|domisili)\\s*[:\\-]?\\s*([^\\n]*?)(?=,?\\s*${WA_BOUNDARY}|[.\\n]|$)`, 'i'));
+    if (m && m[1] && waStripEdges(m[1])) result.address = waStripEdges(m[1]);
+  }
+  // 3b) Fallback: langsung mulai dari "Jl"/"Jalan" walau tanpa kata "alamat"
+  if (!result.address) {
+    let m = raw.match(new RegExp(`\\b((?:jl\\.?|jalan)\\s+[^\\n]*?)(?=,?\\s*${WA_BOUNDARY}|[.\\n]|$)`, 'i'));
+    if (m && m[1] && waStripEdges(m[1])) result.address = waStripEdges(m[1]);
+  }
+
+  // 4) Pesanan gaya kalimat/paragraf — anchor "pesan/order/beli", berhenti di boundary field lain
+  if (!result.order) {
+    let m = raw.match(new RegExp(`\\b(?:mau\\s+)?(?:pesan(?:an)?|order|beli)\\s*[:\\-]?\\s*([^\\n]*?)(?=,?\\s*(?:alamat\\w*|kirim\\s*ke|lokasi|domisili|no\\.?\\s*hp|nomor\\s*hp|no\\.?\\s*wa|nomor\\s*wa|hp\\s*saya|wa\\s*saya|\\bhp\\b|\\bwa\\b|telp\\w*)|[.\\n]|$)`, 'i'));
+    if (m && m[1] && waStripEdges(m[1])) result.order = waStripEdges(m[1]);
+  }
+
+  // 5) Nama gaya kalimat — "saya Budi", "nama saya Budi mau pesan..."
+  if (!result.name) {
+    const m = raw.match(new RegExp(`\\b(?:nama(?:\\s*saya|\\s*aku)?|saya|aku)\\s+(?:adalah\\s+)?([a-zA-Z][a-zA-Z.]*(?:\\s+[a-zA-Z][a-zA-Z.]*){0,3}?)(?=,?\\s*(?:mau\\b|pesan\\w*|\\border\\b|\\bbeli\\b|alamat\\w*|kirim\\s*ke|lokasi|no\\.?\\s*hp|nomor\\s*hp|\\bhp\\b|\\bwa\\b)|[.,\\n]|$)`, 'i'));
+    if (m && m[1] && m[1].trim().length > 1) result.name = m[1].trim();
+  }
+
+  // 6) Sisa: baris yang mengandung kata kunci alamat/pesanan (utk chat multi-baris tanpa label & tanpa kalimat sambung)
+  if (!result.address) {
+    const idx = lines.findIndex((line, i) => !usedLines.has(i) && ADDR_KEYWORDS.test(line));
+    if (idx !== -1) { const c = waLineClean(lines[idx]); if (c) { result.address = c; usedLines.add(idx); } }
+  }
+  if (!result.order) {
+    const idx = lines.findIndex((line, i) => !usedLines.has(i) && ORDER_KEYWORDS.test(line));
+    if (idx !== -1) { const c = waLineClean(lines[idx]); if (c) { result.order = c; usedLines.add(idx); } }
+  }
+
+  // Tandai baris yg sudah kepakai field manapun (biar tidak dobel dipakai utk tebak nama)
+  lines.forEach((line, idx) => {
+    if (result.phone && line.includes(result.phone)) usedLines.add(idx);
+    if (result.address && line.includes(result.address)) usedLines.add(idx);
+    if (result.order && line.includes(result.order)) usedLines.add(idx);
+    if (result.name && line.includes(result.name)) usedLines.add(idx);
+  });
+
+  // 7) Nama — kalau masih kosong & ini teks multi-baris (gaya sequential tanpa label), tebak dari baris pendek tersisa
+  if (!result.name && lines.length >= 2) {
+    const ACTION_WORDS = /\b(mau|pesan|pesen|order|beli|minta|tolong|bisa|boleh|kirim|ambil|butuh|nanya|tanya)\b/i;
+    const idx = lines.findIndex((line, i) => {
+      if (usedLines.has(i)) return false;
+      const clean = line.replace(WA_GREETINGS, '').trim();
+      if (!clean || /\d/.test(clean)) return false;
+      if (ACTION_WORDS.test(clean) || ORDER_KEYWORDS.test(clean) || ADDR_KEYWORDS.test(clean)) return false;
+      const wc = clean.split(/\s+/).length;
+      return wc >= 1 && wc <= 4;
+    });
+    if (idx !== -1) {
+      const clean = lines[idx].replace(WA_GREETINGS, '').trim();
+      if (clean) { result.name = clean; usedLines.add(idx); }
+    }
+  }
+
+  // TIDAK ADA fallback "sisa teks jadi pesanan" — kalau order tidak teridentifikasi jelas
+  // lewat label/kata-kunci/pola kalimat di atas, dibiarkan kosong (tidak asal ditebak).
   return Object.keys(result).length > 0 ? result : null;
 }
+
+// Pecah teks pesanan jadi beberapa baris item (pisah koma/";"/"dan"/"sama"/baris baru),
+// deteksi qty di depan ("2 box Brownies") atau belakang ("Brownies 2pcs" / "Brownies x2"),
+// dan cocokkan ke katalog produk kalau namanya mirip.
+function buildItemsFromOrderText(orderText) {
+  if (!orderText) return null;
+  const prods = DB.get('products', []);
+  const parts = orderText.split(/,|;|\n|\s+dan\s+|\s+sama\s+/i).map(s => s.trim()).filter(Boolean);
+  const newItems = parts.map(part => {
+    let qty = 1, name = part;
+    let m = part.match(/^(\d+)\s*(?:x|×)?\s*(?:pcs|box|kg|buah|lusin|kodi|paket)?\s+(.+)$/i);
+    if (m) { qty = parseInt(m[1]) || 1; name = m[2].trim(); }
+    else {
+      m = part.match(/^(.+?)\s*(?:x|×)\s*(\d+)$/i);
+      if (m) { name = m[1].trim(); qty = parseInt(m[2]) || 1; }
+      else {
+        m = part.match(/^(.+?)\s+(\d+)\s*(?:pcs|box|kg|buah|lusin|kodi|paket)?$/i);
+        if (m) { name = m[1].trim(); qty = parseInt(m[2]) || 1; }
+      }
+    }
+    name = name.replace(WA_GREETINGS, '').trim();
+    if (!name) return null;
+    const matched = prods.find(p => name.toLowerCase().includes(p.name.toLowerCase()) || p.name.toLowerCase().includes(name.toLowerCase()));
+    return { id: Date.now() + Math.random(), name: matched ? matched.name : name, qty: qty || 1, price: matched ? (matched.price || 0) : 0 };
+  }).filter(Boolean);
+  return newItems.length ? newItems : null;
+}
+
 
 function openWAImport() {
   // Create a simple modal sheet for pasting WA text
@@ -207,8 +361,8 @@ function openWAImport() {
       <button class="sheet-close" onclick="closeWAImport()">✕</button>
     </div>
     <div class="sheet-body">
-      <p style="font-size:12px;color:var(--txt-3);margin-bottom:10px">Salin & tempel chat pesanan dari WhatsApp dengan format:<br><code style="background:var(--bg-input);padding:2px 6px;border-radius:4px;font-size:11px">Nama : ...<br>No HP : ...<br>Alamat : ...<br>Pesanan : ...</code></p>
-      <textarea class="form-textarea" id="waPasteInput" rows="7" placeholder="Tempel chat WhatsApp di sini...&#10;&#10;Contoh:&#10;Nama : Budi Santoso&#10;No HP : 08123456789&#10;Alamat : Jl. Mawar No.5&#10;Pesanan : Kue Brownies 2 box"></textarea>
+      <p style="font-size:12px;color:var(--txt-3);margin-bottom:10px">Tempel chat pesanan dari WhatsApp — otomatis dideteksi walau formatnya beda-beda, nggak harus ada label kayak "Nama:", "Alamat:" dst, dan urutannya bebas.<br><br>Contoh yang dikenali:<br><code style="background:var(--bg-input);padding:2px 6px;border-radius:4px;font-size:11px">Nama : ...<br>No HP : ...<br>Alamat : ...<br>Pesanan : ...</code><br><br>Atau chat bebas kayak:<br><code style="background:var(--bg-input);padding:2px 6px;border-radius:4px;font-size:11px">Budi Santoso<br>08123456789<br>Jl. Mawar No.5<br>Pesan kue brownies 2 box ya kak</code></p>
+      <textarea class="form-textarea" id="waPasteInput" rows="7" placeholder="Tempel chat WhatsApp di sini, format apa saja..."></textarea>
       <button class="btn btn-primary btn-block" style="margin-top:12px" onclick="applyWAImport()">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
         Isi Form Otomatis
@@ -233,33 +387,22 @@ function closeWAImport() {
 function applyWAImport() {
   const text = document.getElementById('waPasteInput')?.value || '';
   const parsed = parseWAForm(text);
-  if (!parsed) { toast('Format tidak dikenali. Pastikan ada Nama/HP/Alamat/Pesanan', 'err'); return; }
+  if (!parsed) { toast('Tidak ada info yang terdeteksi. Coba tempel chat yang berisi nama/HP/alamat/pesanan', 'err'); return; }
   if (parsed.name) document.getElementById('custName').value = parsed.name;
   if (parsed.phone) document.getElementById('custPhone').value = parsed.phone;
   if (parsed.address) document.getElementById('custAddr').value = parsed.address;
   if (parsed.order) {
-    // Try to find item in catalog by name match
-    const prods = DB.get('products', []);
-    const orderText = parsed.order;
-    // Parse qty like "2 box Brownies" or "Brownies 2"
-    const qtyMatch = orderText.match(/(\d+)\s*(?:pcs|box|kg|buah|item)?/i);
-    const qty = qtyMatch ? parseInt(qtyMatch[1]) : 1;
-    // Find matching product
-    const matched = prods.find(p => orderText.toLowerCase().includes(p.name.toLowerCase()));
-    if (matched) {
-      items = [{ id: Date.now(), name: matched.name, qty, price: matched.price || 0 }];
-    } else {
-      items = [{ id: Date.now(), name: orderText, qty: 1, price: 0 }];
-    }
-    renderItems(); recalc();
+    const newItems = buildItemsFromOrderText(parsed.order);
+    if (newItems) { items = newItems; renderItems(); recalc(); }
   }
-  closeWAImport();
+  const detected = ['name','phone','address','order'].filter(k => parsed[k]).length;
   let filled = [];
   if (parsed.name) filled.push('Nama');
   if (parsed.phone) filled.push('No HP');
   if (parsed.address) filled.push('Alamat');
   if (parsed.order) filled.push('Pesanan');
-  toast(`✓ Terisi: ${filled.join(', ')}`, 'ok');
+  toast(`✓ Terisi otomatis: ${filled.join(', ')} (${detected} data)`, 'ok');
+  closeWAImport();
 }
 
 
@@ -3918,8 +4061,37 @@ function fallbackCopy(text) {
   document.body.removeChild(ta);
 }
 
-function sendWA() {
-  window.open(waURL(waMessage()), '_blank');
+// Kirim via WhatsApp — auto-target nomor pelanggan (kalau ada), sekaligus sertakan
+// gambar nota (PNG). Catatan teknis: WhatsApp tidak mengizinkan file dilampirkan
+// otomatis lewat link (wa.me) — itu batasan dari WhatsApp sendiri, bukan app ini.
+// Jadi alurnya: gambar nota dirender & diunduh otomatis, lalu chat WA ke nomor yang
+// tepat langsung terbuka dengan pesannya — tinggal satu ketuk lampirkan di chat itu.
+async function sendWA() {
+  const waNum = custWaNumber();
+  if (!waNum) {
+    // Belum ada nomor pelanggan di nota -> tidak ada target otomatis, kirim teks saja
+    window.open(waURL(waMessage()), '_blank');
+    return;
+  }
+  toast('Menyiapkan gambar nota...');
+  try {
+    const canvas = await renderCanvas();
+    const fname = invFilename();
+    const blob = await new Promise((resolve, reject) => {
+      try { canvas.toBlob(b => b ? resolve(b) : reject(new Error('Gagal membuat gambar')), 'image/png'); }
+      catch (e) { reject(e); }
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.download = `${fname}.png`;
+    a.href = url; a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
+    toast('Gambar nota diunduh — membuka WA ke nomor pelanggan, tinggal lampirkan gambarnya ✓', 'ok');
+    setTimeout(() => window.open(waURL(waMessage()), '_blank'), 500);
+  } catch (e) {
+    toast('Gagal siapkan gambar, kirim teks saja: ' + e.message, 'err');
+    window.open(waURL(waMessage()), '_blank');
+  }
 }
 
 
