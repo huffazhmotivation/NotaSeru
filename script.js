@@ -3801,7 +3801,12 @@ async function exportPDF() {
           return;
         } catch (e) {
           if (e.name === 'AbortError') { toast('Dibatalkan', ''); return; }
+          console.warn('[NotaSeru] navigator.share gagal:', e.name, e.message);
+          toast('Diag: share gagal (' + e.name + ')', 'err'); // sementara, utk debug
         }
+      } else {
+        console.warn('[NotaSeru] canShare(files) = false untuk PDF, file:', file);
+        toast('Diag: canShare=false utk PDF', 'err'); // sementara, utk debug
       }
       // Fallback: download langsung (tanpa popup) + toast kecil yang bisa
       // diketuk untuk buka share sheet bawaan HP (perlu 1 ketuk baru di
@@ -3843,8 +3848,12 @@ async function exportPNG() {
         return;
       } catch (shareErr) {
         if (shareErr.name === 'AbortError') { toast('Dibatalkan', ''); return; }
-        // fallback ke download
+        console.warn('[NotaSeru] navigator.share gagal:', shareErr.name, shareErr.message);
+        toast('Diag: share gagal (' + shareErr.name + ')', 'err'); // sementara, utk debug
       }
+    } else {
+      console.warn('[NotaSeru] canShare(files) = false untuk PNG, file:', file);
+      toast('Diag: canShare=false utk PNG', 'err'); // sementara, utk debug
     }
     // Fallback: langsung download (tanpa popup) + toast kecil yang bisa
     // diketuk untuk buka share sheet bawaan HP
