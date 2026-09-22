@@ -901,6 +901,33 @@ function monthDividerHTML(s) {
   return `<div class="month-divider"><span>${xss(label)}</span></div>`;
 }
 
+// Key unik per nota/grup, untuk deteksi pergantian sumber pada daftar pengeluaran (tab Keuangan)
+function expenseGroupKey(e) {
+  if (e.sourceType === 'nota' && e.sourceNotaId) return 'nota_' + e.sourceNotaId;
+  if (e.sourceType === 'grup' && e.sourceGrupKey) return 'grup_' + e.sourceGrupKey;
+  return 'manual_' + e.id;
+}
+
+// Garis pemisah minimalist antar nota pada daftar pengeluaran — gaya sama dengan
+// monthDividerHTML di daftar nota, tapi labelnya per nota/grup, bukan per bulan.
+function expenseGroupDividerHTML(e, invs) {
+  let label = 'Tanpa Nota';
+  if (e.sourceType === 'nota' && e.sourceNotaId) {
+    const inv = invs.find(i => i.id === e.sourceNotaId);
+    if (inv) {
+      const num = inv.number || 'Nota';
+      const cust = inv.customer?.name;
+      label = cust ? `${num} · ${cust}` : num;
+    } else {
+      label = 'Nota (Dihapus)';
+    }
+  } else if (e.sourceType === 'grup' && e.sourceGrupKey) {
+    const gdata = DB.get(e.sourceGrupKey, null);
+    label = gdata?.name || 'Grup Nota';
+  }
+  return `<div class="month-divider"><span>${xss(label)}</span></div>`;
+}
+
 // Palette warna untuk grup (berurutan)
 const GRUP_COLORS = [
   { main:'#7C3AED', soft:'#EDE9FE', border:'#C4B5FD', text:'#5B21B6' },
@@ -993,7 +1020,7 @@ function openGrupAction(grupKey) {
     <div style="font-size:10px;font-weight:700;color:var(--txt-3);text-transform:uppercase;letter-spacing:.06em;padding:0 4px 6px">Nota dalam Grup</div>
     ${memberItems}
     <div class="as-div"></div>
-    <div class="as-item" onclick="openGrupProfitByKey('${grupKey}');closeSheets()">
+    <div class="as-item" onclick="closeSheets();setTimeout(()=>openGrupProfitByKey('${grupKey}'),260)">
       <div class="as-ic" style="background:#EDE9FE;color:#7C3AED">
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
       </div>
@@ -4122,7 +4149,6 @@ function renderDashboard() {
 
 // ── Finance Tab ──────────────────────────────
 let _finPeriod = '1m', _finCustomFrom = null, _finCustomTo = null, _finTab = 'income';
-let _finExpSourceFilter = 'all'; // 'all' | 'nota:<id>' | 'grup:<key>' | 'manual'
 
 // Ikon outline minimalist per kategori pengeluaran — dipakai di tab Keuangan
 // maupun halaman Pengeluaran, biar konsisten satu gaya di seluruh app.
@@ -4300,54 +4326,18 @@ function renderFinancePage() {
   // Render expense list
   const expList = document.getElementById('finExpenseList');
   if (expList) {
-    // Kumpulkan sumber unik (nota/grup) dari pengeluaran yang ada di periode ini,
-    // supaya bisa difilter pisah per-nota — biar kelihatan jelas pengeluaran
-    // mana yang berasal dari nota yang mana.
-    const sourceMap = new Map(); // key -> { label, count }
-    let manualCount = 0;
-    filtExps.forEach(e => {
-      if (e.sourceType === 'nota' && e.sourceNotaId) {
-        const key = 'nota:' + e.sourceNotaId;
-        if (!sourceMap.has(key)) {
-          const srcInv = invs.find(i => i.id === e.sourceNotaId);
-          const label = srcInv ? (srcInv.customer?.name || srcInv.number || 'Nota') : 'Nota (dihapus)';
-          sourceMap.set(key, { label, count: 0 });
-        }
-        sourceMap.get(key).count++;
-      } else if (e.sourceType === 'grup' && e.sourceGrupKey) {
-        const key = 'grup:' + e.sourceGrupKey;
-        if (!sourceMap.has(key)) sourceMap.set(key, { label: e.sourceGrupName || 'Grup Nota', count: 0 });
-        sourceMap.get(key).count++;
-      } else {
-        manualCount++;
-      }
-    });
-    // Kalau sumber yang lagi dipilih sudah tidak ada di periode ini, balik ke "Semua"
-    if (_finExpSourceFilter !== 'all' && _finExpSourceFilter !== 'manual' && !sourceMap.has(_finExpSourceFilter)) {
-      _finExpSourceFilter = 'all';
-    }
-    const hasSources = sourceMap.size > 0;
-    const filterChips = hasSources ? `
-      <div style="display:flex;gap:6px;overflow-x:auto;padding-bottom:8px;margin-bottom:8px;-webkit-overflow-scrolling:touch">
-        <button class="chip${_finExpSourceFilter==='all'?' active':''}" style="white-space:nowrap;flex-shrink:0" onclick="setFinExpSourceFilter('all')">Semua</button>
-        ${Array.from(sourceMap.entries()).map(([key,v]) => `<button class="chip${_finExpSourceFilter===key?' active':''}" style="white-space:nowrap;flex-shrink:0" onclick="setFinExpSourceFilter('${key}')">${xss(v.label)} · ${v.count}</button>`).join('')}
-        ${manualCount ? `<button class="chip${_finExpSourceFilter==='manual'?' active':''}" style="white-space:nowrap;flex-shrink:0" onclick="setFinExpSourceFilter('manual')">Manual · ${manualCount}</button>` : ''}
-      </div>` : '';
-
-    const visibleExps = filtExps.filter(e => {
-      if (_finExpSourceFilter === 'all') return true;
-      if (_finExpSourceFilter === 'manual') return e.sourceType !== 'nota' && e.sourceType !== 'grup';
-      if (_finExpSourceFilter.startsWith('nota:')) return e.sourceType === 'nota' && ('nota:' + e.sourceNotaId) === _finExpSourceFilter;
-      if (_finExpSourceFilter.startsWith('grup:')) return e.sourceType === 'grup' && ('grup:' + e.sourceGrupKey) === _finExpSourceFilter;
-      return true;
-    });
-    const sorted = [...visibleExps].sort((a,b) => new Date(b.date)-new Date(a.date));
+    const sorted = [...filtExps].sort((a,b) => new Date(b.date)-new Date(a.date));
     if (!sorted.length) {
-      expList.innerHTML = filterChips + emptyHTML('expense','Belum Ada Pengeluaran','Tambah pengeluaran dengan tombol +');
+      expList.innerHTML = emptyHTML('expense','Belum Ada Pengeluaran','Tambah pengeluaran dengan tombol +');
     } else {
-      expList.innerHTML = filterChips +
-        `<div style="font-size:11px;font-weight:700;color:var(--txt-3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Riwayat Pengeluaran</div>` +
-        sorted.map(e => `
+      // Kelompokkan per nota dengan garis pemisah — gaya sama seperti pemisah bulan di daftar nota,
+      // tapi di sini pemisahnya per nota (bukan per bulan)
+      let lastGroupKey = null;
+      const rows = [];
+      sorted.forEach(e => {
+        const gKey = expenseGroupKey(e);
+        if (gKey !== lastGroupKey) { rows.push(expenseGroupDividerHTML(e, invs)); lastGroupKey = gKey; }
+        rows.push(`
         <div style="display:flex;align-items:center;gap:12px;padding:12px 14px;background:var(--bg-card);border:1px solid var(--border-soft);border-radius:var(--r-md);margin-bottom:7px">
           <div style="width:38px;height:38px;border-radius:var(--r-sm);background:var(--danger-soft);color:var(--danger);display:flex;align-items:center;justify-content:center;flex-shrink:0">${EXPENSE_CAT_ICONS[e.cat]||EXPENSE_CAT_ICONS.lainnya}</div>
           <div style="flex:1;min-width:0">
@@ -4355,7 +4345,9 @@ function renderFinancePage() {
             <div style="font-size:11px;color:var(--txt-3)">${e.date} · ${xss(e.cat||'lainnya')}${e.sourceType==='nota'?' · <span style=\"color:var(--primary);font-weight:600\">Dari Nota</span>':e.sourceType==='grup'?' · <span style=\"color:#5B4B8A;font-weight:600\">Dari Grup</span>':''}</div>
           </div>
           <div style="font-size:14px;font-weight:700;color:var(--danger);flex-shrink:0">-${fmtRp(e.amount)}</div>
-        </div>`).join('');
+        </div>`);
+      });
+      expList.innerHTML = `<div style="font-size:11px;font-weight:700;color:var(--txt-3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Riwayat Pengeluaran</div>` + rows.join('');
     }
   }
 
@@ -4449,11 +4441,6 @@ function drawFinChart(sortedM) {
       ctx.fillText(lbl, xCenter, H - 5);
     });
   });
-}
-
-function setFinExpSourceFilter(key) {
-  _finExpSourceFilter = key;
-  renderFinancePage();
 }
 
 // Legacy shim – renderIncomePage is no longer needed but kept as alias
