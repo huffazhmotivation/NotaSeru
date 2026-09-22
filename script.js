@@ -5860,15 +5860,15 @@ function _stmtRowsHTML(pageRows, rowStartNo) {
     var saldoColor = r.saldo < 0 ? '#A32C2C' : '#1E293B';
     return '' +
     '<div style="display:grid;grid-template-columns:' + _STMT_COLS + ';column-gap:10px;align-items:center;' +
-      'padding:12px 14px;' + zebra + 'border-bottom:1px solid #DEE3EC;box-sizing:border-box">' +
+      'min-height:44px;padding:11px 14px;' + zebra + 'border-bottom:1px solid #DEE3EC;box-sizing:border-box">' +
       '<div style="font-size:10px;line-height:1.3;color:#B4BAC4;font-weight:700">' + no + '</div>' +
       '<div style="font-size:10px;line-height:1.35;color:#6B7280;font-weight:700">' + _stmtFmtDate(r.date) + '</div>' +
       '<div style="min-width:0;overflow:hidden;padding-right:4px">' +
-        '<div style="font-size:11.5px;line-height:14.5px;font-weight:700;color:#1E293B;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word">' + _stmtEsc(r.desc) + '</div>' +
+        '<div style="font-size:11.5px;line-height:14px;font-weight:700;color:#1E293B;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + _stmtEsc(r.desc) + '</div>' +
         (r.sub ? '<div style="font-size:9.5px;line-height:13px;color:#9CA3AF;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px">' + _stmtEsc(r.sub) + '</div>' : '') +
       '</div>' +
-      '<div style="display:flex;justify-content:center">' +
-        '<span style="display:inline-block;font-size:8.5px;font-weight:700;line-height:1;padding:5px 10px;border-radius:5px;background:' + pillBg + ';color:' + pillFg + ';white-space:nowrap">' + pillLabel + '</span>' +
+      '<div style="display:flex;justify-content:center;align-items:center;height:100%">' +
+        '<span style="display:inline-block;font-size:8.5px;font-weight:700;line-height:1;padding:5px 10px 4px;border-radius:5px;background:' + pillBg + ';color:' + pillFg + ';white-space:nowrap;box-sizing:border-box">' + pillLabel + '</span>' +
       '</div>' +
       '<div style="text-align:right;font-size:11px;line-height:1.3;font-weight:700;color:' + amtColor + ';white-space:nowrap">' + amtSign + '&nbsp;' + fmtRp(r.amount).replace('Rp','Rp\u00A0') + '</div>' +
       '<div style="text-align:right;font-size:10.5px;line-height:1.3;font-weight:700;color:' + saldoColor + ';white-space:nowrap">' + fmtRp(r.saldo) + '</div>' +
