@@ -640,7 +640,7 @@ function saveInvoice() {
 
 function saveAndPreview() {
   const inv = saveInvoice();
-  if (inv) { buildPreview(inv); nav('preview'); }
+  if (inv) { buildPreview(inv); nav('preview'); warmRenderCache(); }
 }
 
 // ── Product Catalog ─────────────────────────
@@ -1425,7 +1425,7 @@ function viewInv(id) {
   // di nota itu sendiri — TIDAK mengubah curTplColor global, supaya
   // preview satu nota lama tidak "mencemari" nota baru yang akan dibuat
   // setelahnya dengan warna/template yang salah.
-  curInvId = id; buildPreview(inv); nav('preview');
+  curInvId = id; buildPreview(inv); nav('preview'); warmRenderCache();
 }
 
 function editInv(id) {
@@ -3413,7 +3413,33 @@ function _extractFontFaceCSS() {
 }
 
 
+// Cache canvas hasil render supaya tombol "PDF/PNG & Bagikan" tidak perlu render
+// ulang dari nol tiap ditekan. PENTING untuk Web Share API: navigator.share()
+// cuma boleh dipanggil selagi "izin gesture" dari tap tombol masih aktif (di Android
+// Chrome biasanya cuma beberapa detik). Kalau proses render (html2canvas) kelamaan,
+// izin itu keburu hangus dan share sheet OS gagal terbuka diam-diam — hasilnya cuma
+// jatuh ke fallback unduh file, padahal harusnya share sheet yang muncul.
+// Solusi: render disiapkan di belakang layar begitu halaman preview dibuka
+// (lihat warmRenderCache), jadi saat tombol ditekan, share() bisa langsung
+// dipanggil nyaris seketika, masih dalam jendela waktu gesture yang valid.
+let _canvasCache = { invId: null, canvas: null };
+
+function warmRenderCache() {
+  const invId = curInvId;
+  // Fire-and-forget: render di background, tidak blocking UI
+  renderCanvas().then(canvas => {
+    _canvasCache = { invId, canvas };
+  }).catch(() => { _canvasCache = { invId: null, canvas: null }; });
+}
+
 async function renderCanvas() {
+  // Pakai cache kalau masih cocok dengan nota yang lagi dibuka (hasil warm-up)
+  if (_canvasCache.invId === curInvId && _canvasCache.canvas) {
+    const cached = _canvasCache.canvas;
+    _canvasCache = { invId: null, canvas: null }; // sekali pakai, biar selalu fresh setelahnya
+    return cached;
+  }
+
   const inv = DB.get('invoices', []).find(i => i.id === curInvId);
   if (!inv) throw new Error('Invoice tidak ditemukan');
 
@@ -3931,13 +3957,17 @@ async function exportPDF() {
       // deteksi nomor WA sama sekali, murni file-nya yang dibagikan.
       if (navigator.canShare && navigator.canShare({ files: [file] })) {
         try {
-          await navigator.share({ files: [file] });
+          await navigator.share({ files: [file], title: fname, text: waMessage() });
           toast('PDF dibagikan ✓', 'ok');
           return;
         } catch (e) {
           if (e.name === 'AbortError') { toast('Dibatalkan', ''); return; }
+          console.warn('Share PDF gagal:', e.name, e.message);
+          toast(`Share gagal (${e.name}), file diunduh sbg gantinya`, '');
           // lanjut ke fallback download di bawah kalau share gagal karena sebab lain
         }
+      } else {
+        console.warn('canShare({files}) = false untuk PDF di browser ini');
       }
       // Fallback: perangkat/browser tidak mendukung share sheet OS -> langsung unduh
       pdf.save(`${fname}.pdf`);
@@ -3968,13 +3998,17 @@ async function exportPNG() {
     // deteksi nomor WA sama sekali, murni file-nya yang dibagikan.
     if (navigator.canShare && navigator.canShare({ files: [file] })) {
       try {
-        await navigator.share({ files: [file] });
+        await navigator.share({ files: [file], title: fname, text: waMessage() });
         toast('Dibagikan ✓', 'ok');
         return;
       } catch (shareErr) {
         if (shareErr.name === 'AbortError') { toast('Dibatalkan', ''); return; }
+        console.warn('Share PNG gagal:', shareErr.name, shareErr.message);
+        toast(`Share gagal (${shareErr.name}), file diunduh sbg gantinya`, '');
         // lanjut ke fallback download di bawah kalau share gagal karena sebab lain
       }
+    } else {
+      console.warn('canShare({files}) = false untuk PNG di browser ini');
     }
     // Fallback: perangkat/browser tidak mendukung share sheet OS -> langsung unduh
     const url = URL.createObjectURL(blob);
