@@ -306,10 +306,27 @@ img{max-width:100%;display:block;}
 .color-opt.active{border-color:var(--txt-1);transform:scale(1.18);}
 
 /* Filter */
-.filter-bar{padding:14px 20px;display:flex;gap:8px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;}
-.filter-bar::-webkit-scrollbar{display:none;}
-.chip{padding:7px 14px;border-radius:var(--r-full);background:var(--bg-card);border:1.5px solid var(--border);font-size:12px;font-weight:700;color:var(--txt-2);cursor:pointer;white-space:nowrap;transition:var(--ease);flex-shrink:0;font-family:var(--font);}
-.chip.active{background:var(--primary);border-color:var(--primary);color:#fff;}
+/* Filters panel: grouped, labeled rows with balanced segmented controls
+   (replaces the old free-floating scrollable chip rows) */
+.filters-panel{padding:2px 20px 16px;display:flex;flex-direction:column;gap:12px;}
+.filter-group{display:flex;flex-direction:column;gap:7px;}
+.filter-group-label{font-size:10.5px;font-weight:800;color:var(--txt-3);text-transform:uppercase;letter-spacing:.06em;padding-left:3px;}
+.segmented{display:flex;align-items:stretch;gap:3px;background:var(--bg-input);border:1px solid var(--border-soft);border-radius:var(--r-full);padding:3px;}
+.segmented .chip{flex:1;min-width:0;display:flex;align-items:center;justify-content:center;gap:0;text-align:center;padding:8px 4px;border-radius:var(--r-full);background:transparent;border:none;font-size:12px;font-weight:700;color:var(--txt-2);line-height:1.15;cursor:pointer;transition:var(--ease);font-family:var(--font);}
+.segmented .chip.active{background:var(--bg-card);color:var(--txt-1);box-shadow:var(--sh-xs);}
+.segmented .chip-icon{flex:0 0 36px;padding:8px 0;}
+.segmented .chip-icon svg{display:block;margin:0 auto;}
+.segmented .chip-icon.active{color:var(--primary);}
+/* Status segment: each option carries the same hue as its badge, so the
+   active pill visually matches the status it filters (green/amber/red),
+   while "Semua" stays on the app's primary accent. */
+.segmented-status .chip.active{background:var(--primary);color:#fff;box-shadow:none;}
+.segmented-status .chip[data-tone="lunas"].active{background:var(--success);color:#fff;}
+.segmented-status .chip[data-tone="dp"].active{background:var(--warning);color:#2b2200;}
+.segmented-status .chip[data-tone="belum"].active{background:var(--danger);color:#fff;}
+@media (max-width:360px){
+  .segmented .chip{font-size:11px;padding:8px 2px;}
+}
 
 /* Income/Expense hero */
 .income-hero{margin:0 20px 20px;background:var(--primary);border-radius:var(--r-lg);padding:22px 24px;color:#fff;}

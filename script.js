@@ -5844,110 +5844,113 @@ function _stmtFmtDate(d) {
   return d.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
+var _STMT_COLS = '26px 76px minmax(0,1fr) 62px 112px 112px';
+
 function _stmtRowsHTML(pageRows, rowStartNo) {
   if (!pageRows.length) return '';
   return pageRows.map(function(r, i) {
     var no = rowStartNo + i;
-    var zebra = (i % 2 === 1) ? 'background:#F8FAFC;' : '';
+    var zebra = (i % 2 === 1) ? 'background:#FAFBFC;' : 'background:#FFFFFF;';
     var isIn = r.type === 'in';
-    var pillBg = isIn ? '#E3F8EE' : '#FEECEC';
+    var pillBg = isIn ? '#E3F8EE' : '#FDEDED';
     var pillFg = isIn ? '#0B7A55' : '#C6362B';
     var pillLabel = isIn ? 'Masuk' : 'Keluar';
     var amtColor = isIn ? '#0B7A55' : '#C6362B';
     var amtSign = isIn ? '+' : '\u2212';
-    var saldoColor = r.saldo < 0 ? '#C6362B' : '#111827';
+    var saldoColor = r.saldo < 0 ? '#C6362B' : '#1F2933';
     return '' +
-    '<div style="display:flex;align-items:center;padding:9px 14px;' + zebra + 'border-bottom:1px solid #EEF0F2">' +
-      '<div style="width:26px;font-size:11px;color:#9CA3AF;font-weight:600">' + no + '</div>' +
-      '<div style="width:74px;font-size:11px;color:#4B5563">' + _stmtFmtDate(r.date) + '</div>' +
-      '<div style="flex:1;min-width:0;padding-right:10px">' +
-        '<div style="font-size:12px;font-weight:700;color:#111827;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + _stmtEsc(r.desc) + '</div>' +
-        (r.sub ? '<div style="font-size:10px;color:#9CA3AF;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + _stmtEsc(r.sub) + '</div>' : '') +
+    '<div style="display:grid;grid-template-columns:' + _STMT_COLS + ';column-gap:12px;align-items:center;' +
+      'padding:13px 16px;' + zebra + 'border-bottom:1px solid #EFF1F4;box-sizing:border-box">' +
+      '<div style="font-size:10.5px;line-height:1.3;color:#B0B7C0;font-weight:600">' + no + '</div>' +
+      '<div style="font-size:10.5px;line-height:1.3;color:#5B6472;font-weight:600">' + _stmtFmtDate(r.date) + '</div>' +
+      '<div style="min-width:0;overflow:hidden">' +
+        '<div style="font-size:12px;line-height:16px;font-weight:700;color:#1A1F29;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + _stmtEsc(r.desc) + '</div>' +
+        '<div style="font-size:10px;line-height:14px;color:#9AA2AD;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px">' + (r.sub ? _stmtEsc(r.sub) : '&nbsp;') + '</div>' +
       '</div>' +
-      '<div style="width:58px;flex:none">' +
-        '<span style="display:inline-block;font-size:9.5px;font-weight:700;padding:3px 8px;border-radius:999px;background:' + pillBg + ';color:' + pillFg + '">' + pillLabel + '</span>' +
+      '<div>' +
+        '<span style="display:inline-block;font-size:9px;font-weight:700;line-height:1;padding:5px 9px;border-radius:999px;background:' + pillBg + ';color:' + pillFg + ';white-space:nowrap">' + pillLabel + '</span>' +
       '</div>' +
-      '<div style="width:108px;flex:none;text-align:right;font-size:12px;font-weight:700;color:' + amtColor + '">' + amtSign + ' ' + fmtRp(r.amount).replace('Rp',' ') + '</div>' +
-      '<div style="width:108px;flex:none;text-align:right;font-size:11.5px;font-weight:700;color:' + saldoColor + '">' + fmtRp(r.saldo) + '</div>' +
+      '<div style="text-align:right;font-size:12px;line-height:1.3;font-weight:700;color:' + amtColor + ';white-space:nowrap">' + amtSign + '&nbsp;' + fmtRp(r.amount).replace('Rp','Rp\u00A0') + '</div>' +
+      '<div style="text-align:right;font-size:11.5px;line-height:1.3;font-weight:700;color:' + saldoColor + ';white-space:nowrap">' + fmtRp(r.saldo) + '</div>' +
     '</div>';
   }).join('');
 }
 
 function _stmtTableHeadHTML() {
+  var th = function(label, align) {
+    return '<div style="font-size:9px;font-weight:700;color:rgba(255,255,255,.6);letter-spacing:.08em;' + (align ? 'text-align:' + align + ';' : '') + '">' + label + '</div>';
+  };
   return '' +
-  '<div style="display:flex;align-items:center;padding:8px 14px;background:#111827;border-radius:8px 8px 0 0">' +
-    '<div style="width:26px;font-size:9.5px;font-weight:700;color:rgba(255,255,255,.55)">NO</div>' +
-    '<div style="width:74px;font-size:9.5px;font-weight:700;color:rgba(255,255,255,.55);letter-spacing:.04em">TANGGAL</div>' +
-    '<div style="flex:1;font-size:9.5px;font-weight:700;color:rgba(255,255,255,.55);letter-spacing:.04em">KETERANGAN</div>' +
-    '<div style="width:58px;flex:none;font-size:9.5px;font-weight:700;color:rgba(255,255,255,.55);letter-spacing:.04em">TIPE</div>' +
-    '<div style="width:108px;flex:none;text-align:right;font-size:9.5px;font-weight:700;color:rgba(255,255,255,.55);letter-spacing:.04em">NOMINAL</div>' +
-    '<div style="width:108px;flex:none;text-align:right;font-size:9.5px;font-weight:700;color:rgba(255,255,255,.55);letter-spacing:.04em">SALDO</div>' +
+  '<div style="display:grid;grid-template-columns:' + _STMT_COLS + ';column-gap:12px;align-items:center;' +
+    'padding:11px 16px;background:#171B23;border-radius:10px 10px 0 0;box-sizing:border-box">' +
+    th('NO') + th('TANGGAL') + th('KETERANGAN') + th('TIPE') + th('NOMINAL', 'right') + th('SALDO', 'right') +
   '</div>';
 }
 
 function _stmtLetterheadHTML(ctx) {
   var s = ctx.s;
   var logoHTML = s.logo
-    ? '<img src="' + s.logo + '" style="width:52px;height:52px;border-radius:12px;object-fit:cover;flex:none">'
-    : '<div style="width:52px;height:52px;border-radius:12px;background:#111827;color:#fff;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:800;flex:none">' + _stmtEsc((ctx.biz||'N').charAt(0).toUpperCase()) + '</div>';
-  var contactLine = [s.storePhone, s.storeEmail].filter(Boolean).map(_stmtEsc).join('&nbsp;&nbsp;\u00b7&nbsp;&nbsp;');
+    ? '<img src="' + s.logo + '" style="width:56px;height:56px;border-radius:14px;object-fit:cover;flex:none;display:block">'
+    : '<div style="width:56px;height:56px;border-radius:14px;background:linear-gradient(135deg,#1F2933,#111827);color:#fff;display:flex;align-items:center;justify-content:center;font-size:21px;font-weight:800;flex:none">' + _stmtEsc((ctx.biz||'N').charAt(0).toUpperCase()) + '</div>';
+  var contactBits = [s.storePhone, s.storeEmail].filter(Boolean).map(_stmtEsc);
+  var contactLine = contactBits.join('&nbsp;&nbsp;&middot;&nbsp;&nbsp;');
   return '' +
-  '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:18px">' +
-    '<div style="display:flex;gap:12px;align-items:flex-start;max-width:340px">' +
+  '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:20px;margin-bottom:22px">' +
+    '<div style="display:flex;gap:14px;align-items:flex-start;min-width:0;max-width:400px">' +
       logoHTML +
-      '<div>' +
-        '<div style="font-size:19px;font-weight:800;color:#111827;letter-spacing:-.01em;line-height:1.25">' + _stmtEsc(ctx.biz) + '</div>' +
-        (s.storeAddress ? '<div style="font-size:10.5px;color:#6B7280;margin-top:3px;line-height:1.5">' + _stmtEsc(s.storeAddress) + '</div>' : '') +
-        (contactLine ? '<div style="font-size:10.5px;color:#6B7280;margin-top:1px">' + contactLine + '</div>' : '') +
+      '<div style="min-width:0">' +
+        '<div style="font-size:19px;font-weight:800;color:#12161D;letter-spacing:-.01em;line-height:1.3;word-break:break-word">' + _stmtEsc(ctx.biz) + '</div>' +
+        (s.storeAddress ? '<div style="font-size:10.5px;color:#6B7280;margin-top:5px;line-height:1.6;max-width:340px">' + _stmtEsc(s.storeAddress) + '</div>' : '') +
+        (contactLine ? '<div style="font-size:10.5px;color:#6B7280;margin-top:2px;line-height:1.6">' + contactLine + '</div>' : '') +
       '</div>' +
     '</div>' +
     '<div style="text-align:right;flex:none">' +
-      '<div style="font-size:9.5px;font-weight:700;color:#9CA3AF;letter-spacing:.14em">LAPORAN KEUANGAN</div>' +
-      '<div style="font-size:21px;font-weight:800;color:#111827;letter-spacing:-.01em;margin-top:2px">E-Statement</div>' +
-      '<div style="font-size:10.5px;color:#4B5563;margin-top:6px;font-weight:600">' + _stmtEsc(ctx.periodeStr) + '</div>' +
-      '<div style="font-size:9.5px;color:#9CA3AF;margin-top:2px">Dicetak: ' + _stmtEsc(ctx.genStr) + '</div>' +
+      '<div style="font-size:9px;font-weight:700;color:#9CA3AF;letter-spacing:.16em">LAPORAN KEUANGAN</div>' +
+      '<div style="font-size:22px;font-weight:800;color:#12161D;letter-spacing:-.01em;margin-top:3px;line-height:1.2">E-Statement</div>' +
+      '<div style="font-size:10.5px;color:#4B5563;margin-top:8px;font-weight:700;line-height:1.4">' + _stmtEsc(ctx.periodeStr) + '</div>' +
+      '<div style="font-size:9.5px;color:#9CA3AF;margin-top:3px;line-height:1.4">Dicetak: ' + _stmtEsc(ctx.genStr) + '</div>' +
     '</div>' +
   '</div>';
 }
 
 function _stmtSummaryHTML(ctx) {
-  var card = function(label, value, color, bg) {
-    return '<div style="flex:1;background:' + bg + ';border-radius:10px;padding:12px 14px">' +
-      '<div style="font-size:9.5px;font-weight:700;color:' + color + ';letter-spacing:.06em;opacity:.85">' + label + '</div>' +
-      '<div style="font-size:16px;font-weight:800;color:' + color + ';margin-top:4px;letter-spacing:-.01em">' + value + '</div>' +
+  var card = function(label, value, color, bg, accent) {
+    return '<div style="flex:1;background:' + bg + ';border-radius:12px;padding:14px 16px;border-left:3px solid ' + accent + ';box-sizing:border-box">' +
+      '<div style="font-size:9px;font-weight:700;color:' + color + ';letter-spacing:.08em;opacity:.8;line-height:1.3">' + label + '</div>' +
+      '<div style="font-size:17px;font-weight:800;color:' + color + ';margin-top:6px;letter-spacing:-.01em;line-height:1.2;white-space:nowrap">' + value + '</div>' +
     '</div>';
   };
   var netColor = ctx.net >= 0 ? '#0B7A55' : '#C6362B';
-  var netBg = ctx.net >= 0 ? '#E3F8EE' : '#FEECEC';
+  var netBg = ctx.net >= 0 ? '#EAF9F1' : '#FDEDED';
   return '' +
-  '<div style="display:flex;gap:10px;margin-bottom:16px">' +
-    card('TOTAL PEMASUKAN', fmtRp(ctx.totalIn), '#0B7A55', '#E3F8EE') +
-    card('TOTAL PENGELUARAN', fmtRp(ctx.totalOut), '#C6362B', '#FEECEC') +
-    card('SALDO BERSIH', fmtRp(ctx.net), netColor, netBg) +
+  '<div style="display:flex;gap:12px;margin-bottom:20px">' +
+    card('TOTAL PEMASUKAN', fmtRp(ctx.totalIn), '#0B7A55', '#EAF9F1', '#0B7A55') +
+    card('TOTAL PENGELUARAN', fmtRp(ctx.totalOut), '#C6362B', '#FDEDED', '#C6362B') +
+    card('SALDO BERSIH', fmtRp(ctx.net), netColor, netBg, netColor) +
   '</div>';
 }
 
 function _stmtMiniHeadHTML(ctx) {
   return '' +
-  '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid #E5E7EB">' +
-    '<div style="font-size:13px;font-weight:800;color:#111827">' + _stmtEsc(ctx.biz) + '</div>' +
-    '<div style="font-size:10.5px;color:#9CA3AF">E-Statement &middot; ' + _stmtEsc(ctx.periodeStr) + '</div>' +
+  '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid #E7E9ED">' +
+    '<div style="font-size:13px;font-weight:800;color:#12161D;line-height:1.3">' + _stmtEsc(ctx.biz) + '</div>' +
+    '<div style="font-size:10.5px;color:#9CA3AF;line-height:1.3">E-Statement &middot; ' + _stmtEsc(ctx.periodeStr) + '</div>' +
   '</div>';
 }
 
 function _stmtFooterHTML(ctx) {
   return '' +
-  '<div style="position:absolute;left:36px;right:36px;bottom:28px;padding-top:10px;border-top:1px solid #E5E7EB;display:flex;justify-content:space-between;align-items:center">' +
-    '<div style="display:flex;align-items:center;gap:7px">' +
-      '<div style="width:16px;height:16px;border-radius:5px;background:#111827;display:flex;align-items:center;justify-content:center">' +
+  '<div style="position:absolute;left:40px;right:40px;bottom:30px;padding-top:12px;border-top:1px solid #E7E9ED;display:flex;justify-content:space-between;align-items:center;box-sizing:border-box">' +
+    '<div style="display:flex;align-items:center;gap:8px">' +
+      '<div style="width:17px;height:17px;border-radius:5px;background:#111827;display:flex;align-items:center;justify-content:center;flex:none">' +
         '<div style="width:6px;height:6px;border-radius:2px;background:#fff"></div>' +
       '</div>' +
-      '<div>' +
+      '<div style="line-height:1.3;white-space:nowrap">' +
         '<span style="font-size:10.5px;font-weight:800;color:#111827;letter-spacing:.01em">NotaSeru</span>' +
         '<span style="font-size:9px;color:#9CA3AF"> &middot; Aplikasi Nota &amp; Keuangan UMKM</span>' +
       '</div>' +
     '</div>' +
-    '<div style="font-size:9.5px;color:#9CA3AF;font-weight:600">Halaman ' + ctx.pageIndex + ' dari ' + ctx.totalPages + '</div>' +
+    '<div style="font-size:9.5px;color:#9CA3AF;font-weight:600;white-space:nowrap">Halaman ' + ctx.pageIndex + ' dari ' + ctx.totalPages + '</div>' +
   '</div>';
 }
 
@@ -5957,16 +5960,16 @@ function _buildStatementPageHTML(ctx) {
     ? (_stmtLetterheadHTML(ctx) + _stmtSummaryHTML(ctx))
     : _stmtMiniHeadHTML(ctx);
   var tableWrap = '' +
-    '<div style="border:1px solid #EEF0F2;border-radius:8px;overflow:hidden">' +
+    '<div style="border:1px solid #EEF0F2;border-radius:10px;overflow:hidden;box-shadow:0 1px 2px rgba(16,24,40,.04)">' +
       _stmtTableHeadHTML() +
       _stmtRowsHTML(ctx.pageRows, ctx.rowStartNo) +
     '</div>';
   var isLast = ctx.pageIndex === ctx.totalPages;
   var disclaimer = isLast
-    ? '<div style="margin-top:14px;font-size:9.5px;color:#B0B5BC;line-height:1.5;font-style:italic">Laporan ini disusun otomatis berdasarkan data yang tercatat pada aplikasi NotaSeru dan bersifat informatif untuk kebutuhan pencatatan internal usaha.</div>'
+    ? '<div style="margin-top:16px;font-size:9.5px;color:#B0B5BC;line-height:1.6;font-style:italic">Laporan ini disusun otomatis berdasarkan data yang tercatat pada aplikasi NotaSeru dan bersifat informatif untuk kebutuhan pencatatan internal usaha.</div>'
     : '';
   return '' +
-  '<div style="padding:36px 36px 70px;height:100%;box-sizing:border-box;font-family:\'Manrope\',-apple-system,BlinkMacSystemFont,\'Helvetica Neue\',Helvetica,Arial,sans-serif;position:relative;background:#ffffff">' +
+  '<div style="padding:40px 40px 76px;height:100%;box-sizing:border-box;font-family:\'Manrope\',-apple-system,BlinkMacSystemFont,\'Helvetica Neue\',Helvetica,Arial,sans-serif;position:relative;background:#ffffff;-webkit-font-smoothing:antialiased">' +
     head +
     tableWrap +
     disclaimer +
@@ -6017,7 +6020,7 @@ async function _exportPDFStatement(fromD, toD, fromVal, toVal) {
     var totalOut = rows.filter(function(r) { return r.type === 'out'; }).reduce(function(acc, r) { return acc + r.amount; }, 0);
     var net = totalIn - totalOut;
 
-    var ROWS_PAGE1 = 12, ROWS_OTHER = 20;
+    var ROWS_PAGE1 = 11, ROWS_OTHER = 17;
     var pagesData = [];
     var idx = 0, pn = 1;
     while (idx < rows.length) {
