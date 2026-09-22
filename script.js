@@ -3926,20 +3926,22 @@ async function exportPDF() {
       const pdfBlob = pdf.output('blob');
       const file = new File([pdfBlob], `${fname}.pdf`, { type: 'application/pdf' });
 
-      // Try Web Share API first (iOS/Android)
+      // Langsung buka share sheet bawaan OS (iOS/Android) — user bebas pilih mau
+      // dibagikan ke WhatsApp, email, disimpan ke galeri/Files, dll. Tidak perlu
+      // deteksi nomor WA sama sekali, murni file-nya yang dibagikan.
       if (navigator.canShare && navigator.canShare({ files: [file] })) {
         try {
-          await navigator.share({ title: fname, text: waMessage(), files: [file] });
+          await navigator.share({ files: [file] });
           toast('PDF dibagikan ✓', 'ok');
           return;
         } catch (e) {
           if (e.name === 'AbortError') { toast('Dibatalkan', ''); return; }
+          // lanjut ke fallback download di bawah kalau share gagal karena sebab lain
         }
       }
-      // Fallback: download
+      // Fallback: perangkat/browser tidak mendukung share sheet OS -> langsung unduh
       pdf.save(`${fname}.pdf`);
       toast('PDF diunduh ✓', 'ok');
-      openShareSheet('pdf', pdfBlob, fname);
     } else {
       // jsPDF belum load, fallback PNG
       toast('PDF library belum siap, coba lagi', 'err');
@@ -3961,130 +3963,27 @@ async function exportPNG() {
     });
     const file = new File([blob], `${fname}.png`, { type: 'image/png' });
 
-    // Coba Web Share API (support di mobile)
+    // Langsung buka share sheet bawaan OS (iOS/Android) — user bebas pilih mau
+    // dibagikan ke WhatsApp, email, disimpan ke galeri/Files, dll. Tidak perlu
+    // deteksi nomor WA sama sekali, murni file-nya yang dibagikan.
     if (navigator.canShare && navigator.canShare({ files: [file] })) {
       try {
-        await navigator.share({
-          title: fname,
-          text: waMessage(),
-          files: [file]
-        });
+        await navigator.share({ files: [file] });
         toast('Dibagikan ✓', 'ok');
         return;
       } catch (shareErr) {
         if (shareErr.name === 'AbortError') { toast('Dibatalkan', ''); return; }
-        // fallback ke download
+        // lanjut ke fallback download di bawah kalau share gagal karena sebab lain
       }
     }
-    // Fallback: langsung download + buka share sheet custom
+    // Fallback: perangkat/browser tidak mendukung share sheet OS -> langsung unduh
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.download = `${fname}.png`;
     a.href = url; a.click();
     setTimeout(function(){ URL.revokeObjectURL(url); }, 5000);
     toast('Gambar diunduh ✓', 'ok');
-    openShareSheet('png', blob, fname);
   } catch (e) { toast('Gagal: ' + e.message, 'err'); }
-}
-
-// Share sheet fallback — muncul setelah download
-function openShareSheet(type, blob, fname) {
-  const objUrl = URL.createObjectURL(blob);
-  const inv = DB.get('invoices', []).find(i => i.id === curInvId);
-  const s = DB.get('settings', {});
-  const phone = inv?.customer?.phone?.replace(/[^0-9]/g, '') || '';
-  const waNum = phone ? (phone.startsWith('0') ? '62' + phone.slice(1) : phone) : '';
-  const waText = encodeURIComponent(waMessage());
-  const waLink = waNum ? `https://wa.me/${waNum}?text=${waText}` : `https://wa.me/?text=${waText}`;
-  // Telegram: buka compose pesan baru berisi teks, user tinggal pilih kontak sendiri
-  const tgLink = `tg://msg?text=${waText}`;
-  // SMS: prefill body, & nomor kalau ada (format ?body= kompatibel iOS & Android)
-  const smsLink = waNum ? `sms:${waNum}?body=${waText}` : `sms:?body=${waText}`;
-  const typeLabel = type === 'pdf' ? 'PDF' : 'Gambar PNG';
-  const typeIcon = type === 'pdf'
-    ? `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>`
-    : `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>`;
-
-  document.getElementById('shareSheetContent').innerHTML = `
-    <div style="padding:0 20px 8px">
-      <div style="display:flex;align-items:center;gap:10px;padding:12px 14px;background:var(--bg-input);border-radius:var(--r-md);margin-bottom:16px">
-        <div style="width:36px;height:36px;border-radius:var(--r-sm);background:var(--primary-soft);color:var(--primary);display:flex;align-items:center;justify-content:center">${typeIcon}</div>
-        <div>
-          <div style="font-size:13px;font-weight:600;color:var(--txt-1)">${fname}.${type}</div>
-          <div style="font-size:11px;color:var(--txt-3)">Siap dibagikan</div>
-        </div>
-        <a href="${objUrl}" download="${fname}.${type}" style="margin-left:auto;padding:6px 12px;background:var(--primary);color:#fff;border-radius:var(--r-sm);font-size:11px;font-weight:700;text-decoration:none" onclick="toast('Diunduh ✓','ok')">Unduh</a>
-      </div>
-      <div style="font-size:11px;font-weight:700;color:var(--txt-3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px">Bagikan via</div>
-    </div>
-    <div class="as-item" onclick="window.open('${waLink}','_blank');closeSheets()">
-      <div class="as-ic" style="background:#dcfce7;color:#16a34a">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="#16a34a"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413Z"/></svg>
-      </div>
-      <div><div class="as-label">WhatsApp</div><div class="as-sub">${waNum ? 'Kirim ke ' + inv?.customer?.name : 'Buka WhatsApp'}</div></div>
-      <div style="margin-left:auto;padding:5px 12px;background:var(--success-soft);color:var(--success);border-radius:var(--r-full);font-size:11px;font-weight:700">Kirim</div>
-    </div>
-    <div class="as-item" onclick="window.open('${tgLink}','_blank');closeSheets()">
-      <div class="as-ic" style="background:#e0f2fe;color:#0284c7">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="#0284c7"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.568 8.16c-.169 1.858-.896 6.728-1.267 8.928-.156.933-.463 1.246-.76 1.276-.646.06-1.137-.427-1.763-.838-.98-.643-1.534-1.043-2.485-1.67-1.099-.723-.386-1.12.24-1.77.164-.17 3.007-2.757 3.062-2.992.007-.03.013-.14-.052-.198-.065-.058-.161-.038-.23-.022-.098.022-1.66 1.055-4.685 3.1-.443.304-.845.452-1.206.444-.397-.008-1.161-.224-1.729-.408-.696-.226-1.25-.346-1.202-.73.025-.2.3-.404.826-.612 3.237-1.41 5.394-2.34 6.472-2.79 3.082-1.283 3.722-1.507 4.14-1.514.092-.002.298.021.431.128.112.09.143.212.158.298.014.086.032.283.018.437z"/></svg>
-      </div>
-      <div><div class="as-label">Telegram</div><div class="as-sub">Buka Telegram, pilih kontak</div></div>
-    </div>
-    <div class="as-item" onclick="window.open('${smsLink}','_blank');closeSheets()">
-      <div class="as-ic" style="background:#fef9c3;color:#ca8a04">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ca8a04" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-      </div>
-      <div><div class="as-label">SMS</div><div class="as-sub">${waNum ? 'Kirim ke nomor pelanggan' : 'Buka aplikasi Pesan'}</div></div>
-    </div>
-    ${navigator.share ? `
-    <div class="as-item" onclick="shareViaNative('${fname}')">
-      <div class="as-ic" style="background:#f3e8ff;color:#9333ea">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#9333ea" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
-      </div>
-      <div><div class="as-label">Aplikasi Lainnya</div><div class="as-sub">Pilih dari semua aplikasi di HP</div></div>
-    </div>` : ''}
-    <div class="as-item" onclick="shareViaEmail('${fname}','${type}','${objUrl}')">
-      <div class="as-ic" style="background:var(--primary-soft);color:var(--primary)">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
-      </div>
-      <div><div class="as-label">Email</div><div class="as-sub">Kirim via aplikasi email</div></div>
-    </div>
-    <div class="as-item" onclick="copyWAText();closeSheets()">
-      <div class="as-ic" style="background:var(--bg-input);color:var(--txt-2)">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-      </div>
-      <div><div class="as-label">Salin Pesan</div><div class="as-sub">Copy teks invoice ke clipboard</div></div>
-    </div>
-    <div style="padding:10px 20px 4px;font-size:11px;color:var(--txt-3);line-height:1.6">Untuk WhatsApp/Telegram/SMS, aplikasinya kebuka langsung dengan pesan siap kirim — file gambar/PDF-nya sudah diunduh di atas, tinggal dilampirkan sekali ketuk (batasan resmi dari masing-masing aplikasi, bukan dari NotaSeru).</div>
-    <div style="height:8px"></div>
-  `;
-  openSheet('shareSheet');
-}
-
-// Fallback catch-all: coba navigator.share teks saja (tanpa file) supaya user bisa
-// pilih APLIKASI APAPUN yang terpasang di HP-nya lewat share sheet asli OS — berguna
-// khusus di browser/skenario yang menolak file-share tapi masih dukung share teks biasa.
-function shareViaNative(fname) {
-  if (!navigator.share) { toast('Fitur berbagi tidak didukung browser ini', 'err'); return; }
-  navigator.share({ title: fname, text: waMessage() })
-    .then(() => { toast('Dibagikan ✓', 'ok'); closeSheets(); })
-    .catch(e => { if (e.name !== 'AbortError') toast('Gagal berbagi: ' + e.message, 'err'); });
-}
-
-function shareViaEmail(fname, type, objUrl) {
-  const inv = DB.get('invoices', []).find(i => i.id === curInvId);
-  const s = DB.get('settings', {});
-  const subject = encodeURIComponent(`Invoice ${inv?.number || ''} - ${s.storeName || ''}`);
-  const body = encodeURIComponent(`Halo,\n\nBerikut invoice pesanan Anda.\n\nNomor: ${inv?.number || ''}\nTotal: ${fmtRp(inv?.grand || 0)}\n\nTerima kasih,\n${s.storeName || ''}`);
-  window.open(`mailto:?subject=${subject}&body=${body}`, '_blank');
-  closeSheets();
-}
-
-function copyWAText() {
-  const text = waMessage();
-  if (navigator.clipboard) {
-    navigator.clipboard.writeText(text).then(() => toast('Pesan disalin ✓', 'ok')).catch(() => fallbackCopy(text));
-  } else { fallbackCopy(text); }
 }
 
 function fallbackCopy(text) {
