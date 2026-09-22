@@ -3312,11 +3312,10 @@ async function renderCanvas() {
   host.appendChild(wrapper);
   document.body.appendChild(host);
 
-  // Wait for fonts + layout paint (dipangkas seminimal mungkin — makin lama
-  // jeda di sini, makin besar risiko Chrome menolak navigator.share() karena
-  // menganggap gesture klik sudah kedaluwarsa / NotAllowedError)
+  // Wait for fonts + full layout paint
   if (document.fonts && document.fonts.ready) await document.fonts.ready;
   await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+  await new Promise(r => setTimeout(r, 250));
 
   const H = Math.max(wrapper.scrollHeight, 1123);
   wrapper.style.height = H + 'px';
@@ -3325,7 +3324,7 @@ async function renderCanvas() {
   await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
 
   const canvas = await html2canvas(wrapper, {
-    scale: 2,
+    scale: 3,
     useCORS: false,
     allowTaint: false,
     backgroundColor: '#ffffff',
@@ -3794,22 +3793,20 @@ async function exportPDF() {
       const pdfBlob = pdf.output('blob');
       const file = new File([pdfBlob], `${fname}.pdf`, { type: 'application/pdf' });
 
-      // Coba share sistem (satu-satunya aksi — tidak ada fallback popup/menu
-      // lain). Kalau browser tidak mendukung Web Share sama sekali (mis.
-      // desktop), itu satu-satunya kasus kita download otomatis, karena
-      // memang tidak ada "share sistem" untuk dibuka.
+      // Try Web Share API first (iOS/Android)
       if (navigator.canShare && navigator.canShare({ files: [file] })) {
         try {
           await navigator.share({ title: fname, text: waMessage(), files: [file] });
           toast('PDF dibagikan ✓', 'ok');
+          return;
         } catch (e) {
           if (e.name === 'AbortError') { toast('Dibatalkan', ''); return; }
-          toast('Gagal membuka share, coba lagi', 'err');
         }
-      } else {
-        pdf.save(`${fname}.pdf`);
-        toast('Browser ini tidak mendukung share langsung — PDF diunduh', 'ok');
       }
+      // Fallback: download
+      pdf.save(`${fname}.pdf`);
+      toast('PDF diunduh ✓', 'ok');
+      openShareSheet('pdf', pdfBlob, fname);
     } else {
       // jsPDF belum load, fallback PNG
       toast('PDF library belum siap, coba lagi', 'err');
@@ -3831,10 +3828,7 @@ async function exportPNG() {
     });
     const file = new File([blob], `${fname}.png`, { type: 'image/png' });
 
-    // Coba share sistem (satu-satunya aksi — tidak ada fallback popup/menu
-    // lain). Kalau browser tidak mendukung Web Share sama sekali (mis.
-    // desktop), itu satu-satunya kasus kita download otomatis, karena
-    // memang tidak ada "share sistem" untuk dibuka.
+    // Coba Web Share API (support di mobile)
     if (navigator.canShare && navigator.canShare({ files: [file] })) {
       try {
         await navigator.share({
@@ -3843,29 +3837,26 @@ async function exportPNG() {
           files: [file]
         });
         toast('Dibagikan ✓', 'ok');
+        return;
       } catch (shareErr) {
         if (shareErr.name === 'AbortError') { toast('Dibatalkan', ''); return; }
-        toast('Gagal membuka share, coba lagi', 'err');
+        // fallback ke download
       }
-    } else {
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.download = `${fname}.png`;
-      a.href = url; a.click();
-      setTimeout(function(){ URL.revokeObjectURL(url); }, 5000);
-      toast('Browser ini tidak mendukung share langsung — gambar diunduh', 'ok');
     }
+    // Fallback: langsung download + buka share sheet custom
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.download = `${fname}.png`;
+    a.href = url; a.click();
+    setTimeout(function(){ URL.revokeObjectURL(url); }, 5000);
+    toast('Gambar diunduh ✓', 'ok');
+    openShareSheet('png', blob, fname);
   } catch (e) { toast('Gagal: ' + e.message, 'err'); }
 }
 
 // Share sheet fallback — muncul setelah download
-function openShareSheet(type, blob, fname, file) {
+function openShareSheet(type, blob, fname) {
   const objUrl = URL.createObjectURL(blob);
-  // Simpan file untuk shareNative() — dipanggil dari klik BARU (bukan hasil
-  // rantai await lama), jadi "user gesture"-nya masih dianggap valid oleh
-  // Chrome/WKWebView (in-app Chrome di iOS) walau proses render tadi lama.
-  window._lastShareFile = file || null;
-  const canNativeShare = !!(file && navigator.share && navigator.canShare && navigator.canShare({ files: [file] }));
   const inv = DB.get('invoices', []).find(i => i.id === curInvId);
   const s = DB.get('settings', {});
   const phone = inv?.customer?.phone?.replace(/[^0-9]/g, '') || '';
@@ -3889,13 +3880,6 @@ function openShareSheet(type, blob, fname, file) {
       </div>
       <div style="font-size:11px;font-weight:700;color:var(--txt-3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px">Bagikan via</div>
     </div>
-    ${canNativeShare ? `
-    <div class="as-item" onclick="shareNative()">
-      <div class="as-ic" style="background:var(--primary-soft);color:var(--primary)">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
-      </div>
-      <div><div class="as-label">Bagikan via Sistem</div><div class="as-sub">Buka menu share bawaan HP (AirDrop, dll)</div></div>
-    </div>` : ''}
     <div class="as-item" onclick="window.open('${waLink}','_blank');closeSheets()">
       <div class="as-ic" style="background:#dcfce7;color:#16a34a">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="#16a34a"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413Z"/></svg>
@@ -3918,44 +3902,6 @@ function openShareSheet(type, blob, fname, file) {
     <div style="height:8px"></div>
   `;
   openSheet('shareSheet');
-}
-
-// Dipanggil langsung dari klik tombol "Bagikan via Sistem" di share sheet.
-// Sengaja TIDAK ada await sebelumnya — supaya gesture klik ini masih fresh
-// saat sampai ke navigator.share(). Chrome (termasuk Chrome di iOS, yang
-// jalan di atas WKWebView) lebih ketat soal ini dibanding Safari: kalau
-// navigator.share() dipanggil setelah beberapa await (render canvas, dsb),
-// gesture-nya dianggap sudah "basi" dan share gagal tanpa error yang jelas.
-async function shareNative() {
-  const file = window._lastShareFile;
-  if (!file) { toast('File belum siap, coba export ulang', 'err'); return; }
-  try {
-    if (navigator.canShare && navigator.canShare({ files: [file] })) {
-      await navigator.share({ title: file.name, text: waMessage(), files: [file] });
-    } else {
-      toast('Browser ini tidak mendukung share file', 'err');
-    }
-  } catch (e) {
-    if (e.name === 'AbortError') return; // user batal, bukan error
-    toast('Gagal membagikan: ' + e.message, 'err');
-  }
-}
-
-// Toast kecil yang bisa DIKETUK untuk membuka share sheet bawaan HP —
-// dipakai sebagai pengganti popup besar. Ketukan pada toast ini adalah
-// gesture baru & langsung, jadi navigator.share() di dalam shareNative()
-// aman dipanggil dari sini walau proses render sebelumnya lama.
-function toastShare(msg, file) {
-  window._lastShareFile = file;
-  const wrap = document.getElementById('toastWrap'); if (!wrap) return;
-  const t = document.createElement('div');
-  t.className = 'toast';
-  t.style.cursor = 'pointer';
-  t.style.pointerEvents = 'auto'; // .toast-wrap induknya pointer-events:none
-  t.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg><span>${msg}</span>`;
-  t.onclick = () => { t.remove(); shareNative(); };
-  wrap.appendChild(t);
-  setTimeout(() => { t.style.cssText = 'opacity:0;transform:translateY(-8px) scale(.95);transition:.3s'; setTimeout(() => t.remove(), 300); }, 4500);
 }
 
 function shareViaEmail(fname, type, objUrl) {
