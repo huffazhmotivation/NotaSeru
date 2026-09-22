@@ -3996,6 +3996,10 @@ function openShareSheet(type, blob, fname) {
   const waNum = phone ? (phone.startsWith('0') ? '62' + phone.slice(1) : phone) : '';
   const waText = encodeURIComponent(waMessage());
   const waLink = waNum ? `https://wa.me/${waNum}?text=${waText}` : `https://wa.me/?text=${waText}`;
+  // Telegram: buka compose pesan baru berisi teks, user tinggal pilih kontak sendiri
+  const tgLink = `tg://msg?text=${waText}`;
+  // SMS: prefill body, & nomor kalau ada (format ?body= kompatibel iOS & Android)
+  const smsLink = waNum ? `sms:${waNum}?body=${waText}` : `sms:?body=${waText}`;
   const typeLabel = type === 'pdf' ? 'PDF' : 'Gambar PNG';
   const typeIcon = type === 'pdf'
     ? `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>`
@@ -4020,6 +4024,25 @@ function openShareSheet(type, blob, fname) {
       <div><div class="as-label">WhatsApp</div><div class="as-sub">${waNum ? 'Kirim ke ' + inv?.customer?.name : 'Buka WhatsApp'}</div></div>
       <div style="margin-left:auto;padding:5px 12px;background:var(--success-soft);color:var(--success);border-radius:var(--r-full);font-size:11px;font-weight:700">Kirim</div>
     </div>
+    <div class="as-item" onclick="window.open('${tgLink}','_blank');closeSheets()">
+      <div class="as-ic" style="background:#e0f2fe;color:#0284c7">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="#0284c7"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.568 8.16c-.169 1.858-.896 6.728-1.267 8.928-.156.933-.463 1.246-.76 1.276-.646.06-1.137-.427-1.763-.838-.98-.643-1.534-1.043-2.485-1.67-1.099-.723-.386-1.12.24-1.77.164-.17 3.007-2.757 3.062-2.992.007-.03.013-.14-.052-.198-.065-.058-.161-.038-.23-.022-.098.022-1.66 1.055-4.685 3.1-.443.304-.845.452-1.206.444-.397-.008-1.161-.224-1.729-.408-.696-.226-1.25-.346-1.202-.73.025-.2.3-.404.826-.612 3.237-1.41 5.394-2.34 6.472-2.79 3.082-1.283 3.722-1.507 4.14-1.514.092-.002.298.021.431.128.112.09.143.212.158.298.014.086.032.283.018.437z"/></svg>
+      </div>
+      <div><div class="as-label">Telegram</div><div class="as-sub">Buka Telegram, pilih kontak</div></div>
+    </div>
+    <div class="as-item" onclick="window.open('${smsLink}','_blank');closeSheets()">
+      <div class="as-ic" style="background:#fef9c3;color:#ca8a04">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ca8a04" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+      </div>
+      <div><div class="as-label">SMS</div><div class="as-sub">${waNum ? 'Kirim ke nomor pelanggan' : 'Buka aplikasi Pesan'}</div></div>
+    </div>
+    ${navigator.share ? `
+    <div class="as-item" onclick="shareViaNative('${fname}')">
+      <div class="as-ic" style="background:#f3e8ff;color:#9333ea">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#9333ea" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+      </div>
+      <div><div class="as-label">Aplikasi Lainnya</div><div class="as-sub">Pilih dari semua aplikasi di HP</div></div>
+    </div>` : ''}
     <div class="as-item" onclick="shareViaEmail('${fname}','${type}','${objUrl}')">
       <div class="as-ic" style="background:var(--primary-soft);color:var(--primary)">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
@@ -4032,9 +4055,20 @@ function openShareSheet(type, blob, fname) {
       </div>
       <div><div class="as-label">Salin Pesan</div><div class="as-sub">Copy teks invoice ke clipboard</div></div>
     </div>
+    <div style="padding:10px 20px 4px;font-size:11px;color:var(--txt-3);line-height:1.6">Untuk WhatsApp/Telegram/SMS, aplikasinya kebuka langsung dengan pesan siap kirim — file gambar/PDF-nya sudah diunduh di atas, tinggal dilampirkan sekali ketuk (batasan resmi dari masing-masing aplikasi, bukan dari NotaSeru).</div>
     <div style="height:8px"></div>
   `;
   openSheet('shareSheet');
+}
+
+// Fallback catch-all: coba navigator.share teks saja (tanpa file) supaya user bisa
+// pilih APLIKASI APAPUN yang terpasang di HP-nya lewat share sheet asli OS — berguna
+// khusus di browser/skenario yang menolak file-share tapi masih dukung share teks biasa.
+function shareViaNative(fname) {
+  if (!navigator.share) { toast('Fitur berbagi tidak didukung browser ini', 'err'); return; }
+  navigator.share({ title: fname, text: waMessage() })
+    .then(() => { toast('Dibagikan ✓', 'ok'); closeSheets(); })
+    .catch(e => { if (e.name !== 'AbortError') toast('Gagal berbagi: ' + e.message, 'err'); });
 }
 
 function shareViaEmail(fname, type, objUrl) {
@@ -4064,15 +4098,16 @@ function fallbackCopy(text) {
 // Kirim via WhatsApp — auto-target nomor pelanggan (kalau ada), sekaligus sertakan
 // gambar nota (PNG). Catatan teknis: WhatsApp tidak mengizinkan file dilampirkan
 // otomatis lewat link (wa.me) — itu batasan dari WhatsApp sendiri, bukan app ini.
-// Jadi alurnya: gambar nota dirender & diunduh otomatis, lalu chat WA ke nomor yang
-// tepat langsung terbuka dengan pesannya — tinggal satu ketuk lampirkan di chat itu.
+// PENTING: window.open harus dipanggil LANGSUNG di awal klik (bukan di dalam setTimeout/
+// setelah await), karena browser mobile memblokir window.open yang dianggap bukan lagi
+// bagian dari user-gesture asli — itu penyebab WA tidak kebuka otomatis sebelumnya.
 async function sendWA() {
   const waNum = custWaNumber();
-  if (!waNum) {
-    // Belum ada nomor pelanggan di nota -> tidak ada target otomatis, kirim teks saja
-    window.open(waURL(waMessage()), '_blank');
-    return;
-  }
+  // Buka WA duluan, sinkron, di awal klik — supaya tidak diblokir sebagai popup
+  window.open(waURL(waMessage()), '_blank');
+  if (!waNum) return; // tidak ada nomor pelanggan -> cukup teks, selesai
+
+  // Baru render & download gambar nota di belakang layar (tidak perlu window.open lagi)
   toast('Menyiapkan gambar nota...');
   try {
     const canvas = await renderCanvas();
@@ -4086,11 +4121,9 @@ async function sendWA() {
     a.download = `${fname}.png`;
     a.href = url; a.click();
     setTimeout(() => URL.revokeObjectURL(url), 5000);
-    toast('Gambar nota diunduh — membuka WA ke nomor pelanggan, tinggal lampirkan gambarnya ✓', 'ok');
-    setTimeout(() => window.open(waURL(waMessage()), '_blank'), 500);
+    toast('Gambar nota diunduh — tinggal lampirkan di chat WA yang sudah terbuka ✓', 'ok');
   } catch (e) {
-    toast('Gagal siapkan gambar, kirim teks saja: ' + e.message, 'err');
-    window.open(waURL(waMessage()), '_blank');
+    toast('WA sudah dibuka, tapi gagal menyiapkan gambar: ' + e.message, 'err');
   }
 }
 
