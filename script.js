@@ -3312,10 +3312,11 @@ async function renderCanvas() {
   host.appendChild(wrapper);
   document.body.appendChild(host);
 
-  // Wait for fonts + full layout paint
+  // Wait for fonts + layout paint (dipangkas seminimal mungkin — makin lama
+  // jeda di sini, makin besar risiko Chrome menolak navigator.share() karena
+  // menganggap gesture klik sudah kedaluwarsa / NotAllowedError)
   if (document.fonts && document.fonts.ready) await document.fonts.ready;
   await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
-  await new Promise(r => setTimeout(r, 250));
 
   const H = Math.max(wrapper.scrollHeight, 1123);
   wrapper.style.height = H + 'px';
@@ -3324,7 +3325,7 @@ async function renderCanvas() {
   await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
 
   const canvas = await html2canvas(wrapper, {
-    scale: 3,
+    scale: 2,
     useCORS: false,
     allowTaint: false,
     backgroundColor: '#ffffff',
@@ -3793,28 +3794,22 @@ async function exportPDF() {
       const pdfBlob = pdf.output('blob');
       const file = new File([pdfBlob], `${fname}.pdf`, { type: 'application/pdf' });
 
-      // Try Web Share API first (iOS/Android)
+      // Coba share sistem (satu-satunya aksi — tidak ada fallback popup/menu
+      // lain). Kalau browser tidak mendukung Web Share sama sekali (mis.
+      // desktop), itu satu-satunya kasus kita download otomatis, karena
+      // memang tidak ada "share sistem" untuk dibuka.
       if (navigator.canShare && navigator.canShare({ files: [file] })) {
         try {
           await navigator.share({ title: fname, text: waMessage(), files: [file] });
           toast('PDF dibagikan ✓', 'ok');
-          return;
         } catch (e) {
           if (e.name === 'AbortError') { toast('Dibatalkan', ''); return; }
-          console.warn('[NotaSeru] navigator.share gagal:', e.name, e.message);
-          toast('Diag: share gagal (' + e.name + ')', 'err'); // sementara, utk debug
+          toast('Gagal membuka share, coba lagi', 'err');
         }
       } else {
-        console.warn('[NotaSeru] canShare(files) = false untuk PDF, file:', file);
-        toast('Diag: canShare=false utk PDF', 'err'); // sementara, utk debug
+        pdf.save(`${fname}.pdf`);
+        toast('Browser ini tidak mendukung share langsung — PDF diunduh', 'ok');
       }
-      // Fallback: download langsung (tanpa popup) + toast kecil yang bisa
-      // diketuk untuk buka share sheet bawaan HP (perlu 1 ketuk baru di
-      // Chrome/WebView, karena gesture klik awal sudah "basi" setelah
-      // proses render tadi — lihat catatan di shareNative()).
-      pdf.save(`${fname}.pdf`);
-      toast('PDF diunduh ✓', 'ok');
-      if (navigator.share) toastShare('Ketuk untuk bagikan PDF', file);
     } else {
       // jsPDF belum load, fallback PNG
       toast('PDF library belum siap, coba lagi', 'err');
@@ -3836,7 +3831,10 @@ async function exportPNG() {
     });
     const file = new File([blob], `${fname}.png`, { type: 'image/png' });
 
-    // Coba Web Share API (support di mobile)
+    // Coba share sistem (satu-satunya aksi — tidak ada fallback popup/menu
+    // lain). Kalau browser tidak mendukung Web Share sama sekali (mis.
+    // desktop), itu satu-satunya kasus kita download otomatis, karena
+    // memang tidak ada "share sistem" untuk dibuka.
     if (navigator.canShare && navigator.canShare({ files: [file] })) {
       try {
         await navigator.share({
@@ -3845,25 +3843,18 @@ async function exportPNG() {
           files: [file]
         });
         toast('Dibagikan ✓', 'ok');
-        return;
       } catch (shareErr) {
         if (shareErr.name === 'AbortError') { toast('Dibatalkan', ''); return; }
-        console.warn('[NotaSeru] navigator.share gagal:', shareErr.name, shareErr.message);
-        toast('Diag: share gagal (' + shareErr.name + ')', 'err'); // sementara, utk debug
+        toast('Gagal membuka share, coba lagi', 'err');
       }
     } else {
-      console.warn('[NotaSeru] canShare(files) = false untuk PNG, file:', file);
-      toast('Diag: canShare=false utk PNG', 'err'); // sementara, utk debug
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.download = `${fname}.png`;
+      a.href = url; a.click();
+      setTimeout(function(){ URL.revokeObjectURL(url); }, 5000);
+      toast('Browser ini tidak mendukung share langsung — gambar diunduh', 'ok');
     }
-    // Fallback: langsung download (tanpa popup) + toast kecil yang bisa
-    // diketuk untuk buka share sheet bawaan HP
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.download = `${fname}.png`;
-    a.href = url; a.click();
-    setTimeout(function(){ URL.revokeObjectURL(url); }, 5000);
-    toast('Gambar diunduh ✓', 'ok');
-    if (navigator.share) toastShare('Ketuk untuk bagikan PNG', file);
   } catch (e) { toast('Gagal: ' + e.message, 'err'); }
 }
 
