@@ -3433,13 +3433,25 @@ function warmRenderCache() {
 }
 
 async function renderCanvas() {
-  // Pakai cache kalau masih cocok dengan nota yang lagi dibuka (hasil warm-up)
+  // Pakai cache kalau masih cocok dengan nota yang lagi dibuka (hasil warm-up
+  // atau hasil render sebelumnya). Setelah dipakai, langsung siapkan lagi
+  // render berikutnya di background supaya klik BERIKUTNYA (PDF setelah PNG,
+  // atau sebaliknya) juga tetap dapat versi cepat, bukan render dari nol lagi.
   if (_canvasCache.invId === curInvId && _canvasCache.canvas) {
     const cached = _canvasCache.canvas;
-    _canvasCache = { invId: null, canvas: null }; // sekali pakai, biar selalu fresh setelahnya
+    _canvasCache = { invId: null, canvas: null };
+    warmRenderCache(); // siap-siap buat klik selanjutnya
     return cached;
   }
 
+  const canvas = await _doRenderCanvas();
+  // Simpan hasilnya juga ke cache, biar kalau tombol satunya dipencet lagi
+  // sesaat kemudian, dia dapat versi instan, bukan nunggu render ulang.
+  _canvasCache = { invId: curInvId, canvas };
+  return canvas;
+}
+
+async function _doRenderCanvas() {
   const inv = DB.get('invoices', []).find(i => i.id === curInvId);
   if (!inv) throw new Error('Invoice tidak ditemukan');
 
