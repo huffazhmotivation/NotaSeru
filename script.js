@@ -4023,7 +4023,8 @@ async function exportPNG() {
     });
     const file = new File([blob], `${fname}.png`, { type: 'image/png' });
 
-    // Coba Web Share API (support di mobile)
+    // Coba Web Share API (support di mobile) — ini satu-satunya cara file+teks
+    // bisa dibawa BERSAMAAN ke share sheet OS, tapi pilih kontak WA tetap manual.
     if (navigator.canShare && navigator.canShare({ files: [file] })) {
       try {
         await navigator.share({
@@ -4035,17 +4036,42 @@ async function exportPNG() {
         return;
       } catch (shareErr) {
         if (shareErr.name === 'AbortError') { toast('Dibatalkan', ''); return; }
-        // fallback ke download
+        // fallback ke bawah
       }
     }
-    // Fallback: langsung download + buka share sheet custom
+
+    // Fallback: Web Share dengan file tidak didukung di browser ini.
+    // wa.me TIDAK BISA membawa file (keterbatasan link WhatsApp, bukan app ini).
+    // Jadi: unduh PNG + coba salin ke clipboard HP (supaya bisa tinggal paste
+    // di kotak chat WA), lalu langsung buka chat WA ke nomor pelanggan di nota.
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.download = `${fname}.png`;
     a.href = url; a.click();
     setTimeout(function(){ URL.revokeObjectURL(url); }, 5000);
-    toast('Gambar diunduh ✓', 'ok');
-    openShareSheet('png', blob, fname);
+
+    let clipboardOk = false;
+    try {
+      if (navigator.clipboard && navigator.clipboard.write && window.ClipboardItem) {
+        await navigator.clipboard.write([ new ClipboardItem({ 'image/png': blob }) ]);
+        clipboardOk = true;
+      }
+    } catch (clipErr) { clipboardOk = false; }
+
+    const waNum = custWaNumber();
+    if (waNum) {
+      // Langsung buka chat WA ke nomor di nota dengan teks custom terisi.
+      window.open(waURL(waMessage()), '_blank');
+      toast(
+        clipboardOk
+          ? '📋 Gambar disalin — tempel (tap & tahan kotak chat → Tempel) di WA ✓'
+          : '🖼️ Gambar diunduh — lampirkan manual lewat ikon 📎 di WA',
+        'ok'
+      );
+    } else {
+      toast('Gambar diunduh ✓', 'ok');
+      openShareSheet('png', blob, fname);
+    }
   } catch (e) { toast('Gagal: ' + e.message, 'err'); }
 }
 
@@ -4075,12 +4101,16 @@ function openShareSheet(type, blob, fname) {
       </div>
       <div style="font-size:11px;font-weight:700;color:var(--txt-3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px">Bagikan via</div>
     </div>
+    ${type === 'png' ? `
+    <div style="margin:0 20px 14px;padding:10px 12px;background:var(--primary-soft);color:var(--primary);border-radius:var(--r-sm);font-size:11.5px;line-height:1.5">
+      📎 Gambar sudah tersimpan di Unduhan/Galeri HP kamu. Browser tidak bisa mengirim file otomatis ke WhatsApp — setelah chat WA terbuka, lampirkan gambar itu manual lewat ikon 📎 di WA.
+    </div>` : ''}
     <div class="as-item" onclick="window.open('${waLink}','_blank');closeSheets()">
       <div class="as-ic" style="background:#dcfce7;color:#16a34a">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="#16a34a"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413Z"/></svg>
       </div>
-      <div><div class="as-label">WhatsApp</div><div class="as-sub">${waNum ? 'Kirim ke ' + inv?.customer?.name : 'Buka WhatsApp'}</div></div>
-      <div style="margin-left:auto;padding:5px 12px;background:var(--success-soft);color:var(--success);border-radius:var(--r-full);font-size:11px;font-weight:700">Kirim</div>
+      <div><div class="as-label">WhatsApp</div><div class="as-sub">${waNum ? 'Buka chat ' + (inv?.customer?.name || '') + ' — lampirkan gambar manual' : 'Buka WhatsApp'}</div></div>
+      <div style="margin-left:auto;padding:5px 12px;background:var(--success-soft);color:var(--success);border-radius:var(--r-full);font-size:11px;font-weight:700">Buka</div>
     </div>
     <div class="as-item" onclick="shareViaEmail('${fname}','${type}','${objUrl}')">
       <div class="as-ic" style="background:var(--primary-soft);color:var(--primary)">
@@ -4613,7 +4643,7 @@ function applyAppearance() {
   }
 }
 
-function saveSettings() {
+function saveSettings(silent) {
   const s = DB.get('settings', {});
   const fields = { settName:'storeName', settAddr:'storeAddress', settPhone:'storePhone', settEmail:'storeEmail', settBank:'bankName', settBankNo:'bankNo', settBankOwner:'bankOwner', settThankyou:'thankyou', settSignLabel:'signLabel', settBankNote:'bankNote', settWaTemplate:'waTemplate' };
   for (const [id, key] of Object.entries(fields)) {
@@ -4623,12 +4653,18 @@ function saveSettings() {
   try { localStorage.removeItem('ns3_settingsDraft'); } catch {}
   DB.set('settings', s);
   renderDashboard();
-  toast('Pengaturan disimpan ✓', 'ok');
+  if (!silent) toast('Pengaturan disimpan ✓', 'ok');
 }
 
 // Simpan ketikan sementara ke localStorage agar tidak hilang saat sync cloud masuk.
 // Dipanggil dari oninput pada field settings di HTML.
-// Tidak push ke cloud — hanya pelindung sementara sampai user klik Simpan.
+// FIX: sebelumnya draft ini HANYA disimpan lokal dan baru masuk ke data settings
+// yang sesungguhnya kalau user pencet tombol centang "Simpan" — kalau lupa
+// pencet, perubahan (mis. template pesan WA custom) hilang begitu pindah halaman.
+// Sekarang draft tetap ditulis (untuk proteksi saat sync cloud masuk di tengah
+// ketikan), TAPI juga auto-commit ke settings asli beberapa saat setelah user
+// berhenti mengetik, supaya custom apapun otomatis kepakai tanpa wajib pencet Simpan.
+let _settingsAutoSaveTimer = null;
 function _saveSettingsDraft() {
   try {
     const fields = { settName:'storeName', settAddr:'storeAddress', settPhone:'storePhone', settEmail:'storeEmail', settBank:'bankName', settBankNo:'bankNo', settBankOwner:'bankOwner', settThankyou:'thankyou', settSignLabel:'signLabel', settBankNote:'bankNote', settWaTemplate:'waTemplate' };
@@ -4638,6 +4674,8 @@ function _saveSettingsDraft() {
     }
     localStorage.setItem('ns3_settingsDraft', JSON.stringify(draft));
   } catch {}
+  clearTimeout(_settingsAutoSaveTimer);
+  _settingsAutoSaveTimer = setTimeout(() => { saveSettings(true); }, 1200);
 }
 
 function resetWaTemplate() {
