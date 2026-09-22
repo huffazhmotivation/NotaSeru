@@ -5844,12 +5844,31 @@ function _stmtFmtDate(d) {
   return d.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
-// NOTE: menggunakan flexbox dengan lebar kolom fixed (bukan CSS grid) secara
-// sengaja. html2canvas kadang salah menghitung lebar kolom "fr"/minmax pada
-// CSS grid, yang menyebabkan teks KETERANGAN "tertutup"/tumpang tindih dengan
-// kolom sebelahnya di hasil render PDF. Flexbox dengan width fixed jauh lebih
-// stabil dirender oleh html2canvas.
-var _STMT_COL_NO = 20, _STMT_COL_TGL = 58, _STMT_COL_TIPE = 66, _STMT_COL_NOMINAL = 98, _STMT_COL_SALDO = 96, _STMT_COL_GAP = 10;
+// NOTE PENTING soal html2canvas (dipakai untuk generate PDF E-Statement):
+// html2canvas MEMILIKI BUG pada CSS Grid, Flexbox (termasuk flex-direction:
+// column), dan min-height -- semuanya bisa membuat tinggi/lebar kotak salah
+// hitung sehingga teks tertutup / tumpang tindih dengan elemen lain saat
+// dirender jadi gambar PDF. Untuk baris tabel ini SENGAJA tidak dipakai
+// flex/grid sama sekali -- posisi tiap kolom dihitung manual lalu ditaruh
+// pakai position:absolute dengan top/left dalam pixel pasti. Absolute
+// positioning + block layout biasa adalah mode paling dasar dan paling stabil
+// di html2canvas, jadi tidak ada lagi perhitungan tinggi/lebar otomatis yang
+// bisa meleset.
+var _STMT_ROW_H = 56;
+var _STMT_PAD_X = 14;
+// PENTING: lebar tabel BUKAN _STMT_W (lebar halaman penuh 794px), melainkan
+// lebar area konten setelah dikurangi padding kiri+kanan halaman (40px+40px,
+// lihat 'padding:36px 40px 76px' di _buildStatementPageHTML). Kalau ini salah
+// pakai _STMT_W, kolom SALDO paling kanan akan terpotong keluar dari tabel.
+var _STMT_TABLE_W = _STMT_W - 40 - 40;
+var _STMT_COL_NO = 20, _STMT_COL_TGL = 66, _STMT_COL_TIPE = 52, _STMT_COL_NOMINAL = 100, _STMT_COL_SALDO = 98, _STMT_COL_GAP = 10;
+var _STMT_X_NO = _STMT_PAD_X;
+var _STMT_X_TGL = _STMT_X_NO + _STMT_COL_NO + _STMT_COL_GAP;
+var _STMT_X_KET = _STMT_X_TGL + _STMT_COL_TGL + _STMT_COL_GAP;
+var _STMT_W_KET = _STMT_TABLE_W - _STMT_X_KET - _STMT_COL_GAP - _STMT_COL_TIPE - _STMT_COL_GAP - _STMT_COL_NOMINAL - _STMT_COL_GAP - _STMT_COL_SALDO - _STMT_PAD_X;
+var _STMT_X_TIPE = _STMT_X_KET + _STMT_W_KET + _STMT_COL_GAP;
+var _STMT_X_NOMINAL = _STMT_X_TIPE + _STMT_COL_TIPE + _STMT_COL_GAP;
+var _STMT_X_SALDO = _STMT_X_NOMINAL + _STMT_COL_NOMINAL + _STMT_COL_GAP;
 
 function _stmtRowsHTML(pageRows, rowStartNo) {
   if (!pageRows.length) return '';
@@ -5857,41 +5876,45 @@ function _stmtRowsHTML(pageRows, rowStartNo) {
     var no = rowStartNo + i;
     var zebra = (i % 2 === 1) ? 'background:#F8FAFC;' : 'background:#FFFFFF;';
     var isIn = r.type === 'in';
-    var pillBg = isIn ? '#E7F3EF' : '#FBEAEA';
     var pillFg = isIn ? '#0F6B4C' : '#A32C2C';
     var pillLabel = isIn ? 'Masuk' : 'Keluar';
     var amtColor = isIn ? '#0F6B4C' : '#A32C2C';
     var amtSign = isIn ? '+' : '\u2212';
     var saldoColor = r.saldo < 0 ? '#A32C2C' : '#1E293B';
+    var cell = function(x, w, top, css, html) {
+      return '<div style="position:absolute;left:' + x + 'px;top:' + top + 'px;width:' + w + 'px;' + css + '">' + html + '</div>';
+    };
+    var descHTML =
+      '<div style="font-size:11.5px;line-height:15px;font-weight:700;color:#1E293B;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + _stmtEsc(r.desc) + '</div>' +
+      (r.sub ? '<div style="font-size:9.5px;line-height:13px;color:#9CA3AF;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:3px">' + _stmtEsc(r.sub) + '</div>' : '');
+    var descTop = r.sub ? 13 : 21;
     return '' +
-    '<div style="display:flex;align-items:center;gap:' + _STMT_COL_GAP + 'px;' +
-      'min-height:44px;padding:11px 14px;' + zebra + 'border-bottom:1px solid #DEE3EC;box-sizing:border-box">' +
-      '<div style="flex:0 0 ' + _STMT_COL_NO + 'px;width:' + _STMT_COL_NO + 'px;font-size:10px;line-height:1.3;color:#B4BAC4;font-weight:700">' + no + '</div>' +
-      '<div style="flex:0 0 ' + _STMT_COL_TGL + 'px;width:' + _STMT_COL_TGL + 'px;font-size:10px;line-height:1.35;color:#6B7280;font-weight:700">' + _stmtFmtDate(r.date) + '</div>' +
-      '<div style="flex:1 1 auto;min-width:0;overflow:hidden;padding-right:4px">' +
-        '<div style="font-size:11.5px;line-height:15px;font-weight:700;color:#1E293B;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + _stmtEsc(r.desc) + '</div>' +
-        (r.sub ? '<div style="font-size:9.5px;line-height:13px;color:#9CA3AF;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px">' + _stmtEsc(r.sub) + '</div>' : '') +
-      '</div>' +
-      '<div style="flex:0 0 ' + _STMT_COL_TIPE + 'px;width:' + _STMT_COL_TIPE + 'px;display:flex;justify-content:center">' +
-        '<span style="display:inline-block;height:20px;line-height:20px;padding:0 10px;border-radius:5px;background:' + pillBg + ';color:' + pillFg + ';font-size:8.5px;font-weight:700;white-space:nowrap;box-sizing:border-box;text-align:center">' + pillLabel + '</span>' +
-      '</div>' +
-      '<div style="flex:0 0 ' + _STMT_COL_NOMINAL + 'px;width:' + _STMT_COL_NOMINAL + 'px;text-align:right;font-size:11px;line-height:1.3;font-weight:700;color:' + amtColor + ';white-space:nowrap">' + amtSign + '&nbsp;' + fmtRp(r.amount).replace('Rp','Rp\u00A0') + '</div>' +
-      '<div style="flex:0 0 ' + _STMT_COL_SALDO + 'px;width:' + _STMT_COL_SALDO + 'px;text-align:right;font-size:10.5px;line-height:1.3;font-weight:700;color:' + saldoColor + ';white-space:nowrap">' + fmtRp(r.saldo) + '</div>' +
+    '<div style="position:relative;height:' + _STMT_ROW_H + 'px;' + zebra + 'border-bottom:1px solid #DEE3EC;box-sizing:border-box;overflow:hidden">' +
+      cell(_STMT_X_NO, _STMT_COL_NO, 21, 'font-size:10px;line-height:13px;color:#B4BAC4;font-weight:700', String(no)) +
+      cell(_STMT_X_TGL, _STMT_COL_TGL, 21, 'font-size:9.5px;line-height:13px;color:#6B7280;font-weight:700;white-space:nowrap;overflow:hidden', _stmtFmtDate(r.date)) +
+      cell(_STMT_X_KET, _STMT_W_KET, descTop, 'overflow:hidden', descHTML) +
+      cell(_STMT_X_TIPE, _STMT_COL_TIPE, 21, 'font-size:9.5px;line-height:13px;font-weight:800;letter-spacing:.02em;color:' + pillFg + ';white-space:nowrap;text-align:center', pillLabel) +
+      cell(_STMT_X_NOMINAL, _STMT_COL_NOMINAL, 21, 'font-size:11px;line-height:13px;font-weight:700;color:' + amtColor + ';white-space:nowrap;text-align:right', amtSign + '&nbsp;' + fmtRp(r.amount).replace('Rp','Rp\u00A0')) +
+      cell(_STMT_X_SALDO, _STMT_COL_SALDO, 21, 'font-size:10.5px;line-height:13px;font-weight:700;color:' + saldoColor + ';white-space:nowrap;text-align:right', fmtRp(r.saldo)) +
     '</div>';
   }).join('');
 }
 
 function _stmtTableHeadHTML() {
-  var th = function(label, width, align) {
-    return '<div style="' + (width ? ('flex:0 0 ' + width + 'px;width:' + width + 'px;') : 'flex:1 1 auto;min-width:0;') +
-      'font-size:8.5px;font-weight:700;color:rgba(255,255,255,.72);letter-spacing:.08em;text-align:' + (align || 'left') + ';">' + label + '</div>';
+  var th = function(x, w, align, label) {
+    return '<div style="position:absolute;left:' + x + 'px;top:0;width:' + w + 'px;font-size:8.5px;font-weight:700;color:rgba(255,255,255,.72);letter-spacing:.08em;text-align:' + align + ';white-space:nowrap">' + label + '</div>';
   };
   return '' +
-  '<div style="display:flex;align-items:center;gap:' + _STMT_COL_GAP + 'px;' +
-    'padding:12px 14px;background:linear-gradient(90deg,#1E3A8A,#1D4ED8);border-radius:10px 10px 0 0;box-sizing:border-box">' +
-    th('NO', _STMT_COL_NO) + th('TGL', _STMT_COL_TGL) + th('KETERANGAN', null) + th('TIPE', _STMT_COL_TIPE, 'center') + th('NOMINAL', _STMT_COL_NOMINAL, 'right') + th('SALDO', _STMT_COL_SALDO, 'right') +
+  '<div style="position:relative;height:38px;background:linear-gradient(90deg,#1E3A8A,#1D4ED8);border-radius:10px 10px 0 0;box-sizing:border-box;padding-top:13px">' +
+    th(_STMT_X_NO, _STMT_COL_NO, 'left', 'NO') +
+    th(_STMT_X_TGL, _STMT_COL_TGL, 'left', 'TGL') +
+    th(_STMT_X_KET, _STMT_W_KET, 'left', 'KETERANGAN') +
+    th(_STMT_X_TIPE, _STMT_COL_TIPE, 'center', 'TIPE') +
+    th(_STMT_X_NOMINAL, _STMT_COL_NOMINAL, 'right', 'NOMINAL') +
+    th(_STMT_X_SALDO, _STMT_COL_SALDO, 'right', 'SALDO') +
   '</div>';
 }
+
 
 function _stmtLetterheadHTML(ctx) {
   var s = ctx.s;
