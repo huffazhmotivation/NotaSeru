@@ -182,25 +182,212 @@ function addNewInvoice() {
 }
 
 // ── WA Chat Parser ───────────────────────────
+// Parser pintar: tidak butuh label baku, tidak butuh urutan tetap, dan bisa
+// mengenali beberapa baris pesanan sekaligus dari berbagai gaya template WA.
+
+// Label yang dikenal untuk tiap field (kata kunci inti, dicocokkan sebagai
+// kata utuh di dalam baris label — jadi "Nama Pemesan:" atau "No Whatsapp:"
+// tetap kena walau ada kata tambahan di antaranya, tanpa harus persis sama)
+const WA_LABELS = {
+  name: ['nama\\s*pelanggan', 'nama\\s*lengkap', 'nama', 'pemesan', 'pembeli', 'customer', 'cust'],
+  phone: ['no\\.?\\s*hp', 'nomor\\s*hp', 'no\\.?\\s*wa', 'nomor\\s*wa', 'no\\.?\\s*telp(?:on)?', 'nomor\\s*telp(?:on)?', 'whatsapp', 'telepon', 'telp(?:on)?', 'kontak', 'hp', 'wa'],
+  address: ['alamat\\s*pengiriman', 'alamat\\s*lengkap', 'alamat\\s*kirim', 'alamat', 'lokasi', 'kirim\\s*ke'],
+  order: ['detail\\s*pesanan', 'pesanan', 'pesan', 'order(?:an)?', 'item', 'barang', 'produk', 'menu'],
+};
+// Kata kunci baris yang menandakan alamat
+const WA_ADDRESS_HINTS = /\b(jl\.?|jalan|gg\.?|gang|rt\s*\d|rw\s*\d|kec\.?|kelurahan|kel\.?|kabupaten|kab\.?|kecamatan|kodepos|kode\s*pos|blok|perum(?:ahan)?|ds\.?|desa|komplek|patokan)\b/i;
+const WA_PHONE_RE = /(?:\+?62|0)8\d{2}[\s.\-]?\d{3,4}[\s.\-]?\d{3,4}(?:[\s.\-]?\d{1,3})?/;
+// Sapaan/basa-basi umum di awal chat — dipakai supaya tidak salah dianggap nama
+const WA_GREETING_WORDS = /\b(halo|hallo|hai|min|kak|ka|gan|sis|bro|selamat|pagi|siang|sore|malam|mau|pesan|order|mohon|tolong|maaf|permisi|assalamualaikum|numpang|tanya|ada)\b/i;
+
+
+// Cari field apa yang cocok dengan potongan teks label (contains-match per kata,
+// bukan harus sama persis) — supaya "Nama Pemesan" & "No Whatsapp" tetap kena.
+function matchLabelKey(labelPart) {
+  const words = labelPart.trim().split(/\s+/);
+  if (!words[0] || words.length > 4) return null;
+  const lower = labelPart.toLowerCase();
+  for (const [key, arr] of Object.entries(WA_LABELS)) {
+    for (const kw of arr) {
+      const re = new RegExp('(^|\\s)(' + kw + ')($|\\s)', 'i');
+      if (re.test(lower)) return key;
+    }
+  }
+  return null;
+}
+
+// Deteksi baris "label: nilai" dalam berbagai gaya penulisan
+function matchLabelLine(line) {
+  // "an. Nama" / "a/n Nama" (atas nama, tanpa titik dua)
+  const anMatch = line.match(/^a\/?n\.?\s+(.+)$/i);
+  if (anMatch) return { key: 'name', value: anMatch[1].trim() };
+  // label diikuti separator ":" atau "-"
+  const sepMatch = line.match(/^(.{1,30}?)\s*[:\-]\s*(.+)$/);
+  if (sepMatch) {
+    const key = matchLabelKey(sepMatch[1]);
+    if (key) return { key, value: sepMatch[2].trim() };
+  }
+  // label tanpa separator, contoh "HP 08123456789" / "Alamat Jl. Mawar No 5"
+  const noSepMatch = line.match(/^(hp|wa|telp(?:on)?|whatsapp|alamat|nama)\s+(.+)$/i);
+  if (noSepMatch) {
+    const key = matchLabelKey(noSepMatch[1]);
+    if (key) return { key, value: noSepMatch[2].trim() };
+  }
+  return null;
+}
+
+// Baris yang isinya cuma nama label doang (nilainya ada di baris berikutnya),
+// misal "Pesanan:" lalu daftar item di baris-baris sesudahnya
+function matchLabelHeaderOnly(line) {
+  const clean = line.replace(/[:\-]\s*$/, '').trim();
+  if (!clean || clean.split(/\s+/).length > 4) return null;
+  return matchLabelKey(clean);
+}
+
+// Ambil qty & nama bersih dari satu baris item, mengembalikan {qty, name}.
+// Lepas dulu prefix bullet/nomor urut (yang bukan qty sungguhan), baru cari
+// angka qty yang benar-benar melekat pada nama item.
+const WA_UNIT_WORDS = '(?:pcs|box|buah|porsi|item|gelas|bungkus|pack|pc|botol|lusin|kg|gr)';
+function extractQtyFromLine(line) {
+  let s = line.trim();
+  if (!s) return { qty: 1, name: s };
+
+  // lepas bullet "- Item" / "• Item"
+  let m = s.match(/^[\-•*●▪️○◦]\s*(.+)$/);
+  if (m) return extractQtyFromLine(m[1]);
+
+  // lepas nomor urut list "1. Item" / "2) Item" (angka ini index list, bukan qty)
+  m = s.match(/^(\d+)[.)]\s+(.+)$/);
+  if (m) return extractQtyFromLine(m[2]);
+
+  // "2x Item" / "2 x Item"
+  m = s.match(/^(\d+)\s*[xX]\s*(.+)$/);
+  if (m) return { qty: parseInt(m[1]), name: m[2].trim() };
+
+  // "Item x2"
+  m = s.match(/^(.+?)\s*[xX]\s*(\d+)$/);
+  if (m) return { qty: parseInt(m[2]), name: m[1].trim() };
+
+  // "Item - 2 porsi" / "Item – 2"
+  m = s.match(new RegExp('^(.+?)\\s*[-–]\\s*(\\d+)\\s*' + WA_UNIT_WORDS + '?$', 'i'));
+  if (m) return { qty: parseInt(m[2]), name: m[1].trim() };
+
+  // "2 porsi Item"
+  m = s.match(new RegExp('^(\\d+)\\s*' + WA_UNIT_WORDS + '?\\s+(.+)$', 'i'));
+  if (m) return { qty: parseInt(m[1]), name: m[2].trim() };
+
+  // "Item 2 box" / "Item 2" (qty nempel di belakang nama)
+  m = s.match(new RegExp('^(.*?)\\s+(\\d+)\\s*' + WA_UNIT_WORDS + '?$', 'i'));
+  if (m && m[1].trim()) return { qty: parseInt(m[2]), name: m[1].trim() };
+
+  return { qty: 1, name: s };
+}
+
 function parseWAForm(text) {
   if (!text || !text.trim()) return null;
-  const result = {};
-  const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
-  const patterns = {
-    name: /^(nama\s*pelanggan|nama)\s*[:\-]\s*(.+)$/i,
-    phone: /^(no\s*hp|no\.?\s*hp|nomor\s*hp|hp|telepon|whatsapp|wa)\s*[:\-]\s*(.+)$/i,
-    address: /^(alamat|alamat\s*pengiriman)\s*[:\-]\s*(.+)$/i,
-    order: /^(pesanan|order|item|barang)\s*[:\-]\s*(.+)$/i,
-  };
-  for (const line of lines) {
-    for (const [key, pattern] of Object.entries(patterns)) {
-      const match = line.match(pattern);
-      if (match && !result[key]) {
-        result[key] = match[2].trim();
+  const rawLines = text.split('\n').map(l => l.trim()).filter(Boolean);
+  if (!rawLines.length) return null;
+
+  const result = { name: null, phone: null, address: null, items: [] };
+  const used = new Array(rawLines.length).fill(false);
+  let orderStartIdx = -1; // baris pertama yang masuk blok "pesanan"
+
+  // 1) Tangkap semua baris berlabel eksplisit dulu (urutan bebas, label bebas,
+  //    dengan atau tanpa titik dua)
+  rawLines.forEach((line, i) => {
+    if (used[i]) return;
+    const lm = matchLabelLine(line);
+    if (lm) {
+      if (lm.key === 'order') {
+        if (orderStartIdx === -1) orderStartIdx = i;
+        if (lm.value) result.items.push(extractQtyFromLine(lm.value));
+      } else if (!result[lm.key] && lm.value) {
+        result[lm.key] = lm.value;
+      }
+      used[i] = true;
+      return;
+    }
+    const headerKey = matchLabelHeaderOnly(line);
+    if (headerKey) {
+      used[i] = true;
+      if (headerKey === 'order') {
+        if (orderStartIdx === -1) orderStartIdx = i;
+      } else if (!result[headerKey] && rawLines[i + 1] && !used[i + 1]) {
+        result[headerKey] = rawLines[i + 1].trim();
+        used[i + 1] = true;
+      }
+    }
+  });
+
+  // 2) Jika ada blok "pesanan:" berlabel, ambil juga baris-baris sesudahnya yang belum terpakai
+  //    dan bukan label field lain (karena order biasanya berupa daftar multi-baris)
+  if (orderStartIdx !== -1) {
+    for (let i = orderStartIdx + 1; i < rawLines.length; i++) {
+      if (used[i]) continue;
+      if (matchLabelLine(rawLines[i]) || matchLabelHeaderOnly(rawLines[i])) continue;
+      result.items.push(extractQtyFromLine(rawLines[i]));
+      used[i] = true;
+    }
+  }
+
+  // 3) Nomor HP tanpa label — cari pola nomor telepon di baris manapun yang belum terpakai
+  if (!result.phone) {
+    for (let i = 0; i < rawLines.length; i++) {
+      if (used[i]) continue;
+      const m = rawLines[i].match(WA_PHONE_RE);
+      if (m) {
+        result.phone = m[0].trim();
+        // kalau nomor itu satu-satunya isi baris, tandai terpakai; kalau menempel di teks lain, biarkan baris tetap dipakai untuk field lain
+        if (rawLines[i].trim() === m[0].trim()) used[i] = true;
+        break;
       }
     }
   }
-  return Object.keys(result).length > 0 ? result : null;
+
+  // 4) Alamat tanpa label — cari baris dengan ciri-ciri alamat (Jl, RT/RW, kecamatan, dst),
+  //    lalu gabungkan dengan baris berikutnya yang juga terlihat seperti lanjutan alamat
+  if (!result.address) {
+    for (let i = 0; i < rawLines.length; i++) {
+      if (used[i]) continue;
+      if (WA_ADDRESS_HINTS.test(rawLines[i])) {
+        let addrParts = [rawLines[i]];
+        used[i] = true;
+        let j = i + 1;
+        while (j < rawLines.length && !used[j] && WA_ADDRESS_HINTS.test(rawLines[j]) &&
+               !matchLabelLine(rawLines[j]) && !matchLabelHeaderOnly(rawLines[j])) {
+          addrParts.push(rawLines[j]); used[j] = true; j++;
+        }
+        result.address = addrParts.join(', ');
+        break;
+      }
+    }
+  }
+
+  // 5) Nama tanpa label — biasanya baris pendek pertama yang tersisa, bukan basa-basi/sapaan,
+  //    tidak mengandung angka, dan bukan bagian daftar pesanan
+  if (!result.name) {
+    for (let i = 0; i < rawLines.length; i++) {
+      if (used[i]) continue;
+      const line = rawLines[i];
+      const wordCount = line.split(/\s+/).length;
+      const digitCount = (line.match(/\d/g) || []).length;
+      const looksLikeItemList = orderStartIdx !== -1 && i > orderStartIdx;
+      if (!looksLikeItemList && wordCount <= 5 && digitCount === 0 && line.length <= 40 && !WA_GREETING_WORDS.test(line)) {
+        result.name = line.replace(/[:：]$/, '').trim();
+        used[i] = true;
+        break;
+      }
+    }
+  }
+
+  // 6) Sisa baris yang belum terpakai dan belum ada blok pesanan berlabel → anggap sebagai daftar item
+  if (result.items.length === 0) {
+    rawLines.forEach((l, i) => { if (!used[i]) result.items.push(extractQtyFromLine(l)); });
+  }
+
+  const hasAny = result.name || result.phone || result.address || result.items.length > 0;
+  if (!hasAny) return null;
+  return result;
 }
 
 function openWAImport() {
@@ -217,8 +404,8 @@ function openWAImport() {
       <button class="sheet-close" onclick="closeWAImport()">✕</button>
     </div>
     <div class="sheet-body">
-      <p style="font-size:12px;color:var(--txt-3);margin-bottom:10px">Salin & tempel chat pesanan dari WhatsApp dengan format:<br><code style="background:var(--bg-input);padding:2px 6px;border-radius:4px;font-size:11px">Nama : ...<br>No HP : ...<br>Alamat : ...<br>Pesanan : ...</code></p>
-      <textarea class="form-textarea" id="waPasteInput" rows="7" placeholder="Tempel chat WhatsApp di sini...&#10;&#10;Contoh:&#10;Nama : Budi Santoso&#10;No HP : 08123456789&#10;Alamat : Jl. Mawar No.5&#10;Pesanan : Kue Brownies 2 box"></textarea>
+      <p style="font-size:12px;color:var(--txt-3);margin-bottom:10px">Salin & tempel chat pesanan dari WhatsApp apa adanya. Tidak perlu format baku — sistem otomatis mendeteksi nama, no HP, alamat, dan daftar pesanan walau urutannya beda atau tanpa label.</p>
+      <textarea class="form-textarea" id="waPasteInput" rows="7" placeholder="Tempel chat WhatsApp di sini...&#10;&#10;Contoh:&#10;Budi Santoso&#10;08123456789&#10;Jl. Mawar No.5, RT 02/RW 03&#10;Pesan:&#10;2x Brownies&#10;1 Cheesecake"></textarea>
       <button class="btn btn-primary btn-block" style="margin-top:12px" onclick="applyWAImport()">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
         Isi Form Otomatis
@@ -243,32 +430,40 @@ function closeWAImport() {
 function applyWAImport() {
   const text = document.getElementById('waPasteInput')?.value || '';
   const parsed = parseWAForm(text);
-  if (!parsed) { toast('Format tidak dikenali. Pastikan ada Nama/HP/Alamat/Pesanan', 'err'); return; }
+  if (!parsed) { toast('Format tidak dikenali. Coba pastikan ada nama, no HP, alamat, atau pesanan di teksnya', 'err'); return; }
   if (parsed.name) document.getElementById('custName').value = parsed.name;
   if (parsed.phone) document.getElementById('custPhone').value = parsed.phone;
   if (parsed.address) document.getElementById('custAddr').value = parsed.address;
-  if (parsed.order) {
-    // Try to find item in catalog by name match
+
+  if (parsed.items && parsed.items.length) {
     const prods = DB.get('products', []);
-    const orderText = parsed.order;
-    // Parse qty like "2 box Brownies" or "Brownies 2"
-    const qtyMatch = orderText.match(/(\d+)\s*(?:pcs|box|kg|buah|item)?/i);
-    const qty = qtyMatch ? parseInt(qtyMatch[1]) : 1;
-    // Find matching product
-    const matched = prods.find(p => orderText.toLowerCase().includes(p.name.toLowerCase()));
-    if (matched) {
-      items = [{ id: Date.now(), name: matched.name, qty, price: matched.price || 0 }];
-    } else {
-      items = [{ id: Date.now(), name: orderText, qty: 1, price: 0 }];
+    const newItems = parsed.items
+      .filter(it => it.name && it.name.trim())
+      .map(it => {
+        const nameLc = it.name.toLowerCase();
+        // Cocokkan ke katalog produk: exact match dulu, lalu partial contains (dua arah)
+        const matched =
+          prods.find(p => p.name.toLowerCase() === nameLc) ||
+          prods.find(p => nameLc.includes(p.name.toLowerCase())) ||
+          prods.find(p => p.name.toLowerCase().includes(nameLc));
+        return {
+          id: Date.now() + Math.floor(Math.random() * 100000),
+          name: matched ? matched.name : it.name,
+          qty: it.qty || 1,
+          price: matched ? (matched.price || 0) : 0,
+        };
+      });
+    if (newItems.length) {
+      items = newItems;
+      renderItems(); recalc();
     }
-    renderItems(); recalc();
   }
   closeWAImport();
   let filled = [];
   if (parsed.name) filled.push('Nama');
   if (parsed.phone) filled.push('No HP');
   if (parsed.address) filled.push('Alamat');
-  if (parsed.order) filled.push('Pesanan');
+  if (parsed.items && parsed.items.length) filled.push(`Pesanan (${parsed.items.length} item)`);
   toast(`✓ Terisi: ${filled.join(', ')}`, 'ok');
 }
 
@@ -3800,7 +3995,9 @@ async function exportPDF() {
           toast('PDF dibagikan ✓', 'ok');
           return;
         } catch (e) {
+          console.error('[NotaSeru] navigator.share (PDF) gagal:', e.name, e.message);
           if (e.name === 'AbortError') { toast('Dibatalkan', ''); return; }
+          toast('Share gagal: ' + e.name + ' — pakai cara alternatif', '');
         }
       }
       // Fallback: download
@@ -3828,6 +4025,12 @@ async function exportPNG() {
     });
     const file = new File([blob], `${fname}.png`, { type: 'image/png' });
 
+    if (!navigator.canShare) {
+      console.warn('[NotaSeru] navigator.canShare tidak ada di browser ini.');
+    } else if (!navigator.canShare({ files: [file] })) {
+      console.warn('[NotaSeru] navigator.canShare({files}) = false untuk PNG di browser ini.');
+    }
+
     // Coba Web Share API (support di mobile)
     if (navigator.canShare && navigator.canShare({ files: [file] })) {
       try {
@@ -3839,7 +4042,9 @@ async function exportPNG() {
         toast('Dibagikan ✓', 'ok');
         return;
       } catch (shareErr) {
+        console.error('[NotaSeru] navigator.share (PNG) gagal:', shareErr.name, shareErr.message);
         if (shareErr.name === 'AbortError') { toast('Dibatalkan', ''); return; }
+        toast('Share gagal: ' + shareErr.name + ' — pakai cara alternatif', '');
         // fallback ke download
       }
     }
@@ -4418,7 +4623,7 @@ function applyAppearance() {
   }
 }
 
-function saveSettings() {
+function saveSettings(silent) {
   const s = DB.get('settings', {});
   const fields = { settName:'storeName', settAddr:'storeAddress', settPhone:'storePhone', settEmail:'storeEmail', settBank:'bankName', settBankNo:'bankNo', settBankOwner:'bankOwner', settThankyou:'thankyou', settSignLabel:'signLabel', settBankNote:'bankNote', settWaTemplate:'waTemplate' };
   for (const [id, key] of Object.entries(fields)) {
@@ -4428,12 +4633,18 @@ function saveSettings() {
   try { localStorage.removeItem('ns3_settingsDraft'); } catch {}
   DB.set('settings', s);
   renderDashboard();
-  toast('Pengaturan disimpan ✓', 'ok');
+  if (!silent) toast('Pengaturan disimpan ✓', 'ok');
 }
 
 // Simpan ketikan sementara ke localStorage agar tidak hilang saat sync cloud masuk.
 // Dipanggil dari oninput pada field settings di HTML.
-// Tidak push ke cloud — hanya pelindung sementara sampai user klik Simpan.
+// FIX: sebelumnya draft ini HANYA disimpan lokal dan baru masuk ke data settings
+// yang sesungguhnya kalau user pencet tombol centang "Simpan" — kalau lupa
+// pencet, perubahan (mis. template pesan WA custom) hilang begitu pindah halaman.
+// Sekarang draft tetap ditulis (untuk proteksi saat sync cloud masuk di tengah
+// ketikan), TAPI juga auto-commit ke settings asli beberapa saat setelah user
+// berhenti mengetik, supaya custom apapun otomatis kepakai tanpa wajib pencet Simpan.
+let _settingsAutoSaveTimer = null;
 function _saveSettingsDraft() {
   try {
     const fields = { settName:'storeName', settAddr:'storeAddress', settPhone:'storePhone', settEmail:'storeEmail', settBank:'bankName', settBankNo:'bankNo', settBankOwner:'bankOwner', settThankyou:'thankyou', settSignLabel:'signLabel', settBankNote:'bankNote', settWaTemplate:'waTemplate' };
@@ -4443,6 +4654,8 @@ function _saveSettingsDraft() {
     }
     localStorage.setItem('ns3_settingsDraft', JSON.stringify(draft));
   } catch {}
+  clearTimeout(_settingsAutoSaveTimer);
+  _settingsAutoSaveTimer = setTimeout(() => { saveSettings(true); }, 1200);
 }
 
 function resetWaTemplate() {
