@@ -246,6 +246,13 @@
       <input type="search" class="search-input" id="invSearch" placeholder="Cari nama atau nomor nota..." oninput="renderInvList()">
     </div>
   </div>
+  <div class="filter-bar" id="invPeriodBar" style="gap:6px;padding:10px 16px 0">
+    <div class="chip active" onclick="setInvPeriod('1m',this)">Bln Ini</div>
+    <div class="chip" onclick="setInvPeriod('3m',this)">3 Bln</div>
+    <div class="chip" onclick="setInvPeriod('6m',this)">6 Bln</div>
+    <div class="chip" onclick="setInvPeriod('1y',this)">1 Tahun</div>
+    <div class="chip" onclick="setInvPeriod('custom',this)">Pilih Periode</div>
+  </div>
   <div class="filter-bar" id="invFilterBar">
     <div class="chip active" onclick="setInvFilter('all',this)">Semua</div>
     <div class="chip" onclick="setInvFilter('lunas',this)">Lunas</div>
@@ -255,6 +262,27 @@
   <div style="padding:0 20px 20px">
     <div style="font-size:12px;color:var(--txt-3);margin-bottom:10px" id="invListCount"></div>
     <div class="inv-cards" id="allInvList"></div>
+  </div>
+
+  <!-- Custom period modal -->
+  <div id="invCustomModal" style="display:none;position:fixed;inset:0;z-index:999;background:rgba(0,0,0,0.5);align-items:flex-end;justify-content:center">
+    <div style="background:var(--bg-card);border-radius:20px 20px 0 0;padding:24px 20px 32px;width:100%;max-width:480px">
+      <div style="font-size:15px;font-weight:700;color:var(--txt-1);margin-bottom:16px">Pilih Periode</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+        <div>
+          <label style="font-size:11px;font-weight:700;color:var(--txt-3);text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:6px">Dari</label>
+          <input type="month" id="invFromMonth" class="form-input">
+        </div>
+        <div>
+          <label style="font-size:11px;font-weight:700;color:var(--txt-3);text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:6px">Sampai</label>
+          <input type="month" id="invToMonth" class="form-input">
+        </div>
+      </div>
+      <div style="display:flex;gap:10px">
+        <button class="btn btn-secondary" style="flex:1" onclick="closeInvCustomModal()">Batal</button>
+        <button class="btn btn-primary" style="flex:1" onclick="applyInvCustomPeriod()">Terapkan</button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -1043,19 +1071,28 @@
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
       <div>
         <div style="font-size:11px;color:var(--txt-3);margin-bottom:4px">Dari Tanggal</div>
-        <input type="date" id="exportDateFrom" class="input" style="font-size:13px;padding:10px 12px" oninput="onCustomDateChange()">
+        <input type="date" id="exportDateFrom" class="export-date-input" oninput="onCustomDateChange()">
       </div>
       <div>
         <div style="font-size:11px;color:var(--txt-3);margin-bottom:4px">Sampai Tanggal</div>
-        <input type="date" id="exportDateTo" class="input" style="font-size:13px;padding:10px 12px" oninput="onCustomDateChange()">
+        <input type="date" id="exportDateTo" class="export-date-input" oninput="onCustomDateChange()">
       </div>
     </div>
     <div id="exportPeriodInfo" style="font-size:12px;color:var(--primary);font-weight:600;margin-bottom:16px;min-height:18px"></div>
     <div style="font-size:11px;font-weight:700;color:var(--txt-3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px">Format File</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:20px">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
       <button class="export-fmt-btn active" id="fmtXLSX" onclick="selectExportFmt('xlsx',this)">&#128196; Excel (.xlsx)</button>
       <button class="export-fmt-btn" id="fmtCSV" onclick="selectExportFmt('csv',this)">&#128196; CSV</button>
     </div>
+    <button class="export-fmt-btn export-fmt-pdf" id="fmtPDF" onclick="selectExportFmt('pdf',this)" style="width:100%;margin-bottom:20px;padding:14px 12px;justify-content:flex-start;gap:10px">
+      <div style="width:34px;height:34px;border-radius:9px;background:var(--primary-soft);display:flex;align-items:center;justify-content:center;flex:none">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="15" x2="15" y2="15"/><line x1="9" y1="11" x2="12" y2="11"/></svg>
+      </div>
+      <div style="text-align:left">
+        <div style="font-size:13px;font-weight:700">PDF &mdash; E-Statement</div>
+        <div style="font-size:11px;color:var(--txt-3);font-weight:500">Laporan resmi rapi, siap dicetak / dikirim</div>
+      </div>
+    </button>
     <button class="btn btn-primary" style="width:100%;padding:14px;font-size:14px" onclick="doExportKeuangan()">Export Sekarang</button>
     <div style="height:8px"></div>
   </div>

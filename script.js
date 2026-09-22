@@ -8,6 +8,7 @@ let curPage = 'dashboard', prevPage = 'dashboard';
 let curInvId = null;
 let items = [];
 let invFilter = 'all';
+let invPeriod = '1m', invCustomFrom = null, invCustomTo = null;
 let selectMode = false;
 let selectedIds = new Set();
 
@@ -845,11 +846,50 @@ function deleteProduct(id) {
   renderCatalogList();
 }
 
+// ── Filter periode daftar Nota (sama seperti filter periode di tab Keuangan) ──
+function getInvDateRange() {
+  const now = new Date();
+  if (invPeriod === '1m') return { from: new Date(now.getFullYear(), now.getMonth(), 1), to: new Date(now.getFullYear(), now.getMonth()+1, 0) };
+  if (invPeriod === '3m') return { from: new Date(now.getFullYear(), now.getMonth()-2, 1), to: new Date(now.getFullYear(), now.getMonth()+1, 0) };
+  if (invPeriod === '6m') return { from: new Date(now.getFullYear(), now.getMonth()-5, 1), to: new Date(now.getFullYear(), now.getMonth()+1, 0) };
+  if (invPeriod === '1y') return { from: new Date(now.getFullYear()-1, now.getMonth()+1, 1), to: new Date(now.getFullYear(), now.getMonth()+1, 0) };
+  if (invPeriod === 'custom' && invCustomFrom && invCustomTo) {
+    const [fy,fm] = invCustomFrom.split('-').map(Number);
+    const [ty,tm] = invCustomTo.split('-').map(Number);
+    return { from: new Date(fy, fm-1, 1), to: new Date(ty, tm, 0) };
+  }
+  return { from: new Date(now.getFullYear(), now.getMonth(), 1), to: new Date(now.getFullYear(), now.getMonth()+1, 0) };
+}
+
+function setInvPeriod(p, el) {
+  invPeriod = p;
+  document.querySelectorAll('#invPeriodBar .chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  if (p === 'custom') { openInvCustomModal(); return; }
+  renderInvList();
+}
+
+function openInvCustomModal() {
+  const m = document.getElementById('invCustomModal');
+  if (m) { m.style.display = 'flex'; }
+}
+function closeInvCustomModal() {
+  const m = document.getElementById('invCustomModal');
+  if (m) m.style.display = 'none';
+}
+function applyInvCustomPeriod() {
+  invCustomFrom = document.getElementById('invFromMonth').value;
+  invCustomTo = document.getElementById('invToMonth').value;
+  closeInvCustomModal();
+  renderInvList();
+}
+
 // ── Invoice List ────────────────────────────
 function renderInvList() {
   const invs = DB.get('invoices', []);
   const q = document.getElementById('invSearch')?.value?.toLowerCase() || '';
-  let f = invs;
+  const { from, to } = getInvDateRange();
+  let f = invs.filter(i => { const d = new Date(i.date || i.createdAt); return d >= from && d <= to; });
   if (invFilter !== 'all') f = f.filter(i => i.status === invFilter);
   if (q) f = f.filter(i => i.customer?.name?.toLowerCase().includes(q) || i.number?.toLowerCase().includes(q));
   const cnt = document.getElementById('invListCount');
@@ -4452,6 +4492,7 @@ function renderExpensePage() {
   const now = new Date();
   const m = now.getMonth(), y = now.getFullYear();
   const exps = DB.get('expenses', []);
+  const invs = DB.get('invoices', []);
   const me = exps.filter(e => { const d = new Date(e.date); return d.getMonth()===m && d.getFullYear()===y; });
   const total = me.reduce((s,e) => s+(e.amount||0), 0);
   setText('expTotalVal', fmtRp(total));
@@ -4461,7 +4502,13 @@ function renderExpensePage() {
   const list = document.getElementById('expList'); if (!list) return;
   const sorted = [...exps].sort((a,b) => new Date(b.date)-new Date(a.date));
   if (!sorted.length) { list.innerHTML = emptyHTML('expense', 'Belum Ada Pengeluaran', 'Catat pengeluaran pertama Anda'); return; }
-  list.innerHTML = sorted.map(e => `
+  // Kelompokkan per nota dengan garis pemisah — sama seperti di tab Keuangan
+  let lastGroupKey = null;
+  const rows = [];
+  sorted.forEach(e => {
+    const gKey = expenseGroupKey(e);
+    if (gKey !== lastGroupKey) { rows.push(expenseGroupDividerHTML(e, invs)); lastGroupKey = gKey; }
+    rows.push(`
     <div class="exp-card">
       <div class="exp-ic">${catIco[e.category]||catIco.lainnya}</div>
       <div class="exp-info">
@@ -4476,7 +4523,9 @@ function renderExpensePage() {
           <button onclick="delExp('${e.id}')" style="padding:4px 10px;border-radius:6px;background:var(--danger-soft);color:var(--danger);border:none;font-size:11px;font-weight:600;cursor:pointer;font-family:var(--font)">Hapus</button>
         </div>
       </div>
-    </div>`).join('');
+    </div>`);
+  });
+  list.innerHTML = rows.join('');
 }
 
 function openExpenseSheet(id = null) {
@@ -5613,6 +5662,8 @@ async function doExportKeuangan() {
   closeSheets();
   if (_exportFmt === 'csv') {
     await _exportCSV(fromD, toD, fromVal, toVal);
+  } else if (_exportFmt === 'pdf') {
+    await _exportPDFStatement(fromD, toD, fromVal, toVal);
   } else {
     await _exportXLSX(fromD, toD, fromVal, toVal);
   }
@@ -5777,4 +5828,256 @@ async function _exportXLSX(fromD, toD, fromVal, toVal) {
     var fname = ('Keuangan_'+biz+'_'+fromVal+'_'+toVal+'.xlsx').replace(/[^a-zA-Z0-9_.]/g,'_');
     await _shareOrDownload(blob, fname);
   } catch(err) { toast('Gagal: '+err.message, 'err'); }
+}
+
+// ── Export: PDF E-Statement (Laporan Keuangan Profesional) ──────────────────
+// Layout meniru "e-statement" m-banking: letterhead identitas bisnis di atas,
+// ringkasan, mutasi kronologis dengan saldo berjalan, dan identitas NotaSeru
+// di footer setiap halaman. Dirender per-halaman via html2canvas -> jsPDF
+// supaya rapi di ukuran A4 (mengikuti pola renderCanvas() yang sudah dipakai
+// untuk export nota, W=794 / H=1123 @ skala A4).
+const _STMT_W = 794, _STMT_H = 1123;
+
+function _stmtEsc(s) { return xss(s); }
+
+function _stmtFmtDate(d) {
+  return d.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
+}
+
+function _stmtRowsHTML(pageRows, rowStartNo) {
+  if (!pageRows.length) return '';
+  return pageRows.map(function(r, i) {
+    var no = rowStartNo + i;
+    var zebra = (i % 2 === 1) ? 'background:#F8FAFC;' : '';
+    var isIn = r.type === 'in';
+    var pillBg = isIn ? '#E3F8EE' : '#FEECEC';
+    var pillFg = isIn ? '#0B7A55' : '#C6362B';
+    var pillLabel = isIn ? 'Masuk' : 'Keluar';
+    var amtColor = isIn ? '#0B7A55' : '#C6362B';
+    var amtSign = isIn ? '+' : '\u2212';
+    var saldoColor = r.saldo < 0 ? '#C6362B' : '#111827';
+    return '' +
+    '<div style="display:flex;align-items:center;padding:9px 14px;' + zebra + 'border-bottom:1px solid #EEF0F2">' +
+      '<div style="width:26px;font-size:11px;color:#9CA3AF;font-weight:600">' + no + '</div>' +
+      '<div style="width:74px;font-size:11px;color:#4B5563">' + _stmtFmtDate(r.date) + '</div>' +
+      '<div style="flex:1;min-width:0;padding-right:10px">' +
+        '<div style="font-size:12px;font-weight:700;color:#111827;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + _stmtEsc(r.desc) + '</div>' +
+        (r.sub ? '<div style="font-size:10px;color:#9CA3AF;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + _stmtEsc(r.sub) + '</div>' : '') +
+      '</div>' +
+      '<div style="width:58px;flex:none">' +
+        '<span style="display:inline-block;font-size:9.5px;font-weight:700;padding:3px 8px;border-radius:999px;background:' + pillBg + ';color:' + pillFg + '">' + pillLabel + '</span>' +
+      '</div>' +
+      '<div style="width:108px;flex:none;text-align:right;font-size:12px;font-weight:700;color:' + amtColor + '">' + amtSign + ' ' + fmtRp(r.amount).replace('Rp',' ') + '</div>' +
+      '<div style="width:108px;flex:none;text-align:right;font-size:11.5px;font-weight:700;color:' + saldoColor + '">' + fmtRp(r.saldo) + '</div>' +
+    '</div>';
+  }).join('');
+}
+
+function _stmtTableHeadHTML() {
+  return '' +
+  '<div style="display:flex;align-items:center;padding:8px 14px;background:#111827;border-radius:8px 8px 0 0">' +
+    '<div style="width:26px;font-size:9.5px;font-weight:700;color:rgba(255,255,255,.55)">NO</div>' +
+    '<div style="width:74px;font-size:9.5px;font-weight:700;color:rgba(255,255,255,.55);letter-spacing:.04em">TANGGAL</div>' +
+    '<div style="flex:1;font-size:9.5px;font-weight:700;color:rgba(255,255,255,.55);letter-spacing:.04em">KETERANGAN</div>' +
+    '<div style="width:58px;flex:none;font-size:9.5px;font-weight:700;color:rgba(255,255,255,.55);letter-spacing:.04em">TIPE</div>' +
+    '<div style="width:108px;flex:none;text-align:right;font-size:9.5px;font-weight:700;color:rgba(255,255,255,.55);letter-spacing:.04em">NOMINAL</div>' +
+    '<div style="width:108px;flex:none;text-align:right;font-size:9.5px;font-weight:700;color:rgba(255,255,255,.55);letter-spacing:.04em">SALDO</div>' +
+  '</div>';
+}
+
+function _stmtLetterheadHTML(ctx) {
+  var s = ctx.s;
+  var logoHTML = s.logo
+    ? '<img src="' + s.logo + '" style="width:52px;height:52px;border-radius:12px;object-fit:cover;flex:none">'
+    : '<div style="width:52px;height:52px;border-radius:12px;background:#111827;color:#fff;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:800;flex:none">' + _stmtEsc((ctx.biz||'N').charAt(0).toUpperCase()) + '</div>';
+  var contactLine = [s.storePhone, s.storeEmail].filter(Boolean).map(_stmtEsc).join('&nbsp;&nbsp;\u00b7&nbsp;&nbsp;');
+  return '' +
+  '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:18px">' +
+    '<div style="display:flex;gap:12px;align-items:flex-start;max-width:340px">' +
+      logoHTML +
+      '<div>' +
+        '<div style="font-size:19px;font-weight:800;color:#111827;letter-spacing:-.01em;line-height:1.25">' + _stmtEsc(ctx.biz) + '</div>' +
+        (s.storeAddress ? '<div style="font-size:10.5px;color:#6B7280;margin-top:3px;line-height:1.5">' + _stmtEsc(s.storeAddress) + '</div>' : '') +
+        (contactLine ? '<div style="font-size:10.5px;color:#6B7280;margin-top:1px">' + contactLine + '</div>' : '') +
+      '</div>' +
+    '</div>' +
+    '<div style="text-align:right;flex:none">' +
+      '<div style="font-size:9.5px;font-weight:700;color:#9CA3AF;letter-spacing:.14em">LAPORAN KEUANGAN</div>' +
+      '<div style="font-size:21px;font-weight:800;color:#111827;letter-spacing:-.01em;margin-top:2px">E-Statement</div>' +
+      '<div style="font-size:10.5px;color:#4B5563;margin-top:6px;font-weight:600">' + _stmtEsc(ctx.periodeStr) + '</div>' +
+      '<div style="font-size:9.5px;color:#9CA3AF;margin-top:2px">Dicetak: ' + _stmtEsc(ctx.genStr) + '</div>' +
+    '</div>' +
+  '</div>';
+}
+
+function _stmtSummaryHTML(ctx) {
+  var card = function(label, value, color, bg) {
+    return '<div style="flex:1;background:' + bg + ';border-radius:10px;padding:12px 14px">' +
+      '<div style="font-size:9.5px;font-weight:700;color:' + color + ';letter-spacing:.06em;opacity:.85">' + label + '</div>' +
+      '<div style="font-size:16px;font-weight:800;color:' + color + ';margin-top:4px;letter-spacing:-.01em">' + value + '</div>' +
+    '</div>';
+  };
+  var netColor = ctx.net >= 0 ? '#0B7A55' : '#C6362B';
+  var netBg = ctx.net >= 0 ? '#E3F8EE' : '#FEECEC';
+  return '' +
+  '<div style="display:flex;gap:10px;margin-bottom:16px">' +
+    card('TOTAL PEMASUKAN', fmtRp(ctx.totalIn), '#0B7A55', '#E3F8EE') +
+    card('TOTAL PENGELUARAN', fmtRp(ctx.totalOut), '#C6362B', '#FEECEC') +
+    card('SALDO BERSIH', fmtRp(ctx.net), netColor, netBg) +
+  '</div>';
+}
+
+function _stmtMiniHeadHTML(ctx) {
+  return '' +
+  '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid #E5E7EB">' +
+    '<div style="font-size:13px;font-weight:800;color:#111827">' + _stmtEsc(ctx.biz) + '</div>' +
+    '<div style="font-size:10.5px;color:#9CA3AF">E-Statement &middot; ' + _stmtEsc(ctx.periodeStr) + '</div>' +
+  '</div>';
+}
+
+function _stmtFooterHTML(ctx) {
+  return '' +
+  '<div style="position:absolute;left:36px;right:36px;bottom:28px;padding-top:10px;border-top:1px solid #E5E7EB;display:flex;justify-content:space-between;align-items:center">' +
+    '<div style="display:flex;align-items:center;gap:7px">' +
+      '<div style="width:16px;height:16px;border-radius:5px;background:#111827;display:flex;align-items:center;justify-content:center">' +
+        '<div style="width:6px;height:6px;border-radius:2px;background:#fff"></div>' +
+      '</div>' +
+      '<div>' +
+        '<span style="font-size:10.5px;font-weight:800;color:#111827;letter-spacing:.01em">NotaSeru</span>' +
+        '<span style="font-size:9px;color:#9CA3AF"> &middot; Aplikasi Nota &amp; Keuangan UMKM</span>' +
+      '</div>' +
+    '</div>' +
+    '<div style="font-size:9.5px;color:#9CA3AF;font-weight:600">Halaman ' + ctx.pageIndex + ' dari ' + ctx.totalPages + '</div>' +
+  '</div>';
+}
+
+function _buildStatementPageHTML(ctx) {
+  var isFirst = ctx.pageIndex === 1;
+  var head = isFirst
+    ? (_stmtLetterheadHTML(ctx) + _stmtSummaryHTML(ctx))
+    : _stmtMiniHeadHTML(ctx);
+  var tableWrap = '' +
+    '<div style="border:1px solid #EEF0F2;border-radius:8px;overflow:hidden">' +
+      _stmtTableHeadHTML() +
+      _stmtRowsHTML(ctx.pageRows, ctx.rowStartNo) +
+    '</div>';
+  var isLast = ctx.pageIndex === ctx.totalPages;
+  var disclaimer = isLast
+    ? '<div style="margin-top:14px;font-size:9.5px;color:#B0B5BC;line-height:1.5;font-style:italic">Laporan ini disusun otomatis berdasarkan data yang tercatat pada aplikasi NotaSeru dan bersifat informatif untuk kebutuhan pencatatan internal usaha.</div>'
+    : '';
+  return '' +
+  '<div style="padding:36px 36px 70px;height:100%;box-sizing:border-box;font-family:\'Manrope\',-apple-system,BlinkMacSystemFont,\'Helvetica Neue\',Helvetica,Arial,sans-serif;position:relative;background:#ffffff">' +
+    head +
+    tableWrap +
+    disclaimer +
+    _stmtFooterHTML(ctx) +
+  '</div>';
+}
+
+async function _exportPDFStatement(fromD, toD, fromVal, toVal) {
+  var host = null;
+  try {
+    toast('Menyiapkan E-Statement...');
+    if (!window.jspdf || !window.html2canvas) { toast('Library PDF belum siap, coba lagi', 'err'); return; }
+    var jsPDF = window.jspdf.jsPDF;
+
+    var s = DB.get('settings', {});
+    var biz = s.storeName || s.businessName || 'Bisnis Saya';
+
+    var invs = DB.get('invoices', []).filter(function(i) { var d = new Date(i.date || i.createdAt); return d >= fromD && d <= toD; });
+    var exps = DB.get('expenses', []).filter(function(e) { var d = new Date(e.date); return d >= fromD && d <= toD; });
+
+    var rows = [];
+    invs.forEach(function(inv) {
+      rows.push({
+        date: new Date(inv.date || inv.createdAt),
+        desc: 'Nota ' + (inv.number || '-') + ((inv.customer && inv.customer.name) ? ' \u2014 ' + inv.customer.name : ''),
+        sub: inv.status === 'lunas' ? 'Lunas' : inv.status === 'dp' ? 'DP / Uang Muka' : 'Belum Bayar',
+        type: 'in',
+        amount: Number(inv.grand) || 0
+      });
+    });
+    exps.forEach(function(exp) {
+      rows.push({
+        date: new Date(exp.date),
+        desc: exp.name || 'Pengeluaran',
+        sub: 'Kategori: ' + (exp.cat || 'lainnya'),
+        type: 'out',
+        amount: Number(exp.amount) || 0
+      });
+    });
+
+    if (!rows.length) { toast('Tidak ada data pada periode ini', 'err'); return; }
+
+    rows.sort(function(a, b) { return a.date - b.date; });
+    var running = 0;
+    rows.forEach(function(r) { running += (r.type === 'in' ? r.amount : -r.amount); r.saldo = running; });
+
+    var totalIn = rows.filter(function(r) { return r.type === 'in'; }).reduce(function(acc, r) { return acc + r.amount; }, 0);
+    var totalOut = rows.filter(function(r) { return r.type === 'out'; }).reduce(function(acc, r) { return acc + r.amount; }, 0);
+    var net = totalIn - totalOut;
+
+    var ROWS_PAGE1 = 12, ROWS_OTHER = 20;
+    var pagesData = [];
+    var idx = 0, pn = 1;
+    while (idx < rows.length) {
+      var cap = pn === 1 ? ROWS_PAGE1 : ROWS_OTHER;
+      pagesData.push(rows.slice(idx, idx + cap));
+      idx += cap; pn++;
+    }
+    var totalPages = pagesData.length;
+
+    var dOpt = { day: '2-digit', month: 'long', year: 'numeric' };
+    var periodeStr = fromD.toLocaleDateString('id-ID', dOpt) + ' \u2013 ' + toD.toLocaleDateString('id-ID', dOpt);
+    var now = new Date();
+    var genStr = now.toLocaleDateString('id-ID', dOpt) + ', ' + now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+
+    host = document.createElement('div');
+    host.style.cssText = 'position:fixed;top:0;left:-9999px;width:' + _STMT_W + 'px;z-index:-9999;pointer-events:none';
+    document.body.appendChild(host);
+
+    var pdf = null;
+    var rowStartNo = 1;
+    for (var p = 0; p < totalPages; p++) {
+      var pageDiv = document.createElement('div');
+      pageDiv.style.cssText = 'width:' + _STMT_W + 'px;height:' + _STMT_H + 'px;background:#ffffff;box-sizing:border-box;overflow:hidden';
+      pageDiv.innerHTML = _buildStatementPageHTML({
+        s: s, biz: biz, periodeStr: periodeStr, genStr: genStr,
+        totalIn: totalIn, totalOut: totalOut, net: net,
+        pageRows: pagesData[p], pageIndex: p + 1, totalPages: totalPages,
+        rowStartNo: rowStartNo
+      });
+      rowStartNo += pagesData[p].length;
+
+      host.innerHTML = '';
+      host.appendChild(pageDiv);
+
+      if (document.fonts && document.fonts.ready) await document.fonts.ready;
+      await new Promise(function(r) { requestAnimationFrame(function() { requestAnimationFrame(r); }); });
+
+      var canvas = await html2canvas(pageDiv, {
+        scale: 2.2, useCORS: true, allowTaint: false, backgroundColor: '#ffffff',
+        width: _STMT_W, height: _STMT_H, windowWidth: _STMT_W + 60, windowHeight: _STMT_H + 60,
+        logging: false, imageTimeout: 0
+      });
+
+      if (!pdf) {
+        pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+      } else {
+        pdf.addPage('a4', 'portrait');
+      }
+      pdf.addImage(canvas.toDataURL('image/jpeg', 0.95), 'JPEG', 0, 0, 210, 297);
+    }
+
+    document.body.removeChild(host);
+    host = null;
+
+    var pdfBlob = pdf.output('blob');
+    var fname = ('E-Statement_' + biz + '_' + fromVal + '_' + toVal + '.pdf').replace(/[^a-zA-Z0-9_.]/g, '_');
+    await _shareOrDownload(pdfBlob, fname);
+  } catch (err) {
+    console.error('exportPDFStatement error:', err);
+    toast('Gagal membuat PDF: ' + err.message, 'err');
+    if (host && host.parentNode) host.parentNode.removeChild(host);
+  }
 }

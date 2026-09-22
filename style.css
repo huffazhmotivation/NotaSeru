@@ -786,6 +786,13 @@ img{max-width:100%;display:block;}
 .export-fmt-btn{display:flex;align-items:center;justify-content:center;gap:6px;padding:12px 8px;border-radius:var(--r-md);border:1.5px solid var(--border);background:var(--bg-input);color:var(--txt-2);font-size:12px;font-weight:600;cursor:pointer;font-family:var(--font);transition:all .18s;-webkit-tap-highlight-color:transparent;}
 .export-fmt-btn.active{border-color:var(--primary);background:var(--primary-soft);color:var(--primary);}
 .export-fmt-btn:active{opacity:.7;}
+.export-date-input{width:100%;padding:10px 12px;border-radius:var(--r-md);border:1.5px solid var(--border);background:var(--bg-input);color:var(--txt-1);font-size:13px;font-family:var(--font);outline:none;box-sizing:border-box;transition:all .18s;color-scheme:light;-webkit-appearance:none;}
+[data-theme="dark"] .export-date-input{color-scheme:dark;}
+.export-date-input:focus{border-color:var(--primary);background:var(--bg-card);}
+.export-date-input::-webkit-calendar-picker-indicator{cursor:pointer;opacity:.75;}
+.export-date-input::-webkit-calendar-picker-indicator:hover{opacity:1;}
+.export-fmt-pdf{display:flex;}
+.export-fmt-pdf.active{border-color:var(--primary);background:var(--primary-soft);}
 
 /* ── Grup Block Visual ─────────────────────── */
 .grup-block {
