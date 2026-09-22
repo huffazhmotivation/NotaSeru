@@ -5854,7 +5854,7 @@ function _stmtFmtDate(d) {
 // positioning + block layout biasa adalah mode paling dasar dan paling stabil
 // di html2canvas, jadi tidak ada lagi perhitungan tinggi/lebar otomatis yang
 // bisa meleset.
-var _STMT_ROW_H = 56;
+var _STMT_ROW_H = 60; // dilebihkan dari kebutuhan asli (~36px) sebagai buffer ekstra jaga-jaga kalau metrik font sedikit berbeda di device lain (mis. Safari/WebKit di iPhone)
 var _STMT_PAD_X = 14;
 // PENTING: lebar tabel BUKAN _STMT_W (lebar halaman penuh 794px), melainkan
 // lebar area konten setelah dikurangi padding kiri+kanan halaman (40px+40px,
@@ -5885,17 +5885,17 @@ function _stmtRowsHTML(pageRows, rowStartNo) {
       return '<div style="position:absolute;left:' + x + 'px;top:' + top + 'px;width:' + w + 'px;' + css + '">' + html + '</div>';
     };
     var descHTML =
-      '<div style="font-size:11.5px;line-height:15px;font-weight:700;color:#1E293B;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + _stmtEsc(r.desc) + '</div>' +
-      (r.sub ? '<div style="font-size:9.5px;line-height:13px;color:#9CA3AF;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:3px">' + _stmtEsc(r.sub) + '</div>' : '');
-    var descTop = r.sub ? 13 : 21;
+      '<div style="font-size:11.5px;line-height:16px;font-weight:700;color:#1E293B;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + _stmtEsc(r.desc) + '</div>' +
+      (r.sub ? '<div style="font-size:9.5px;line-height:14px;color:#9CA3AF;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:4px">' + _stmtEsc(r.sub) + '</div>' : '');
+    var descTop = r.sub ? 12 : 22;
     return '' +
     '<div style="position:relative;height:' + _STMT_ROW_H + 'px;' + zebra + 'border-bottom:1px solid #DEE3EC;box-sizing:border-box;overflow:hidden">' +
-      cell(_STMT_X_NO, _STMT_COL_NO, 21, 'font-size:10px;line-height:13px;color:#B4BAC4;font-weight:700', String(no)) +
-      cell(_STMT_X_TGL, _STMT_COL_TGL, 21, 'font-size:9.5px;line-height:13px;color:#6B7280;font-weight:700;white-space:nowrap;overflow:hidden', _stmtFmtDate(r.date)) +
+      cell(_STMT_X_NO, _STMT_COL_NO, 23, 'font-size:10px;line-height:14px;color:#B4BAC4;font-weight:700', String(no)) +
+      cell(_STMT_X_TGL, _STMT_COL_TGL, 23, 'font-size:9.5px;line-height:14px;color:#6B7280;font-weight:700;white-space:nowrap;overflow:hidden', _stmtFmtDate(r.date)) +
       cell(_STMT_X_KET, _STMT_W_KET, descTop, 'overflow:hidden', descHTML) +
-      cell(_STMT_X_TIPE, _STMT_COL_TIPE, 21, 'font-size:9.5px;line-height:13px;font-weight:800;letter-spacing:.02em;color:' + pillFg + ';white-space:nowrap;text-align:center', pillLabel) +
-      cell(_STMT_X_NOMINAL, _STMT_COL_NOMINAL, 21, 'font-size:11px;line-height:13px;font-weight:700;color:' + amtColor + ';white-space:nowrap;text-align:right', amtSign + '&nbsp;' + fmtRp(r.amount).replace('Rp','Rp\u00A0')) +
-      cell(_STMT_X_SALDO, _STMT_COL_SALDO, 21, 'font-size:10.5px;line-height:13px;font-weight:700;color:' + saldoColor + ';white-space:nowrap;text-align:right', fmtRp(r.saldo)) +
+      cell(_STMT_X_TIPE, _STMT_COL_TIPE, 23, 'font-size:9.5px;line-height:14px;font-weight:800;letter-spacing:.02em;color:' + pillFg + ';white-space:nowrap;text-align:center', pillLabel) +
+      cell(_STMT_X_NOMINAL, _STMT_COL_NOMINAL, 23, 'font-size:11px;line-height:14px;font-weight:700;color:' + amtColor + ';white-space:nowrap;text-align:right', amtSign + '&nbsp;' + fmtRp(r.amount).replace('Rp','Rp\u00A0')) +
+      cell(_STMT_X_SALDO, _STMT_COL_SALDO, 23, 'font-size:10.5px;line-height:14px;font-weight:700;color:' + saldoColor + ';white-space:nowrap;text-align:right', fmtRp(r.saldo)) +
     '</div>';
   }).join('');
 }
@@ -6102,13 +6102,29 @@ async function _exportPDFStatement(fromD, toD, fromVal, toVal) {
       host.innerHTML = '';
       host.appendChild(pageDiv);
 
+      // Tunggu font benar-benar siap. document.fonts.ready kadang resolve
+      // SEBELUM browser (terutama Safari/WebKit di iPhone) benar-benar selesai
+      // menggambar ulang teks pakai font barunya -- kalau html2canvas keburu
+      // "memotret" di momen itu, huruf bisa kepotong/setengah hilang karena
+      // metrik font yang dipakai belum yang final (masih font pengganti
+      // sementara). Preload eksplisit + jeda tambahan 250ms (pola yang sama
+      // dipakai di export PDF Nota yang sudah terbukti stabil) memberi waktu
+      // ekstra supaya render benar-benar final sebelum di-capture.
+      try {
+        await Promise.all([
+          document.fonts.load('700 11.5px Manrope'),
+          document.fonts.load('800 21px Manrope'),
+          document.fonts.load('900 15px Manrope')
+        ]);
+      } catch (e) {}
       if (document.fonts && document.fonts.ready) await document.fonts.ready;
       await new Promise(function(r) { requestAnimationFrame(function() { requestAnimationFrame(r); }); });
+      await new Promise(function(r) { setTimeout(r, 250); });
 
       var canvas = await html2canvas(pageDiv, {
         scale: 2.2, useCORS: true, allowTaint: false, backgroundColor: '#ffffff',
         width: _STMT_W, height: _STMT_H, windowWidth: _STMT_W + 60, windowHeight: _STMT_H + 60,
-        logging: false, imageTimeout: 0
+        logging: false, imageTimeout: 0, foreignObjectRendering: false
       });
 
       if (!pdf) {
