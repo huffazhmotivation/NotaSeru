@@ -5854,7 +5854,7 @@ function _stmtFmtDate(d) {
 // positioning + block layout biasa adalah mode paling dasar dan paling stabil
 // di html2canvas, jadi tidak ada lagi perhitungan tinggi/lebar otomatis yang
 // bisa meleset.
-var _STMT_ROW_H = 66; // dinaikkan dari 60 supaya ada ruang ekstra buat line-height baris nama nota yang sudah diperlebar (20px) + baris status (18px) tanpa mepet ke batas bawah baris
+var _STMT_ROW_H = 72; // dinaikkan lagi dari 66 -> masih ada sisa clipping tipis di bagian bawah huruf nama nota, jadi line-height baris nama nota (23px) + baris status (20px) butuh sedikit ruang tambahan lagi supaya benar-benar tidak mepet ke batas bawah baris
 // PENTING soal teks kepotong separuh di baris tabel (huruf kapital berujung
 // terpotong, mis. "Jul" jadi "lul", "Lunas" jadi "unas", "Belum Bayar" jadi
 // "Ralum Rayar"): font Manrope punya metrik vertikal (ascent/cap-height) yang
@@ -5929,17 +5929,17 @@ function _stmtRowsHTML(pageRows, rowStartNo) {
       return '<div style="position:absolute;left:' + x + 'px;top:' + top + 'px;width:' + w + 'px;' + css + '">' + html + '</div>';
     };
     var descHTML =
-      '<div style="font-size:11.5px;line-height:20px;font-weight:700;color:#1E293B;white-space:nowrap;overflow:hidden">' + _stmtEsc(descText) + '</div>' +
-      (subText ? '<div style="font-size:9.5px;line-height:18px;color:#9CA3AF;white-space:nowrap;overflow:hidden;margin-top:4px">' + _stmtEsc(subText) + '</div>' : '');
-    var descTop = r.sub ? 11 : 20;
+      '<div style="font-size:11.5px;line-height:23px;font-weight:700;color:#1E293B;white-space:nowrap;overflow:hidden">' + _stmtEsc(descText) + '</div>' +
+      (subText ? '<div style="font-size:9.5px;line-height:20px;color:#9CA3AF;white-space:nowrap;overflow:hidden;margin-top:4px">' + _stmtEsc(subText) + '</div>' : '');
+    var descTop = r.sub ? 10 : 18;
     return '' +
     '<div style="position:relative;height:' + _STMT_ROW_H + 'px;' + zebra + 'border-bottom:1px solid #DEE3EC;box-sizing:border-box;overflow:hidden">' +
-      cell(_STMT_X_NO, _STMT_COL_NO, 23, 'font-size:10px;line-height:18px;color:#B4BAC4;font-weight:700', String(no)) +
-      cell(_STMT_X_TGL, _STMT_COL_TGL, 23, 'font-size:9.5px;line-height:18px;color:#6B7280;font-weight:700;white-space:nowrap', _stmtFmtDate(r.date)) +
+      cell(_STMT_X_NO, _STMT_COL_NO, 22, 'font-size:10px;line-height:22px;color:#B4BAC4;font-weight:700', String(no)) +
+      cell(_STMT_X_TGL, _STMT_COL_TGL, 22, 'font-size:9.5px;line-height:22px;color:#6B7280;font-weight:700;white-space:nowrap', _stmtFmtDate(r.date)) +
       cell(_STMT_X_KET, _STMT_W_KET, descTop, 'overflow:hidden', descHTML) +
-      cell(_STMT_X_TIPE, _STMT_COL_TIPE, 23, 'font-size:9.5px;line-height:18px;font-weight:800;letter-spacing:.02em;color:' + pillFg + ';white-space:nowrap;text-align:center', pillLabel) +
-      cell(_STMT_X_NOMINAL, _STMT_COL_NOMINAL, 23, 'font-size:11px;line-height:18px;font-weight:700;color:' + amtColor + ';white-space:nowrap;text-align:right', amtSign + '&nbsp;' + fmtRp(r.amount).replace('Rp','Rp\u00A0')) +
-      cell(_STMT_X_SALDO, _STMT_COL_SALDO, 23, 'font-size:10.5px;line-height:18px;font-weight:700;color:' + saldoColor + ';white-space:nowrap;text-align:right', fmtRp(r.saldo)) +
+      cell(_STMT_X_TIPE, _STMT_COL_TIPE, 22, 'font-size:9.5px;line-height:22px;font-weight:800;letter-spacing:.02em;color:' + pillFg + ';white-space:nowrap;text-align:center', pillLabel) +
+      cell(_STMT_X_NOMINAL, _STMT_COL_NOMINAL, 22, 'font-size:11px;line-height:22px;font-weight:700;color:' + amtColor + ';white-space:nowrap;text-align:right', amtSign + '&nbsp;' + fmtRp(r.amount).replace('Rp','Rp\u00A0')) +
+      cell(_STMT_X_SALDO, _STMT_COL_SALDO, 22, 'font-size:10.5px;line-height:22px;font-weight:700;color:' + saldoColor + ';white-space:nowrap;text-align:right', fmtRp(r.saldo)) +
     '</div>';
   }).join('');
 }
@@ -6111,13 +6111,15 @@ async function _exportPDFStatement(fromD, toD, fromVal, toVal) {
     var totalOut = rows.filter(function(r) { return r.type === 'out'; }).reduce(function(acc, r) { return acc + r.amount; }, 0);
     var net = totalIn - totalOut;
 
-    // ROWS_PAGE1/ROWS_OTHER dikurangi sedikit dari 10/15 -> 9/13 karena
-    // _STMT_ROW_H baru saja dinaikkan 60->66px (buat ngasih ruang ekstra
-    // supaya nama nota tidak kepotong). Kalau jumlah baris per halaman tetap
-    // dipertahankan, total tinggi konten bisa melebihi tinggi halaman A4
-    // (_STMT_H=1123px) terutama di halaman ke-2+ (yang barisnya lebih banyak),
-    // sehingga baris paling bawah malah terpotong keluar dari halaman.
-    var ROWS_PAGE1 = 9, ROWS_OTHER = 13;
+    // ROWS_PAGE1/ROWS_OTHER awalnya 10/15, dikurangi bertahap jadi 8/12
+    // seiring _STMT_ROW_H dinaikkan (60->66->72px) buat ngasih ruang ekstra
+    // supaya teks baris tabel (terutama nama nota) tidak kepotong. Kalau
+    // jumlah baris per halaman tidak ikut dikurangi, total tinggi konten
+    // tabel bisa melebihi tinggi halaman A4 (_STMT_H=1123px), sehingga baris
+    // paling bawah malah terpotong keluar dari halaman -- jadi dua angka ini
+    // (tinggi baris & jumlah baris per halaman) harus selalu disesuaikan
+    // bersamaan.
+    var ROWS_PAGE1 = 8, ROWS_OTHER = 12;
     var pagesData = [];
     var idx = 0, pn = 1;
     while (idx < rows.length) {
