@@ -5855,6 +5855,19 @@ function _stmtFmtDate(d) {
 // di html2canvas, jadi tidak ada lagi perhitungan tinggi/lebar otomatis yang
 // bisa meleset.
 var _STMT_ROW_H = 60; // dilebihkan dari kebutuhan asli (~36px) sebagai buffer ekstra jaga-jaga kalau metrik font sedikit berbeda di device lain (mis. Safari/WebKit di iPhone)
+// PENTING soal teks kepotong separuh di baris tabel (huruf kapital berujung
+// terpotong, mis. "Jul" jadi "lul", "Lunas" jadi "unas", "Belum Bayar" jadi
+// "Ralum Rayar"): font Manrope punya metrik vertikal (ascent/cap-height) yang
+// lebih tinggi dari kebanyakan font lain. Sel-sel kecil di baris tabel dulu
+// pakai line-height:14px untuk font-size 9.5-11px -- itu terlalu mepet buat
+// Manrope, jadi bagian atas huruf kapital (J, L, B, R, P, dst) kepotong oleh
+// overflow:hidden pada kotak teksnya sendiri, sementara angka/huruf pendek
+// terlihat aman-aman saja (makanya bug ini kelihatan seperti "cuma sebagian
+// teks yang hilang"). Semua line-height sel baris tabel dinaikkan ke 18px
+// (dari 14px) supaya ada ruang cukup buat cap-height Manrope tanpa kepotong.
+// overflow:hidden pada sel TGL juga dilepas karena tanggal tidak pernah
+// butuh potongan ellipsis -- overflow:hidden yang tidak perlu ikut memperbesar
+// risiko clipping vertikal kalau baris tinggi tekstnya sedikit meleset.
 var _STMT_PAD_X = 14;
 // PENTING: lebar tabel BUKAN _STMT_W (lebar halaman penuh 794px), melainkan
 // lebar area konten setelah dikurangi padding kiri+kanan halaman (40px+40px,
@@ -5886,16 +5899,16 @@ function _stmtRowsHTML(pageRows, rowStartNo) {
     };
     var descHTML =
       '<div style="font-size:11.5px;line-height:16px;font-weight:700;color:#1E293B;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + _stmtEsc(r.desc) + '</div>' +
-      (r.sub ? '<div style="font-size:9.5px;line-height:14px;color:#9CA3AF;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:4px">' + _stmtEsc(r.sub) + '</div>' : '');
+      (r.sub ? '<div style="font-size:9.5px;line-height:18px;color:#9CA3AF;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:4px">' + _stmtEsc(r.sub) + '</div>' : '');
     var descTop = r.sub ? 12 : 22;
     return '' +
     '<div style="position:relative;height:' + _STMT_ROW_H + 'px;' + zebra + 'border-bottom:1px solid #DEE3EC;box-sizing:border-box;overflow:hidden">' +
-      cell(_STMT_X_NO, _STMT_COL_NO, 23, 'font-size:10px;line-height:14px;color:#B4BAC4;font-weight:700', String(no)) +
-      cell(_STMT_X_TGL, _STMT_COL_TGL, 23, 'font-size:9.5px;line-height:14px;color:#6B7280;font-weight:700;white-space:nowrap;overflow:hidden', _stmtFmtDate(r.date)) +
+      cell(_STMT_X_NO, _STMT_COL_NO, 23, 'font-size:10px;line-height:18px;color:#B4BAC4;font-weight:700', String(no)) +
+      cell(_STMT_X_TGL, _STMT_COL_TGL, 23, 'font-size:9.5px;line-height:18px;color:#6B7280;font-weight:700;white-space:nowrap', _stmtFmtDate(r.date)) +
       cell(_STMT_X_KET, _STMT_W_KET, descTop, 'overflow:hidden', descHTML) +
-      cell(_STMT_X_TIPE, _STMT_COL_TIPE, 23, 'font-size:9.5px;line-height:14px;font-weight:800;letter-spacing:.02em;color:' + pillFg + ';white-space:nowrap;text-align:center', pillLabel) +
-      cell(_STMT_X_NOMINAL, _STMT_COL_NOMINAL, 23, 'font-size:11px;line-height:14px;font-weight:700;color:' + amtColor + ';white-space:nowrap;text-align:right', amtSign + '&nbsp;' + fmtRp(r.amount).replace('Rp','Rp\u00A0')) +
-      cell(_STMT_X_SALDO, _STMT_COL_SALDO, 23, 'font-size:10.5px;line-height:14px;font-weight:700;color:' + saldoColor + ';white-space:nowrap;text-align:right', fmtRp(r.saldo)) +
+      cell(_STMT_X_TIPE, _STMT_COL_TIPE, 23, 'font-size:9.5px;line-height:18px;font-weight:800;letter-spacing:.02em;color:' + pillFg + ';white-space:nowrap;text-align:center', pillLabel) +
+      cell(_STMT_X_NOMINAL, _STMT_COL_NOMINAL, 23, 'font-size:11px;line-height:18px;font-weight:700;color:' + amtColor + ';white-space:nowrap;text-align:right', amtSign + '&nbsp;' + fmtRp(r.amount).replace('Rp','Rp\u00A0')) +
+      cell(_STMT_X_SALDO, _STMT_COL_SALDO, 23, 'font-size:10.5px;line-height:18px;font-weight:700;color:' + saldoColor + ';white-space:nowrap;text-align:right', fmtRp(r.saldo)) +
     '</div>';
   }).join('');
 }
