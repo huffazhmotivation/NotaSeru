@@ -5885,6 +5885,35 @@ var _STMT_X_SALDO = _STMT_X_NOMINAL + _STMT_COL_NOMINAL + _STMT_COL_GAP;
 
 function _stmtRowsHTML(pageRows, rowStartNo) {
   if (!pageRows.length) return '';
+  // PENTING soal teks KETERANGAN yang terpotong tengah kata tanpa "...":
+  // html2canvas TIDAK mendukung CSS text-overflow:ellipsis dengan benar --
+  // ia cuma overflow:hidden begitu saja tanpa pernah menggambar tanda "...".
+  // Jadi kalau nama nota/pelanggan kepanjangan buat kolom KETERANGAN
+  // (_STMT_W_KET), hasilnya teks terpotong mentah di tengah huruf, kelihatan
+  // seperti setengah hilang. Solusinya: ukur lebar teks pakai canvas
+  // measureText() dan potong manual + tambah karakter "\u2026" SEBELUM masuk
+  // ke HTML, supaya batasnya jelas & selalu berhenti di titik yang aman,
+  // bukan mengandalkan CSS ellipsis yang tidak digambar html2canvas.
+  var measureCtx = null;
+  var stmtTextWidth = function(text, font) {
+    if (!measureCtx) measureCtx = document.createElement('canvas').getContext('2d');
+    measureCtx.font = font;
+    return measureCtx.measureText(text).width;
+  };
+  var stmtTruncate = function(text, maxWidth, font) {
+    if (!text) return text;
+    if (stmtTextWidth(text, font) <= maxWidth) return text;
+    var lo = 0, hi = text.length, best = '';
+    while (lo <= hi) {
+      var mid = Math.floor((lo + hi) / 2);
+      var candidate = text.slice(0, mid).replace(/\s+$/, '') + '\u2026';
+      if (stmtTextWidth(candidate, font) <= maxWidth) { best = candidate; lo = mid + 1; } else { hi = mid - 1; }
+    }
+    return best || '\u2026';
+  };
+  var descFont = '700 11.5px Manrope, -apple-system, Helvetica, Arial, sans-serif';
+  var subFont = '9.5px Manrope, -apple-system, Helvetica, Arial, sans-serif';
+  var ketMaxW = _STMT_W_KET - 2; // buffer kecil biar tidak mepet banget ke tepi kolom
   return pageRows.map(function(r, i) {
     var no = rowStartNo + i;
     var zebra = (i % 2 === 1) ? 'background:#F8FAFC;' : 'background:#FFFFFF;';
@@ -5894,12 +5923,14 @@ function _stmtRowsHTML(pageRows, rowStartNo) {
     var amtColor = isIn ? '#0F6B4C' : '#A32C2C';
     var amtSign = isIn ? '+' : '\u2212';
     var saldoColor = r.saldo < 0 ? '#A32C2C' : '#1E293B';
+    var descText = stmtTruncate(r.desc, ketMaxW, descFont);
+    var subText = r.sub ? stmtTruncate(r.sub, ketMaxW, subFont) : r.sub;
     var cell = function(x, w, top, css, html) {
       return '<div style="position:absolute;left:' + x + 'px;top:' + top + 'px;width:' + w + 'px;' + css + '">' + html + '</div>';
     };
     var descHTML =
-      '<div style="font-size:11.5px;line-height:16px;font-weight:700;color:#1E293B;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + _stmtEsc(r.desc) + '</div>' +
-      (r.sub ? '<div style="font-size:9.5px;line-height:18px;color:#9CA3AF;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:4px">' + _stmtEsc(r.sub) + '</div>' : '');
+      '<div style="font-size:11.5px;line-height:16px;font-weight:700;color:#1E293B;white-space:nowrap;overflow:hidden">' + _stmtEsc(descText) + '</div>' +
+      (subText ? '<div style="font-size:9.5px;line-height:18px;color:#9CA3AF;white-space:nowrap;overflow:hidden;margin-top:4px">' + _stmtEsc(subText) + '</div>' : '');
     var descTop = r.sub ? 12 : 22;
     return '' +
     '<div style="position:relative;height:' + _STMT_ROW_H + 'px;' + zebra + 'border-bottom:1px solid #DEE3EC;box-sizing:border-box;overflow:hidden">' +
