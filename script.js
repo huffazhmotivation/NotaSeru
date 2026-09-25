@@ -18,6 +18,96 @@ let curTemplate = 'classic';
 let curTplColor = 'amber'; // amber|navy|green|blue|gray
 let curDiscType = 'persen';       // diskon total: 'persen' | 'rupiah'
 let curDiscItemType = 'persen';   // diskon per item: 'persen' | 'rupiah'
+let curCurrency = 'IDR';          // mata uang nota yang sedang dibuat/diedit
+
+// ── Mata Uang ────────────────────────────────
+const CURRENCIES = [
+  { code:'IDR', name:'Rupiah Indonesia',      symbol:'Rp',  locale:'id-ID' },
+  { code:'USD', name:'Dolar Amerika Serikat', symbol:'$',   locale:'en-US' },
+  { code:'SAR', name:'Riyal Arab Saudi',      symbol:'﷼',  locale:'ar-SA' },
+  { code:'AED', name:'Dirham Uni Emirat Arab',symbol:'AED', locale:'ar-AE' },
+  { code:'QAR', name:'Riyal Qatar',           symbol:'QR',  locale:'ar-QA' },
+  { code:'MYR', name:'Ringgit Malaysia',      symbol:'RM',  locale:'ms-MY' },
+  { code:'SGD', name:'Dolar Singapura',       symbol:'S$',  locale:'en-SG' },
+  { code:'EUR', name:'Euro',                  symbol:'€',   locale:'de-DE' },
+  { code:'GBP', name:'Poundsterling Inggris', symbol:'£',   locale:'en-GB' },
+  { code:'JPY', name:'Yen Jepang',            symbol:'¥',   locale:'ja-JP' },
+  { code:'CNY', name:'Yuan Tiongkok',         symbol:'¥',   locale:'zh-CN' },
+  { code:'KRW', name:'Won Korea Selatan',     symbol:'₩',   locale:'ko-KR' },
+  { code:'AUD', name:'Dolar Australia',       symbol:'A$',  locale:'en-AU' },
+  { code:'HKD', name:'Dolar Hong Kong',       symbol:'HK$', locale:'zh-HK' },
+  { code:'THB', name:'Baht Thailand',         symbol:'฿',   locale:'th-TH' },
+  { code:'KWD', name:'Dinar Kuwait',          symbol:'KD',  locale:'ar-KW' },
+];
+function getCurrency(code) { return CURRENCIES.find(c => c.code === code) || CURRENCIES[0]; }
+function populateCurrencySelect() {
+  const sel = document.getElementById('invCurrencySelect');
+  if (!sel) return;
+  sel.innerHTML = CURRENCIES.map(c => `<option value="${c.code}">${c.code} · ${xss(c.name)}</option>`).join('');
+}
+function setCurrency(code, persist = true) {
+  curCurrency = code;
+  const sel = document.getElementById('invCurrencySelect');
+  if (sel) sel.value = code;
+  if (persist) { const s = DB.get('settings', {}); s.defaultCurrency = code; DB.set('settings', s); }
+  renderItems(); recalc();
+}
+
+// ── Bank / Info Pembayaran (preset logo) ─────
+const BANKS = [
+  { code:'bca',   name:'Bank BCA',          short:'BCA',  color:'#0A5EB0' },
+  { code:'mandiri', name:'Bank Mandiri',    short:'MDR',  color:'#003D79' },
+  { code:'bri',   name:'Bank BRI',          short:'BRI',  color:'#00529C' },
+  { code:'bni',   name:'Bank BNI',          short:'BNI',  color:'#F37021' },
+  { code:'bsi',   name:'Bank Syariah Indonesia (BSI)', short:'BSI', color:'#00A651' },
+  { code:'cimb',  name:'CIMB Niaga',        short:'CIMB', color:'#EE2224' },
+  { code:'jago',  name:'Bank Jago',         short:'JAGO', color:'#5B2A86' },
+  { code:'jagosyariah', name:'Bank Jago Syariah', short:'JAGO iB', color:'#7A3FA0' },
+  { code:'permata', name:'Bank Permata',    short:'PRM',  color:'#005EB8' },
+  { code:'danamon', name:'Bank Danamon',    short:'DAN',  color:'#C8102E' },
+  { code:'btn',   name:'Bank BTN',          short:'BTN',  color:'#1E4B8F' },
+  { code:'seabank', name:'SeaBank',         short:'SEA',  color:'#1F2D5C' },
+  { code:'jenius', name:'Jenius (BTPN)',    short:'JNS',  color:'#E85F2A' },
+  { code:'ovo',   name:'OVO',               short:'OVO',  color:'#4C3494' },
+  { code:'gopay', name:'GoPay',             short:'GO',   color:'#00AED6' },
+  { code:'dana',  name:'DANA',              short:'DANA', color:'#118EEA' },
+  { code:'shopeepay', name:'ShopeePay',     short:'SPAY', color:'#EE4D2D' },
+];
+function getBank(code) { return BANKS.find(b => b.code === code) || null; }
+function bankBadgeHTML(code, size = 22) {
+  const b = getBank(code);
+  if (!b) return '';
+  const fs = Math.round(size * 0.32);
+  return `<span style="display:inline-flex;align-items:center;justify-content:center;width:${size}px;height:${size}px;border-radius:6px;background:${b.color};color:#fff;font-size:${fs}px;font-weight:800;letter-spacing:-.02em;flex-shrink:0;font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',Arial,sans-serif;line-height:1">${xss(b.short.slice(0,4))}</span>`;
+}
+function renderBankPresets() {
+  const wrap = document.getElementById('bankPresetList');
+  if (!wrap) return;
+  const activeCode = document.getElementById('settBankLogo')?.value || '';
+  wrap.innerHTML = BANKS.map(b => `
+    <div onclick="pickBankPreset('${b.code}')" style="display:flex;flex-direction:column;align-items:center;gap:4px;flex-shrink:0;width:56px;cursor:pointer;padding:6px 2px;border-radius:10px;border:1.5px solid ${activeCode===b.code?'var(--primary)':'transparent'};background:${activeCode===b.code?'var(--primary-soft)':'transparent'}">
+      <span style="display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:8px;background:${b.color};color:#fff;font-size:10px;font-weight:800;text-align:center;line-height:1.1;font-family:-apple-system,sans-serif">${xss(b.short)}</span>
+      <span style="font-size:9.5px;color:var(--txt-3);text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;width:100%">${xss(b.short)}</span>
+    </div>`).join('') + `
+    <div onclick="pickBankPreset('')" style="display:flex;flex-direction:column;align-items:center;gap:4px;flex-shrink:0;width:56px;cursor:pointer;padding:6px 2px;border-radius:10px;border:1.5px solid ${activeCode===''?'var(--primary)':'transparent'};background:${activeCode===''?'var(--primary-soft)':'transparent'}">
+      <span style="display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:8px;background:var(--bg-input);color:var(--txt-3);font-size:16px;font-weight:800">✎</span>
+      <span style="font-size:9.5px;color:var(--txt-3);text-align:center;white-space:nowrap">Manual</span>
+    </div>`;
+}
+function pickBankPreset(code) {
+  const logoEl = document.getElementById('settBankLogo');
+  const nameEl = document.getElementById('settBank');
+  if (logoEl) logoEl.value = code;
+  if (code && nameEl) nameEl.value = getBank(code)?.name || nameEl.value;
+  renderBankPresets();
+  _saveSettingsDraft();
+}
+function onBankNameInput() {
+  // Ketik manual → lepas preset logo supaya tidak salah tampil
+  const logoEl = document.getElementById('settBankLogo');
+  if (logoEl && logoEl.value) { logoEl.value = ''; renderBankPresets(); }
+  _saveSettingsDraft();
+}
 
 // ── DB ─────────────────────────────────────
 const DB = {
@@ -32,6 +122,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   const _bootSettings = DB.get('settings', {});
   if (_bootSettings.defaultTemplate) curTemplate = _bootSettings.defaultTemplate;
   if (_bootSettings.defaultTplColor) curTplColor = _bootSettings.defaultTplColor;
+  if (_bootSettings.defaultCurrency) curCurrency = _bootSettings.defaultCurrency;
+  populateCurrencySelect();
+  const _curSelBoot = document.getElementById('invCurrencySelect'); if (_curSelBoot) _curSelBoot.value = curCurrency;
   applyAppearance();
   setGreeting();
   initDates();
@@ -423,6 +516,8 @@ function resetForm() {
   document.getElementById('discInput').value = '';
   setDiscType('persen');
   curDiscItemType = 'persen';
+  curCurrency = DB.get('settings', {}).defaultCurrency || 'IDR';
+  const curSel0 = document.getElementById('invCurrencySelect'); if (curSel0) curSel0.value = curCurrency;
   document.getElementById('ongkirInput').value = '';
   const eInp = document.getElementById('ekspedisiInput'); if (eInp) eInp.value = '';
   const eSel = document.getElementById('ekspedisiSelect'); if (eSel) eSel.value = '';
@@ -618,6 +713,7 @@ function saveInvoice() {
     sub, disc, discType: curDiscType, discAmt, ongkir,
     ekspedisi: document.getElementById('ekspedisiInput')?.value || '',
     dp, grand, sisa: Math.max(0, grand - dp),
+    currency: curCurrency,
     notes: document.getElementById('invNotes').value,
     template: curTemplate,
     tplColor: curTplColor,
@@ -1007,7 +1103,7 @@ function grupBlockHTML(grupKey, members) {
         <div class="grup-member-sub">${xss(inv.number||'')} · ${fmtDate(inv.date)}</div>
       </div>
       <div style="text-align:right">
-        <div class="grup-member-amt">${fmtRp(inv.grand||0)}</div>
+        <div class="grup-member-amt">${fmtRp(inv.grand||0, inv.currency)}</div>
         <div style="font-size:10px;color:${statusColor};font-weight:600">${sm[inv.status]||'Belum Bayar'}</div>
       </div>
     </div>`;
@@ -1051,7 +1147,7 @@ function openGrupAction(grupKey) {
       </div>
       <div>
         <div class="as-label">${xss(inv.customer?.name || inv.number)}</div>
-        <div class="as-sub">${xss(inv.number)} · ${fmtRp(inv.grand||0)}</div>
+        <div class="as-sub">${xss(inv.number)} · ${fmtRp(inv.grand||0, inv.currency)}</div>
       </div>
     </div>`).join('');
 
@@ -1182,7 +1278,7 @@ function invCardHTML(inv) {
         ${profitBadge}${grupBadge}
       </div>
       <div class="inv-card-right">
-        <div class="inv-card-amount">${fmtRp(inv.grand || 0)}</div>
+        <div class="inv-card-amount">${fmtRp(inv.grand || 0, inv.currency)}</div>
         <div class="badge ${cls}" id="badge-${inv.id}">${lbl}</div>
       </div>
     </div>
@@ -1510,6 +1606,8 @@ function editInv(id) {
   document.getElementById('custName').value = inv.customer?.name || '';
   document.getElementById('custPhone').value = inv.customer?.phone || '';
   document.getElementById('custAddr').value = inv.customer?.address || '';
+  curCurrency = inv.currency || 'IDR';
+  const curSel = document.getElementById('invCurrencySelect'); if (curSel) curSel.value = curCurrency;
   document.getElementById('discInput').value = inv.disc > 0 ? (inv.discType === 'rupiah' ? fmtRp(inv.disc) : String(inv.disc)) : '';
   setDiscType(inv.discType || 'persen');
   document.getElementById('ongkirInput').value = inv.ongkir > 0 ? fmtRp(inv.ongkir) : '';
@@ -1564,7 +1662,7 @@ function openProfitDrawer(id, e) {
   if (card) { card.style.transition = 'transform .38s cubic-bezier(.22,1,.36,1)'; card.style.transform = 'translateX(0)'; window._swipeOpenCard = null; }
 
   setText('profitSheetTitle', `Pembukuan · ${xss(inv.customer?.name || inv.number)}`);
-  setText('profitSheetSub', `Omset: ${fmtRp(inv.grand || 0)}`);
+  setText('profitSheetSub', `Omset: ${fmtRp(inv.grand || 0, inv.currency)}`);
 
   const saved = DB.get('inv_profit_' + id, null);
   const expenses = saved ? saved.expenses : [];
@@ -1837,7 +1935,7 @@ function renderGrupSheet() {
   const profit = omset - totalGrupExp;
   const profitClass = profit > 0 ? 'positive' : profit < 0 ? 'negative' : 'zero';
 
-  const chips = d.selected.map(inv => `<span class="grup-nota-chip">${xss(inv.customer?.name || inv.number)} · ${fmtRp(inv.grand||0)}</span>`).join('');
+  const chips = d.selected.map(inv => `<span class="grup-nota-chip">${xss(inv.customer?.name || inv.number)} · ${fmtRp(inv.grand||0, inv.currency)}</span>`).join('');
   const rows = d.expenses.map((exp, i) => `
     <div class="profit-exp-row">
       <input class="profit-exp-name" type="text" placeholder="Nama pengeluaran..." value="${xss(exp.name)}"
@@ -2176,6 +2274,8 @@ function buildPreview(inv, targetId = 'invoicePreview') {
   const C = TPL_COLORS[colorKey] || TPL_COLORS['custom'] || TPL_COLORS.amber;
   const stamp = { lunas:['#10B981','LUNAS'], dp:['#F59E0B','DP'], belum:['#EF4444','BELUM BAYAR'] };
   const [sc, sl] = stamp[inv.status] || stamp.belum;
+  // Mata uang nota ini (bukan mata uang global) — override fmtRp lokal
+  const fmtRp = n => fmtCur(n, inv.currency || 'IDR');
 
   // ── Shared helpers ──────────────────────────────────────────
   const logoImg = s.logo
@@ -2224,8 +2324,9 @@ function buildPreview(inv, targetId = 'invoicePreview') {
   const dpRow = inv.dp > 0
     ? `<div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;padding:10px 14px;background:${C.dark};border-radius:6px"><span style="font-size:13px;font-weight:700;color:${C.text}">DP / Uang Muka</span><span style="font-size:14px;font-weight:800;color:${C.text}">${fmtRp(inv.dp)}</span></div><div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;padding:12px 14px;background:${C.darker};border-radius:6px;border:2px solid ${C.darkest}"><span style="font-size:14px;font-weight:800;color:${C.soft}">Sisa Pembayaran</span><span style="font-size:15px;font-weight:900;color:${C.soft}">${fmtRp(inv.sisa)}</span></div>` : '';
 
+  const bankLogoEl = s.bankLogo ? bankBadgeHTML(s.bankLogo, 26) : '';
   const bankInfo = (s.bankName || s.bankNo)
-    ? `<div style="margin-top:16px;padding:12px 14px;background:#F8FAFC;border-radius:8px;border:1px solid #E5E7EB"><div style="font-size:11px;font-weight:700;color:#9CA3AF;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px">Info Pembayaran</div><div style="font-size:13px;color:#374151">${xss(s.bankName||'')} &nbsp;·&nbsp; <strong style="color:#111827">${xss(s.bankNo||'')}</strong></div>${s.bankOwner ? `<div style="font-size:12px;color:#9CA3AF;margin-top:2px">a.n. ${xss(s.bankOwner)}</div>` : ''}${s.bankNote ? `<div style="font-size:12px;color:#6B7280;margin-top:5px;padding-top:5px;border-top:1px solid #E5E7EB;line-height:1.5">${xss(s.bankNote)}</div>` : ''}</div>` : '';
+    ? `<div style="margin-top:16px;padding:12px 14px;background:#F8FAFC;border-radius:8px;border:1px solid #E5E7EB"><div style="font-size:11px;font-weight:700;color:#9CA3AF;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px">Info Pembayaran</div><div style="display:flex;align-items:center;gap:8px"><div style="font-size:13px;color:#374151">${bankLogoEl}</div><div style="font-size:13px;color:#374151">${xss(s.bankName||'')} &nbsp;·&nbsp; <strong style="color:#111827">${xss(s.bankNo||'')}</strong></div></div>${s.bankOwner ? `<div style="font-size:12px;color:#9CA3AF;margin-top:2px">a.n. ${xss(s.bankOwner)}</div>` : ''}${s.bankNote ? `<div style="font-size:12px;color:#6B7280;margin-top:5px;padding-top:5px;border-top:1px solid #E5E7EB;line-height:1.5">${xss(s.bankNote)}</div>` : ''}</div>` : '';
 
   const notesRow = inv.notes
     ? `<div style="margin-top:12px;padding:12px 14px;background:#F8FAFC;border-radius:8px;border:1px solid #E5E7EB"><div style="font-size:11px;font-weight:700;color:#9CA3AF;text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px">Catatan</div><div style="font-size:13px;color:#6B7280;line-height:1.5">${xss(inv.notes)}</div></div>` : '';
@@ -3985,7 +4086,7 @@ function fillWaTemplate(tpl, inv, s) {
   const map = {
     nomor: inv?.number || 'Invoice',
     nama: inv?.customer?.name || '',
-    total: fmtRp(inv?.grand || 0),
+    total: fmtRp(inv?.grand || 0, inv?.currency),
     toko: s.storeName || 'toko kami',
     tanggal: inv?.date ? fmtDate(inv.date) : '',
     alamat: inv?.customer?.address || '',
@@ -4623,7 +4724,7 @@ function loadSettingsUI() {
   // Update tampilan akun setiap kali settings dibuka
   if (typeof updateSettAkunRow === 'function') updateSettAkunRow();
   const s = DB.get('settings', {});
-  const fields = { settName:'storeName', settAddr:'storeAddress', settPhone:'storePhone', settEmail:'storeEmail', settBank:'bankName', settBankNo:'bankNo', settBankOwner:'bankOwner', settThankyou:'thankyou', settSignLabel:'signLabel', settBankNote:'bankNote', settWaTemplate:'waTemplate' };
+  const fields = { settName:'storeName', settAddr:'storeAddress', settPhone:'storePhone', settEmail:'storeEmail', settBank:'bankName', settBankNo:'bankNo', settBankOwner:'bankOwner', settThankyou:'thankyou', settSignLabel:'signLabel', settBankNote:'bankNote', settBankLogo:'bankLogo', settWaTemplate:'waTemplate' };
   const activeEl = document.activeElement;
   // Ambil draft lokal (ketikan yang belum disimpan) agar sync cloud tidak menimpa
   let draft = null;
@@ -4643,6 +4744,7 @@ function loadSettingsUI() {
       }
     }
   }
+  renderBankPresets();
   // Reset logo
   const logoPrev = document.getElementById('logoPrev');
   const logoPh   = document.getElementById('logoPh');
@@ -4669,7 +4771,7 @@ function applyAppearance() {
 
 function saveSettings() {
   const s = DB.get('settings', {});
-  const fields = { settName:'storeName', settAddr:'storeAddress', settPhone:'storePhone', settEmail:'storeEmail', settBank:'bankName', settBankNo:'bankNo', settBankOwner:'bankOwner', settThankyou:'thankyou', settSignLabel:'signLabel', settBankNote:'bankNote', settWaTemplate:'waTemplate' };
+  const fields = { settName:'storeName', settAddr:'storeAddress', settPhone:'storePhone', settEmail:'storeEmail', settBank:'bankName', settBankNo:'bankNo', settBankOwner:'bankOwner', settThankyou:'thankyou', settSignLabel:'signLabel', settBankNote:'bankNote', settBankLogo:'bankLogo', settWaTemplate:'waTemplate' };
   for (const [id, key] of Object.entries(fields)) {
     const el = document.getElementById(id); if (el) s[key] = el.value.trim();
   }
@@ -4685,7 +4787,7 @@ function saveSettings() {
 // Tidak push ke cloud — hanya pelindung sementara sampai user klik Simpan.
 function _saveSettingsDraft() {
   try {
-    const fields = { settName:'storeName', settAddr:'storeAddress', settPhone:'storePhone', settEmail:'storeEmail', settBank:'bankName', settBankNo:'bankNo', settBankOwner:'bankOwner', settThankyou:'thankyou', settSignLabel:'signLabel', settBankNote:'bankNote', settWaTemplate:'waTemplate' };
+    const fields = { settName:'storeName', settAddr:'storeAddress', settPhone:'storePhone', settEmail:'storeEmail', settBank:'bankName', settBankNo:'bankNo', settBankOwner:'bankOwner', settThankyou:'thankyou', settSignLabel:'signLabel', settBankNote:'bankNote', settBankLogo:'bankLogo', settWaTemplate:'waTemplate' };
     const draft = {};
     for (const [id, key] of Object.entries(fields)) {
       const el = document.getElementById(id); if (el) draft[key] = el.value;
@@ -5165,15 +5267,24 @@ function triggerInstall() { if (window._dip) { window._dip.prompt(); document.ge
 function dismissInstall(e) { e.stopPropagation(); document.getElementById('installBanner')?.classList.add('gone'); DB.set('ibDismissed',true); }
 
 // ── Utils ────────────────────────────────────
-function fmtRp(n) {
-  if (!n && n!==0) return 'Rp 0';
-  return new Intl.NumberFormat('id-ID',{style:'currency',currency:'IDR',minimumFractionDigits:0,maximumFractionDigits:0}).format(n);
+function fmtCur(n, code) {
+  const cur = getCurrency(code || curCurrency);
+  if (!n && n!==0) n = 0;
+  try {
+    return new Intl.NumberFormat(cur.locale,{style:'currency',currency:cur.code,minimumFractionDigits:0,maximumFractionDigits:0}).format(n);
+  } catch(e) {
+    return cur.symbol + ' ' + Number(n).toLocaleString('id-ID');
+  }
 }
-function fmtRpShort(n) {
-  if (n>=1e9) return 'Rp'+(n/1e9).toFixed(1)+'M';
-  if (n>=1e6) return 'Rp'+(n/1e6).toFixed(1)+'jt';
-  if (n>=1e3) return 'Rp'+(n/1e3).toFixed(0)+'rb';
-  return fmtRp(n);
+function fmtRp(n, code) {
+  return fmtCur(n, code);
+}
+function fmtRpShort(n, code) {
+  const cur = getCurrency(code || curCurrency);
+  if (n>=1e9) return cur.symbol+(n/1e9).toFixed(1)+'M';
+  if (n>=1e6) return cur.symbol+(n/1e6).toFixed(1)+'jt';
+  if (n>=1e3) return cur.symbol+(n/1e3).toFixed(0)+'rb';
+  return fmtCur(n, code);
 }
 function parseMoney(v) { return parseInt(String(v||'').replace(/[^0-9]/g,''))||0; }
 function fmtInline(input) { const r=parseMoney(input.value); if(r>0) input.value=fmtRp(r); else input.value=''; }

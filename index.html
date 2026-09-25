@@ -343,6 +343,10 @@
               </select>
             </div>
           </div>
+          <div class="form-group" style="margin-bottom:0;margin-top:14px">
+            <label class="form-label">Mata Uang</label>
+            <select class="form-select" id="invCurrencySelect" onchange="setCurrency(this.value)"></select>
+          </div>
         </div>
       </div>
 
@@ -695,9 +699,16 @@
     <div class="sett-section">
       <div class="section-title" style="margin-bottom:12px">Info Pembayaran</div>
       <div class="sett-card">
+        <div class="sett-row no-tap" style="align-items:flex-start">
+          <div class="sett-content" style="width:100%">
+            <div class="sett-label" style="margin-bottom:8px">Pilih Bank / E-Wallet (opsional)</div>
+            <div id="bankPresetList" style="display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;-webkit-overflow-scrolling:touch"></div>
+          </div>
+        </div>
+        <input type="hidden" id="settBankLogo" value="">
         <div class="sett-row no-tap">
           <div class="sett-ic" style="background:var(--primary-soft);color:var(--primary)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg></div>
-          <div class="sett-content"><input type="text" id="settBank" class="form-input" style="background:transparent;border:none;padding:4px 0;font-size:13px;line-height:1.5;width:100%" placeholder="Nama Bank (BCA, BNI...)" oninput="_saveSettingsDraft()"></div>
+          <div class="sett-content"><input type="text" id="settBank" class="form-input" style="background:transparent;border:none;padding:4px 0;font-size:13px;line-height:1.5;width:100%" placeholder="Nama Bank (BCA, BNI...) — atau isi manual" oninput="onBankNameInput()"></div>
         </div>
         <div class="sett-row no-tap">
           <div class="sett-ic" style="background:var(--primary-soft);color:var(--primary)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg></div>
