@@ -670,6 +670,15 @@
         <div class="logo-txt">Ketuk untuk upload logo</div>
       </div>
       <input type="file" id="logoInput" accept="image/*" style="display:none" onchange="uploadLogo(this)">
+      <div id="logoScaleRow" style="display:none;padding:2px 2px 0">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+          <span style="font-size:12.5px;font-weight:600;color:var(--txt-2)">Ukuran Logo di Nota</span>
+          <span id="logoScaleVal" style="font-size:12.5px;font-weight:700;color:var(--primary)">100%</span>
+        </div>
+        <input type="range" id="logoScaleSlider" min="40" max="180" step="5" value="100"
+          oninput="setLogoScale(this.value)" style="width:100%;accent-color:var(--primary)">
+        <div style="font-size:11px;color:var(--txt-3);margin-top:4px">Geser untuk memperkecil atau memperbesar logo — tidak lagi mentok mengisi penuh kotaknya.</div>
+      </div>
     </div>
 
     <!-- Info Toko -->
@@ -703,6 +712,7 @@
           <div class="sett-content" style="width:100%">
             <div class="sett-label" style="margin-bottom:8px">Pilih Bank / E-Wallet (opsional)</div>
             <div id="bankPresetList" style="display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;-webkit-overflow-scrolling:touch"></div>
+            <div id="bankLogoImgPreviewBox" style="display:flex;align-items:center;gap:10px;margin-top:10px;padding:10px;border-radius:var(--r-sm);background:var(--bg-input);border:1px dashed var(--border)"></div>
           </div>
         </div>
         <input type="hidden" id="settBankLogo" value="">
