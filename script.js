@@ -5735,20 +5735,16 @@ function triggerInstall() { if (window._dip) { window._dip.prompt(); document.ge
 function dismissInstall(e) { e.stopPropagation(); document.getElementById('installBanner')?.classList.add('gone'); DB.set('ibDismissed',true); }
 
 // ── CEK ONGKIR ───────────────────────────────
-// Fitur cek ongkos kirim, datanya diambil dari Biteship API lewat proxy
-// serverless kita sendiri di /api/ongkir (LIHAT api/ongkir.js). Kita
-// TIDAK pernah menyimpan tarif manual di sini — semua angka datang
+// Fitur cek ongkos kirim, datanya diambil dari API RajaOngkir (by Komerce)
+// lewat proxy serverless kita sendiri di /api/ongkir (LIHAT api/ongkir.js).
+// Kita TIDAK pernah menyimpan tarif manual di sini — semua angka datang
 // langsung dari API supaya akurat & selalu ikut update tarif asli tiap
 // ekspedisi. Kalau /api/ongkir belum di-setup (API key belum diisi di
 // Vercel), fitur ini akan kasih pesan yang jelas, bukan angka palsu.
-// CATATAN: "Indah Cargo" dihapus dari daftar karena Biteship tidak
-// menyediakan kurir ini (beda dari RajaOngkir). Kalau mau tambah kurir
-// lain yang didukung Biteship (mis. J&T/jnt, AnterAja/anteraja, TIKI),
-// tinggal tambahkan barisnya di sini DAN di COURIER_MAP pada
-// api/ongkir.js.
 const OCK_COURIERS = [
   { code: 'jne', name: 'JNE' },
   { code: 'wahana', name: 'Wahana' },
+  { code: 'indah', name: 'Indah Cargo' },
   { code: 'lion', name: 'Lion Parcel' },
   { code: 'sicepat', name: 'SiCepat' },
 ];
@@ -5893,7 +5889,7 @@ async function ockCheck() {
   const results = document.getElementById('ockResults');
   const mySeq = ++ockCheckSeq;
   if (btn) { btn.disabled = true; btn.textContent = 'Mengecek...'; }
-  if (results) results.innerHTML = `<div class="ock-loading">Mengambil tarif terbaru dari Biteship...</div>`;
+  if (results) results.innerHTML = `<div class="ock-loading">Mengambil tarif terbaru dari RajaOngkir...</div>`;
 
   try {
     const res = await fetch('/api/ongkir', {
