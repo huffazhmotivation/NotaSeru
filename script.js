@@ -5750,8 +5750,8 @@ const OCK_COURIERS = [
 ];
 let ockInited = false;
 const ockState = {
-  originId: null, originLabel: '', originZip: '',
-  destId: null, destLabel: '', destZip: '',
+  originId: null, originLabel: '',
+  destId: null, destLabel: '',
   weight: 1000,
   couriers: Object.fromEntries(OCK_COURIERS.map(c => [c.code, true])),
 };
@@ -5766,7 +5766,6 @@ function ockInit() {
     if (savedOrigin && savedOrigin.id) {
       ockState.originId = savedOrigin.id;
       ockState.originLabel = savedOrigin.label;
-      ockState.originZip = savedOrigin.zip || '';
       const inp = document.getElementById('ockOriginInput');
       if (inp) inp.value = savedOrigin.label;
     }
@@ -5804,8 +5803,8 @@ function ockOnWeightInput(el) {
 // (asal, tujuan, berat, pilihan ekspedisi) dan hasil pencarian sebelumnya,
 // supaya user bisa mulai cek ongkir dari awal tanpa reload halaman.
 function ockClearForm() {
-  ockState.originId = null; ockState.originLabel = ''; ockState.originZip = '';
-  ockState.destId = null; ockState.destLabel = ''; ockState.destZip = '';
+  ockState.originId = null; ockState.originLabel = '';
+  ockState.destId = null; ockState.destLabel = '';
   ockState.weight = 0;
   OCK_COURIERS.forEach(c => { ockState.couriers[c.code] = true; });
 
@@ -5827,9 +5826,9 @@ function ockClearForm() {
 }
 
 function ockSwap() {
-  const oId = ockState.originId, oLbl = ockState.originLabel, oZip = ockState.originZip;
-  ockState.originId = ockState.destId; ockState.originLabel = ockState.destLabel; ockState.originZip = ockState.destZip;
-  ockState.destId = oId; ockState.destLabel = oLbl; ockState.destZip = oZip;
+  const oId = ockState.originId, oLbl = ockState.originLabel;
+  ockState.originId = ockState.destId; ockState.originLabel = ockState.destLabel;
+  ockState.destId = oId; ockState.destLabel = oLbl;
   const oi = document.getElementById('ockOriginInput'), di = document.getElementById('ockDestInput');
   if (oi) oi.value = ockState.originLabel || '';
   if (di) di.value = ockState.destLabel || '';
@@ -5868,7 +5867,7 @@ function ockSearch(kind, query) {
       // lewat atribut data-* (di-escape dengan xss(), sama seperti teksnya)
       // dan dibaca oleh ockPickFromEl(), bukan lewat interpolasi string ke JS.
       box.innerHTML = items.map(it => `
-        <div class="ock-suggest-item" data-ock-id="${xss(it.id)}" data-ock-label="${xss(it.label)}" data-ock-zip="${xss(it.zip || '')}" onmousedown="event.preventDefault();ockPickFromEl(this,'${kind}')">${xss(it.label)}</div>
+        <div class="ock-suggest-item" data-ock-id="${xss(it.id)}" data-ock-label="${xss(it.label)}" onmousedown="event.preventDefault();ockPickFromEl(this,'${kind}')">${xss(it.label)}</div>
       `).join('');
     } catch (e) {
       if (mySeq !== ockSearchSeq) return;
@@ -5880,21 +5879,20 @@ function ockSearch(kind, query) {
 function ockPickFromEl(el, kind) {
   const id = el.getAttribute('data-ock-id');
   const label = el.getAttribute('data-ock-label') || '';
-  const zip = el.getAttribute('data-ock-zip') || '';
-  ockPick(kind, id, label, zip);
+  ockPick(kind, id, label);
 }
-function ockPick(kind, id, label, zip) {
+function ockPick(kind, id, label) {
   const box = document.getElementById(kind === 'origin' ? 'ockOriginSuggest' : 'ockDestSuggest');
   const inp = document.getElementById(kind === 'origin' ? 'ockOriginInput' : 'ockDestInput');
   if (inp) inp.value = label;
   if (box) { box.classList.remove('visible'); box.innerHTML = ''; }
   if (kind === 'origin') {
-    ockState.originId = id; ockState.originLabel = label; ockState.originZip = zip;
+    ockState.originId = id; ockState.originLabel = label;
     if (document.getElementById('ockSaveOriginChk')?.checked) {
-      DB.set('ockDefaultOrigin', { id, label, zip });
+      DB.set('ockDefaultOrigin', { id, label });
     }
   } else {
-    ockState.destId = id; ockState.destLabel = label; ockState.destZip = zip;
+    ockState.destId = id; ockState.destLabel = label;
   }
 }
 
@@ -5928,10 +5926,6 @@ async function ockCheck() {
         destination: ockState.destId,
         weight: ockState.weight,
         couriers: selectedCouriers,
-        // Dipakai server utk fallback Biteship (Wahana/SiCepat/Indah Cargo)
-        // kalau BITESHIP_API_KEY di-setup — lihat api/ongkir.js.
-        originZip: ockState.originZip,
-        destinationZip: ockState.destZip,
       }),
     });
     const json = await res.json().catch(() => null);

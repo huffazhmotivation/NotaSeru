@@ -81,96 +81,7 @@ async function searchDestination(q) {
     label:
       d.label ||
       [d.subdistrict_name, d.district_name, d.city_name, d.province_name].filter(Boolean).join(', '),
-    // Kode pos ikut dikirim ke frontend & disimpan di state — dipakai NANTI
-    // sebagai fallback ke Biteship (lihat blok BITESHIP FALLBACK di bawah),
-    // karena Biteship butuh kode pos/koordinat, bukan ID lokasi RajaOngkir.
-    zip: d.zip_code || null,
   }));
-}
-
-// ── BITESHIP FALLBACK (opsional) ──────────────────────────────────────
-// Wahana, SiCepat & Indah Cargo tidak selalu aktif di akun RajaOngkir
-// (Komerce) Starter/gratis (lihat komentar UNCERTAIN_COURIERS di atas).
-// Biteship diketahui mendukung ketiga kurir ini secara resmi, jadi kalau
-// BITESHIP_API_KEY diisi, ketiganya dicoba lagi lewat Biteship SEBELUM
-// ditandai "Tidak tersedia" — RajaOngkir tetap jadi sumber utama/pertama,
-// Biteship cuma pelengkap utk 3 kurir yg RajaOngkir tidak cover.
-// Kalau BITESHIP_API_KEY tidak diisi, fallback ini otomatis dilewati
-// (tidak wajib disetup) dan perilaku tetap seperti sebelumnya.
-const BITESHIP_BASE = 'https://api.biteship.com/v1';
-const BITESHIP_NAME_HINT = { wahana: 'wahana', sicepat: 'sicepat', indah: 'indah' };
-let biteshipCourierCache = null; // { wahana: 'wahana', sicepat: 'sicepat', indah: 'indahcargo' } dst — hasil resolve asli dari akun Biteship, bukan tebakan
-
-async function biteshipFetch(path, opts = {}) {
-  const key = process.env.BITESHIP_API_KEY;
-  const res = await fetch(BITESHIP_BASE + path, {
-    ...opts,
-    headers: { authorization: key, 'content-type': 'application/json', ...(opts.headers || {}) },
-  });
-  let json = null;
-  try { json = await res.json(); } catch (_) {}
-  if (!res.ok || !json || json.success === false) {
-    const msg = (json && (json.error || json.message)) || `Biteship merespons error (HTTP ${res.status})`;
-    throw new Error(msg);
-  }
-  return json;
-}
-
-// Kode kurir di Biteship tidak selalu sama persis dengan kode di RajaOngkir,
-// jadi kita tanya langsung ke akun Biteship kurir apa saja yang aktif
-// (GET /couriers), lalu cocokkan by nama — bukan menebak/hardcode kode.
-async function resolveBiteshipCourierCode(ourCode) {
-  if (!biteshipCourierCache) {
-    const json = await biteshipFetch('/couriers');
-    const list = json.couriers || json.data || [];
-    biteshipCourierCache = {};
-    for (const key of Object.keys(BITESHIP_NAME_HINT)) {
-      const hint = BITESHIP_NAME_HINT[key];
-      const found = list.find(
-        (c) => String(c.courier_code || '').toLowerCase().includes(hint) ||
-          String(c.courier_name || '').toLowerCase().includes(hint)
-      );
-      if (found) biteshipCourierCache[key] = found.courier_code;
-    }
-  }
-  return biteshipCourierCache[ourCode] || null;
-}
-
-async function biteshipRatesForCourier(ourCode, { originZip, destinationZip, weight }) {
-  if (!process.env.BITESHIP_API_KEY) return null; // fallback belum di-setup
-  if (!originZip || !destinationZip) return null; // butuh kode pos asal & tujuan (dari hasil pencarian lokasi)
-  const courierCode = await resolveBiteshipCourierCode(ourCode);
-  if (!courierCode) return null; // kurir ini juga tidak aktif di akun Biteship kamu
-
-  const json = await biteshipFetch('/rates/couriers', {
-    method: 'POST',
-    body: JSON.stringify({
-      origin_postal_code: Number(originZip),
-      destination_postal_code: Number(destinationZip),
-      couriers: courierCode,
-      items: [{ name: 'Paket', value: 10000, weight: Math.max(1, Number(weight) || 1), quantity: 1 }],
-    }),
-  });
-  const rows = (json.pricing || json.data || []).filter(
-    (p) => String(p.courier_code || '').toLowerCase() === courierCode.toLowerCase()
-  );
-  return rows.map((p) => ({
-    service: p.courier_service_name || p.service_name || p.type || 'Layanan',
-    description: p.description || p.courier_service_code || '',
-    cost: p.price,
-    etd: p.duration || p.etd || '',
-  }));
-}
-
-// Dibungkus try/catch sendiri: kalau Biteship ikut gagal (key salah, kuota
-// habis, dll), kita diam-diam kembali ke pesan error RajaOngkir yang asli,
-// bukan malah menimpanya dengan error Biteship yang bisa membingungkan.
-async function tryBiteshipFallback(ourCode, params) {
-  try {
-    return await biteshipRatesForCourier(ourCode, params);
-  } catch (e) {
-    return null;
-  }
 }
 
 function buildCostBody(origin, destination, weight, courierParam) {
@@ -182,7 +93,7 @@ function buildCostBody(origin, destination, weight, courierParam) {
   });
 }
 
-async function calcCost({ origin, destination, weight, couriers, originZip, destinationZip }) {
+async function calcCost({ origin, destination, weight, couriers }) {
   const wanted = (couriers && couriers.length ? couriers : Object.keys(COURIER_MAP)).filter(
     (c) => COURIER_MAP[c]
   );
@@ -240,23 +151,9 @@ async function calcCost({ origin, destination, weight, couriers, originZip, dest
         body: buildCostBody(origin, destination, weight, code),
       });
       addResults(rows);
-      if (!grouped[code]) {
-        // RajaOngkir tidak error, tapi juga tidak mengembalikan baris apapun
-        // untuk kurir ini — coba Biteship dulu sebelum ditandai tidak tersedia.
-        const bsRows = await tryBiteshipFallback(code, { originZip, destinationZip, weight });
-        if (bsRows && bsRows.length) {
-          grouped[code] = { courier: code, name: COURIER_MAP[code], available: true, services: bsRows };
-        } else {
-          markUnavailable(code, 'Tidak ada layanan untuk rute/berat ini');
-        }
-      }
+      if (!grouped[code]) markUnavailable(code, 'Tidak ada layanan untuk rute/berat ini');
     } catch (e) {
-      const bsRows = await tryBiteshipFallback(code, { originZip, destinationZip, weight });
-      if (bsRows && bsRows.length) {
-        grouped[code] = { courier: code, name: COURIER_MAP[code], available: true, services: bsRows };
-      } else {
-        markUnavailable(code, `Belum didukung akun/API kamu saat ini — pesan dari RajaOngkir: ${e.message}`);
-      }
+      markUnavailable(code, `Belum didukung akun/API kamu saat ini — pesan dari RajaOngkir: ${e.message}`);
     }
   }
 
@@ -280,7 +177,7 @@ module.exports = async (req, res) => {
         try { body = JSON.parse(body || '{}'); } catch (_) { body = {}; }
       }
       body = body || {};
-      const { origin, destination, weight, couriers, originZip, destinationZip } = body;
+      const { origin, destination, weight, couriers } = body;
       if (!origin || !destination || !weight) {
         return res.status(400).json({ error: 'origin, destination, dan weight wajib diisi' });
       }
@@ -289,8 +186,6 @@ module.exports = async (req, res) => {
         destination,
         weight: Math.max(1, Number(weight) || 0),
         couriers,
-        originZip,
-        destinationZip,
       });
       return res.status(200).json({ data });
     }
