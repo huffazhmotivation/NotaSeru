@@ -4970,35 +4970,79 @@ function resetWaTemplate() {
   toast('Template pesan direset ke default', 'ok');
 }
 
+// Batas dimensi logo setelah dikompres — 480px sisi terpanjang sudah lebih dari
+// cukup tajam untuk ditampilkan di kotak logo nota (paling besar ~68px) maupun
+// preview, tapi motong drastis ukuran file kalau user upload foto asli dari HP
+// (yang biasanya 3000-4000px & bisa beberapa MB). Ini yang paling berdampak ke
+// kuota Supabase & localStorage, karena logo diupload base64 apa adanya.
+const LOGO_MAX_DIM = 480;
+// Ambang ukuran (byte, dari panjang string data-URL) sebelum PNG hasil resize
+// diturunkan lagi jadi JPEG kualitas tinggi — PNG dipertahankan dulu karena
+// logo sering butuh background transparan.
+const LOGO_PNG_FALLBACK_BYTES = 300 * 1024;
+
 function uploadLogo(input) {
   const file = input.files[0]; if (!file) return;
-  const r = new FileReader();
-  r.onload = e => {
-    const data = e.target.result;
-    // Simpan logo langsung ke localStorage dengan key ns3_logo (tanpa trigger DB.set patch)
-    try { localStorage.setItem('ns3_logo', JSON.stringify(data)); } catch {}
-    // Push logo ke cloud terpisah
-    if (typeof CloudDB !== 'undefined' && CloudDB._push) CloudDB._push('logo', data);
-    // Simpan ke settings untuk kompatibilitas render nota (slim, tanpa logo untuk cloud)
-    const s = DB.get('settings', {});
-    s.logo = data;
-    if (!s.logoScale) s.logoScale = 100;
-    if (s.logoPosX == null) s.logoPosX = 50;
-    if (s.logoPosY == null) s.logoPosY = 50;
-    DB.set('settings', s);
-    const p = document.getElementById('logoPrev'); const ph = document.getElementById('logoPh');
-    if (p) {
-      p.style.backgroundImage = `url('${data}')`;
-      p.style.backgroundSize = (s.logoScale || 100) + '%';
-      p.style.backgroundPosition = `${s.logoPosX}% ${s.logoPosY}%`;
-      p.style.display = 'block';
-    }
-    if (ph) ph.style.display = 'none';
-    // Tampilkan tombol "Atur Posisi & Crop Logo" begitu ada logo yang diupload
-    const scaleRow = document.getElementById('logoScaleRow'); if (scaleRow) scaleRow.style.display = 'block';
-    toast('Logo diupload ✓', 'ok');
+  const reader = new FileReader();
+  reader.onload = e => {
+    const rawDataUrl = e.target.result;
+    const img = new Image();
+    img.onload = () => {
+      let { width, height } = img;
+      const scale = Math.min(1, LOGO_MAX_DIM / Math.max(width, height));
+      width = Math.max(1, Math.round(width * scale));
+      height = Math.max(1, Math.round(height * scale));
+      let data;
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = width; canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+        const keepsTransparency = /png|gif|webp/i.test(file.type);
+        data = keepsTransparency ? canvas.toDataURL('image/png') : canvas.toDataURL('image/jpeg', 0.85);
+        // PNG hasil resize kadang masih berat kalau logonya kompleks/warna-warni —
+        // turunkan ke JPEG kualitas tinggi supaya tetap hemat (logo dengan latar
+        // putih/solid tidak akan kelihatan bedanya tanpa transparansi).
+        if (keepsTransparency && data.length > LOGO_PNG_FALLBACK_BYTES) {
+          data = canvas.toDataURL('image/jpeg', 0.85);
+        }
+      } catch(err) {
+        // Kalau kompresi gagal (mis. canvas error), pakai file asli apa adanya
+        // supaya upload tetap jalan — lebih baik logo besar daripada gagal total.
+        data = rawDataUrl;
+      }
+      _finishLogoUpload(data);
+    };
+    img.onerror = () => toast('Gagal membaca gambar, coba file lain', 'err');
+    img.src = rawDataUrl;
   };
-  r.readAsDataURL(file);
+  reader.onerror = () => toast('Gagal membaca file', 'err');
+  reader.readAsDataURL(file);
+}
+
+function _finishLogoUpload(data) {
+  // Simpan logo langsung ke localStorage dengan key ns3_logo (tanpa trigger DB.set patch)
+  try { localStorage.setItem('ns3_logo', JSON.stringify(data)); } catch {}
+  // Push logo ke cloud terpisah
+  if (typeof CloudDB !== 'undefined' && CloudDB._push) CloudDB._push('logo', data);
+  // Simpan ke settings untuk kompatibilitas render nota (slim, tanpa logo untuk cloud)
+  const s = DB.get('settings', {});
+  s.logo = data;
+  if (!s.logoScale) s.logoScale = 100;
+  if (s.logoPosX == null) s.logoPosX = 50;
+  if (s.logoPosY == null) s.logoPosY = 50;
+  DB.set('settings', s);
+  const p = document.getElementById('logoPrev'); const ph = document.getElementById('logoPh');
+  if (p) {
+    p.style.backgroundImage = `url('${data}')`;
+    p.style.backgroundSize = (s.logoScale || 100) + '%';
+    p.style.backgroundPosition = `${s.logoPosX}% ${s.logoPosY}%`;
+    p.style.display = 'block';
+  }
+  if (ph) ph.style.display = 'none';
+  // Tampilkan tombol "Atur Posisi & Crop Logo" begitu ada logo yang diupload
+  const scaleRow = document.getElementById('logoScaleRow'); if (scaleRow) scaleRow.style.display = 'block';
+  toast('Logo diupload ✓', 'ok');
 }
 
 // ── Modal "Atur Posisi & Crop Logo" ──────────────────────────
@@ -5532,7 +5576,38 @@ function toast(msg, type='') {
 }
 
 // ── PWA ─────────────────────────────────────
-function registerSW() { if ('serviceWorker' in navigator) navigator.serviceWorker.register('./service-worker.js').catch(()=>{}); }
+// registerSW: daftarkan service worker + pantau kalau ada versi baru yang
+// sudah selesai dipasang di background (lihat service-worker.js — pakai
+// skipWaiting()+clients.claim() jadi begitu versi baru aktif, ia langsung
+// "ambil alih" tab yang sedang terbuka lewat event controllerchange).
+// User cuma perlu diberi tahu & tombol "Muat ulang", tidak perlu tau soal
+// cache/service worker.
+function registerSW() {
+  if (!('serviceWorker' in navigator)) return;
+  // Kalau sebelumnya sudah pernah ada controller (bukan instalasi pertama
+  // kali di device ini), controllerchange berikutnya berarti pergantian ke
+  // versi baru → baru saat itu banner ditampilkan. Instalasi pertama kali
+  // tidak akan memicu controllerchange sama sekali, tapi guard ini dijaga
+  // buat berjaga-jaga di browser yang perilakunya beda.
+  const hadControllerBefore = !!navigator.serviceWorker.controller;
+  navigator.serviceWorker.register('./service-worker.js').catch(() => {});
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!hadControllerBefore) return;
+    showUpdateBanner();
+  });
+}
+
+function showUpdateBanner() {
+  const el = document.getElementById('updateBanner');
+  if (el) el.classList.add('visible');
+}
+function dismissUpdateBanner() {
+  const el = document.getElementById('updateBanner');
+  if (el) el.classList.remove('visible');
+}
+function applyAppUpdate() {
+  location.reload();
+}
 function setupInstall() {
   window.addEventListener('beforeinstallprompt', e => {
     e.preventDefault(); window._dip = e;

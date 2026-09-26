@@ -55,6 +55,38 @@ const CloudDB = {
       rows.push({ user_id: _authUser.id, key: 'settings', value: slim, updated_at: now });
       if (logo      !== undefined) rows.push({ user_id: _authUser.id, key: 'logo',          value: logo,      updated_at: now });
       if (signature !== undefined) rows.push({ user_id: _authUser.id, key: 'signature',     value: signature, updated_at: now });
+    } else if (k === 'invoices') {
+      // BUG FIX (kuota Supabase & performa): dulu SETIAP kali 1 nota disimpan/
+      // diubah, SELURUH riwayat nota (bisa ribuan) ikut diupload ulang sebagai
+      // satu blob JSONB — makin lama makin berat & boros kuota. Sekarang tiap
+      // nota disimpan sebagai row TERSENDIRI (key: "invoice:<id>"), dan di sini
+      // kita diff dulu terhadap snapshot nota terakhir yang berhasil dikirim,
+      // supaya HANYA nota yang baru/berubah yang benar-benar di-upload.
+      const arr = Array.isArray(v) ? v : [];
+      let prevSnap = {};
+      try { prevSnap = JSON.parse(localStorage.getItem('ns3_invoicesCloudSnap') || '{}'); } catch {}
+      const nextSnap = {};
+      for (const inv of arr) {
+        if (!inv || !inv.id) continue;
+        const sig = JSON.stringify(inv);
+        nextSnap[inv.id] = sig;
+        if (prevSnap[inv.id] !== sig) {
+          rows.push({ user_id: _authUser.id, key: 'invoice:' + inv.id, value: inv, updated_at: now });
+        }
+      }
+      // Nota yang hilang dari array (dihapus user) → hapus juga row-nya di cloud
+      const removedIds = Object.keys(prevSnap).filter(id => !(id in nextSnap));
+      try { localStorage.setItem('ns3_invoicesCloudSnap', JSON.stringify(nextSnap)); } catch {}
+      if (removedIds.length) {
+        (async () => {
+          for (const id of removedIds) {
+            try {
+              const { error } = await sb.from('userdata').delete().eq('user_id', _authUser.id).eq('key', 'invoice:' + id);
+              if (error) console.warn('CloudDB delete invoice err', id, error);
+            } catch(e) { console.warn('CloudDB delete invoice err', id, e); }
+          }
+        })();
+      }
     } else {
       rows.push({ user_id: _authUser.id, key: k, value: v, updated_at: now });
     }
@@ -77,9 +109,19 @@ const CloudDB = {
       let changed = false;
       // Kumpulkan logo & signature dulu sebelum proses settings
       let incomingLogo = undefined, incomingSign = undefined;
+      // Nota: kumpulkan row lama (blob "invoices", format sebelum bug fix ini)
+      // dan row baru (satu row per nota, key "invoice:<id>") — digabung setelah loop.
+      let legacyInvoices = undefined;
+      const invoiceRowMap = {};
       for (const row of data) {
         if (row.key === 'logo')      { incomingLogo = row.value; continue; }
         if (row.key === 'signature') { incomingSign = row.value; continue; }
+        if (row.key === 'invoices')  { legacyInvoices = row.value; continue; }
+        if (row.key.startsWith('invoice:')) {
+          const id = row.key.slice('invoice:'.length);
+          if (row.value) invoiceRowMap[id] = row.value;
+          continue;
+        }
         if (row.key === 'settings') {
           // Merge: settings dari cloud (slim) + logo/signature dari cloud/lokal
           try {
@@ -103,6 +145,44 @@ const CloudDB = {
         if (current !== incoming) {
           try { localStorage.setItem('ns3_' + row.key, incoming); } catch {}
           changed = true;
+        }
+      }
+      // Gabungkan nota: mulai dari blob lama (kalau akun ini masih menyimpan format
+      // sebelum bug fix ini), lalu timpa/tambah dengan row per-nota yang baru —
+      // itu yang jadi sumber kebenaran saat ini.
+      if (legacyInvoices !== undefined || Object.keys(invoiceRowMap).length) {
+        const byId = {};
+        if (Array.isArray(legacyInvoices)) for (const inv of legacyInvoices) if (inv && inv.id) byId[inv.id] = inv;
+        for (const id in invoiceRowMap) byId[id] = invoiceRowMap[id];
+        const merged = Object.values(byId).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+        const mergedStr = JSON.stringify(merged);
+        if (localStorage.getItem('ns3_invoices') !== mergedStr) {
+          try { localStorage.setItem('ns3_invoices', mergedStr); } catch {}
+          changed = true;
+        }
+        // Simpan snapshot sebagai basis diff untuk push berikutnya (lihat CloudDB._push, k === 'invoices')
+        try {
+          const snap = {};
+          for (const inv of merged) if (inv && inv.id) snap[inv.id] = JSON.stringify(inv);
+          localStorage.setItem('ns3_invoicesCloudSnap', JSON.stringify(snap));
+        } catch {}
+        // Migrasi sekali jalan: kalau masih ada blob "invoices" lama, pecah jadi
+        // row per-nota lalu hapus blob lamanya, supaya tidak dobel makan kuota
+        // di database dan ke depannya semua device pakai format baru.
+        if (legacyInvoices !== undefined) {
+          (async () => {
+            try {
+              for (const inv of merged) {
+                if (!inv || !inv.id) continue;
+                await sb.from('userdata').upsert(
+                  { user_id: _authUser.id, key: 'invoice:' + inv.id, value: inv, updated_at: new Date().toISOString() },
+                  { onConflict: 'user_id,key' }
+                );
+              }
+              await sb.from('userdata').delete().eq('user_id', _authUser.id).eq('key', 'invoices');
+              console.log('[NS] migrasi nota ke format per-baris selesai (' + merged.length + ' nota)');
+            } catch(e) { console.warn('[NS] migrasi nota gagal', e); }
+          })();
         }
       }
       // Sekarang gabungkan logo & signature ke settings
@@ -159,8 +239,21 @@ const CloudDB = {
       if (signVal) rows.push({ user_id: _authUser.id, key: 'signature', value: JSON.parse(signVal), updated_at: now });
     } catch {}
 
+    // --- Nota: satu row per nota (key: "invoice:<id>"), bukan satu blob besar —
+    // konsisten dengan CloudDB._push supaya format di cloud selalu seragam.
+    try {
+      const invoicesArr = DB.get('invoices', []);
+      const snap = {};
+      for (const inv of invoicesArr) {
+        if (!inv || !inv.id) continue;
+        rows.push({ user_id: _authUser.id, key: 'invoice:' + inv.id, value: inv, updated_at: now });
+        snap[inv.id] = JSON.stringify(inv);
+      }
+      localStorage.setItem('ns3_invoicesCloudSnap', JSON.stringify(snap));
+    } catch {}
+
     // --- Key lain ---
-    const OTHER_KEYS = ['invoices','expenses','products','ekspedisi'];
+    const OTHER_KEYS = ['expenses','products','ekspedisi'];
     for (const k of OTHER_KEYS) {
       const v = DB.get(k, null);
       if (v !== null) rows.push({ user_id: _authUser.id, key: k, value: v, updated_at: now });
@@ -241,6 +334,28 @@ function startRealtimeSync() {
               if (JSON.stringify(currentObj) === JSON.stringify(merged)) return;
               localStorage.setItem('ns3_settings', JSON.stringify(merged));
             } catch {}
+          } else if (k.startsWith('invoice:')) {
+            // Satu nota berubah (row "invoice:<id>") — dari device/tab lain, atau
+            // gema dari push device ini sendiri. Update HANYA nota itu di array
+            // lokal, tidak perlu tarik ulang semua nota.
+            try {
+              const arr = DB.get('invoices', []);
+              const idx = arr.findIndex(i => i.id === v.id);
+              const same = idx !== -1 && JSON.stringify(arr[idx]) === JSON.stringify(v);
+              if (same) return;
+              if (idx !== -1) arr[idx] = v; else arr.unshift(v);
+              arr.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+              localStorage.setItem('ns3_invoices', JSON.stringify(arr));
+              // Ikut update snapshot diff, supaya push berikutnya dari device ini
+              // tidak salah kira nota ini "berubah" lalu upload ulang tanpa perlu.
+              const snap = JSON.parse(localStorage.getItem('ns3_invoicesCloudSnap') || '{}');
+              snap[v.id] = JSON.stringify(v);
+              localStorage.setItem('ns3_invoicesCloudSnap', JSON.stringify(snap));
+            } catch {}
+            _reRenderForKey('invoices');
+            showSyncBadge('Tersinkron ✓');
+            setTimeout(hideSyncBadge, 1500);
+            return;
           } else {
             // Jangan re-render kalau nilai tidak berubah
             const current = DB.get(k, null);
@@ -262,6 +377,19 @@ function startRealtimeSync() {
           setTimeout(hideSyncBadge, 1500);
         } else if (eventType === 'DELETE') {
           const k = oldRow.key;
+          if (k.startsWith('invoice:')) {
+            // Nota dihapus dari device/tab lain — buang dari array lokal juga.
+            const id = k.slice('invoice:'.length);
+            try {
+              const arr = DB.get('invoices', []).filter(i => i.id !== id);
+              localStorage.setItem('ns3_invoices', JSON.stringify(arr));
+              const snap = JSON.parse(localStorage.getItem('ns3_invoicesCloudSnap') || '{}');
+              delete snap[id];
+              localStorage.setItem('ns3_invoicesCloudSnap', JSON.stringify(snap));
+            } catch {}
+            _reRenderForKey('invoices');
+            return;
+          }
           localStorage.removeItem('ns3_' + k);
           _reRenderForKey(k);
         }
