@@ -64,6 +64,37 @@ Integrasi, lihat ekspedisi mana saja yang sudah aktif untuk API key kamu.
 
 ---
 
+## Langkah 5 (Opsional) — Fallback Biteship khusus Wahana/SiCepat/Indah Cargo
+
+RajaOngkir (terutama akun **Starter/gratis**) sering tidak meng-cover
+**Wahana, SiCepat, dan Indah Cargo**. Kalau kamu sudah coba Langkah 4 di
+atas (aktivasi di dashboard Komerce / upgrade Pro) dan tiga kurir itu
+masih "Tidak tersedia", kamu bisa aktifkan fallback ke **Biteship**
+khusus untuk tiga kurir ini saja — JNE & Lion Parcel tetap dari
+RajaOngkir seperti biasa, tidak berubah.
+
+1. Daftar/masuk ke [biteship.com](https://biteship.com) (gratis, tidak perlu
+   Order API aktif — cukup mode testing untuk cek tarif)
+2. Ke dashboard → **Integration** → **Settings** → **API Key** → generate
+   API Key baru (kalau kamu masih menyimpan API Key Biteship yang lama
+   dari sebelum migrasi, itu juga bisa langsung dipakai)
+3. Di Vercel → **Settings → Environment Variables**, tambahkan:
+   - **Name**: `BITESHIP_API_KEY`
+   - **Value**: (API key dari Biteship)
+   - **Environment**: centang semua
+4. Redeploy
+
+Kalau `BITESHIP_API_KEY` **tidak** diisi, fitur cek ongkir tetap jalan
+normal seperti sebelumnya (fallback ini murni tambahan, tidak wajib).
+Begitu diisi, untuk Wahana/SiCepat/Indah Cargo yang ditolak RajaOngkir,
+sistem otomatis coba sekali lagi lewat Biteship sebelum menandainya
+"Tidak tersedia" — dan karena Biteship butuh **kode pos** (bukan ID
+lokasi RajaOngkir), pastikan kamu pilih kota/kecamatan asal & tujuan
+dari saran pencarian (bukan ngetik manual tanpa memilih), supaya kode
+posnya ikut tersimpan.
+
+---
+
 ## Troubleshooting
 
 | Masalah | Solusi |

@@ -1105,13 +1105,18 @@ img{max-width:100%;display:block;}
 #app{position:relative;z-index:1;}
 
 /* ── CEK ONGKIR ─────────────────────────────── */
-.ock-card{background:var(--bg-card);border:1px solid var(--border-soft);border-radius:var(--r-md);padding:16px;box-shadow:var(--sh-sm);}
-.ock-field-group{display:flex;align-items:flex-end;gap:8px;}
-.ock-field{flex:1;min-width:0;}
+.ock-card{position:relative;background:var(--bg-card);border:1px solid var(--border-soft);border-radius:var(--r-md);padding:16px;box-shadow:var(--sh-sm);}
+.ock-clear-btn{position:absolute;top:12px;right:12px;width:26px;height:26px;border-radius:var(--r-full);background:var(--bg-input);color:var(--txt-3);border:none;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:var(--ease);z-index:1;}
+.ock-clear-btn:active{transform:scale(.9);background:var(--border-soft);}
+/* Form asal/tujuan disusun atas-bawah (bukan kiri-kanan) supaya sidebar
+   form lebih panjang & tiap kota punya ruang penuh untuk ditulis/dibaca. */
+.ock-field-group{display:flex;flex-direction:column;gap:10px;}
+.ock-field{min-width:0;}
 .ock-label{display:block;font-size:11.5px;font-weight:700;color:var(--txt-3);margin-bottom:6px;text-transform:uppercase;letter-spacing:.03em;}
 .ock-input{width:100%;background:var(--bg-input);border:1px solid transparent;border-radius:var(--r-xs);padding:11px 12px;font-size:13.5px;font-family:var(--font);color:var(--txt-1);box-sizing:border-box;transition:var(--ease);}
 .ock-input:focus{outline:none;border-color:var(--primary);background:var(--bg-card);}
-.ock-swap-btn{flex-shrink:0;width:38px;height:38px;border-radius:var(--r-full);background:var(--primary-soft);color:var(--primary);border:none;display:flex;align-items:center;justify-content:center;cursor:pointer;margin-bottom:1px;transition:var(--ease);}
+.ock-swap-btn{flex-shrink:0;align-self:center;width:34px;height:34px;border-radius:var(--r-full);background:var(--primary-soft);color:var(--primary);border:none;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:var(--ease);}
+.ock-swap-btn svg{transform:rotate(90deg);}
 .ock-swap-btn:active{transform:scale(.9);}
 .ock-suggest{position:absolute;top:calc(100% + 4px);left:0;right:0;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-md);box-shadow:var(--sh-lg);z-index:50;max-height:200px;overflow-y:auto;display:none;}
 .ock-suggest.visible{display:block;}
