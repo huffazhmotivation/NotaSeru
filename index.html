@@ -635,13 +635,13 @@
   <div style="padding:16px 20px 100px">
     <div class="ock-card">
       <div class="ock-field-group">
-        <button type="button" class="ock-clear-btn" onclick="ockClearForm()" aria-label="Kosongkan form">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-        </button>
         <div class="ock-field" style="position:relative">
           <label class="ock-label">Dari</label>
           <input type="text" class="ock-input ock-input-loc" id="ockOriginInput" placeholder="Kota/kecamatan asal, mis. Sleman"
             autocomplete="off" oninput="ockSearch('origin', this.value)" onfocus="ockSearch('origin', this.value)">
+          <button type="button" class="ock-field-clear-btn" id="ockOriginClearBtn" onclick="ockClearField('origin')" aria-label="Kosongkan asal" style="display:none">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
           <div class="ock-suggest" id="ockOriginSuggest"></div>
         </div>
         <button type="button" class="ock-swap-btn" onclick="ockSwap()" aria-label="Tukar asal & tujuan">
@@ -651,6 +651,9 @@
           <label class="ock-label">Ke</label>
           <input type="text" class="ock-input ock-input-loc" id="ockDestInput" placeholder="Kota/kecamatan tujuan, mis. Cakung"
             autocomplete="off" oninput="ockSearch('dest', this.value)" onfocus="ockSearch('dest', this.value)">
+          <button type="button" class="ock-field-clear-btn" id="ockDestClearBtn" onclick="ockClearField('dest')" aria-label="Kosongkan tujuan" style="display:none">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
           <div class="ock-suggest" id="ockDestSuggest"></div>
         </div>
       </div>

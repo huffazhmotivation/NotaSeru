@@ -5773,6 +5773,17 @@ function ockInit() {
     if (wInp && !wInp.value) wInp.value = ockState.weight;
     ockInited = true;
   }
+  ockUpdateFieldClearBtn('origin');
+  ockUpdateFieldClearBtn('dest');
+}
+
+// Tampilkan/sembunyikan tombol "x" di dalam kotak Dari/Ke masing-masing,
+// tergantung apakah kotak itu sendiri lagi ada isinya atau tidak.
+function ockUpdateFieldClearBtn(kind) {
+  const inp = document.getElementById(kind === 'origin' ? 'ockOriginInput' : 'ockDestInput');
+  const btn = document.getElementById(kind === 'origin' ? 'ockOriginClearBtn' : 'ockDestClearBtn');
+  if (!btn) return;
+  btn.style.display = (inp && inp.value) ? 'flex' : 'none';
 }
 
 function ockInitCourierChips() {
@@ -5799,9 +5810,26 @@ function ockOnWeightInput(el) {
   ockState.weight = isNaN(n) ? 0 : n;
 }
 
-// Tombol "x" di pojok kanan atas kartu form: mengosongkan semua isian
-// (asal, tujuan, berat, pilihan ekspedisi) dan hasil pencarian sebelumnya,
-// supaya user bisa mulai cek ongkir dari awal tanpa reload halaman.
+// Tombol "x" di dalam kotak Dari / kotak Ke (masing-masing punya sendiri):
+// cuma ngosongin isian kotak itu doang (bukan seluruh form).
+function ockClearField(kind) {
+  const inp = document.getElementById(kind === 'origin' ? 'ockOriginInput' : 'ockDestInput');
+  if (inp) inp.value = '';
+  if (kind === 'origin') {
+    ockState.originId = null; ockState.originLabel = '';
+  } else {
+    ockState.destId = null; ockState.destLabel = '';
+  }
+  const sug = document.getElementById(kind === 'origin' ? 'ockOriginSuggest' : 'ockDestSuggest');
+  if (sug) { sug.classList.remove('visible'); sug.innerHTML = ''; }
+  ockUpdateFieldClearBtn(kind);
+  if (inp) inp.focus();
+}
+
+// Fungsi lama: mengosongkan semua isian (asal, tujuan, berat, pilihan
+// ekspedisi) dan hasil pencarian sekaligus. Tidak lagi dipakai tombol
+// manapun di UI (sudah diganti tombol "x" per-kotak di atas), tapi
+// dibiarkan ada kalau-kalau dibutuhkan lagi nanti.
 function ockClearForm() {
   ockState.originId = null; ockState.originLabel = '';
   ockState.destId = null; ockState.destLabel = '';
@@ -5832,10 +5860,13 @@ function ockSwap() {
   const oi = document.getElementById('ockOriginInput'), di = document.getElementById('ockDestInput');
   if (oi) oi.value = ockState.originLabel || '';
   if (di) di.value = ockState.destLabel || '';
+  ockUpdateFieldClearBtn('origin');
+  ockUpdateFieldClearBtn('dest');
 }
 
 function ockSearch(kind, query) {
   clearTimeout(ockSearchTimer);
+  ockUpdateFieldClearBtn(kind);
   const box = document.getElementById(kind === 'origin' ? 'ockOriginSuggest' : 'ockDestSuggest');
   const q = (query || '').trim();
   if (!box) return;
@@ -5886,6 +5917,7 @@ function ockPick(kind, id, label) {
   const inp = document.getElementById(kind === 'origin' ? 'ockOriginInput' : 'ockDestInput');
   if (inp) inp.value = label;
   if (box) { box.classList.remove('visible'); box.innerHTML = ''; }
+  ockUpdateFieldClearBtn(kind);
   if (kind === 'origin') {
     ockState.originId = id; ockState.originLabel = label;
     if (document.getElementById('ockSaveOriginChk')?.checked) {

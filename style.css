@@ -1106,13 +1106,19 @@ img{max-width:100%;display:block;}
 
 /* ── CEK ONGKIR ─────────────────────────────── */
 .ock-card{position:relative;background:var(--bg-card);border:1px solid var(--border-soft);border-radius:var(--r-md);padding:16px;box-shadow:var(--sh-sm);}
-/* X: nempel di ujung kanan ATAS box "Dari/Tujuan" itu sendiri (field-group),
-   bukan di pojok panel ock-card secara keseluruhan. */
+/* Setiap kotak "Dari" dan "Ke" punya tombol "x" sendiri (lihat
+   .ock-field-clear-btn di bawah), bukan satu "x" bersama di pojok. */
 .ock-field-group{display:flex;flex-direction:column;gap:10px;position:relative;padding-top:4px;}
 .ock-clear-btn{position:absolute;top:-8px;right:-8px;width:24px;height:24px;border-radius:var(--r-full);background:var(--bg-card);color:var(--txt-3);border:1px solid var(--border-soft);box-shadow:var(--sh-sm);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:var(--ease);z-index:2;}
 .ock-clear-btn:hover{color:var(--txt-1);border-color:var(--txt-3);}
 .ock-clear-btn:active{transform:scale(.88);}
 .ock-field{min-width:0;}
+/* Tombol "x" masing-masing di dalam kotak Dari & kotak Ke (kanan input),
+   menggantikan satu tombol "x" bersama yang dulu di pojok kartu. Tiap
+   kotak sekarang punya "x" sendiri yang cuma ngosongin isian kotak itu. */
+.ock-field-clear-btn{position:absolute;right:8px;bottom:8px;width:22px;height:22px;border-radius:var(--r-full);background:transparent;color:var(--txt-3);border:none;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:var(--ease);z-index:3;}
+.ock-field-clear-btn:hover{color:var(--danger,#DC2626);background:var(--bg-input);}
+.ock-field-clear-btn:active{transform:scale(.88);}
 .ock-label{display:block;font-size:11.5px;font-weight:700;color:var(--txt-3);margin-bottom:6px;text-transform:uppercase;letter-spacing:.03em;}
 .ock-input{width:100%;background:var(--bg-input);border:1px solid transparent;border-radius:var(--r-xs);padding:11px 12px;font-size:13.5px;font-family:var(--font);color:var(--txt-1);box-sizing:border-box;transition:var(--ease);}
 .ock-input:focus{outline:none;border-color:var(--primary);background:var(--bg-card);}
