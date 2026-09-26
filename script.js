@@ -5619,12 +5619,21 @@ function registerSW() {
     //    (visibilitychange → 'visible'), supaya kejadian "resume dari
     //    background" tetap memicu pengecekan, bukan cuma reload penuh.
     reg.update().catch(() => {});
+    // Beberapa Android (khususnya HP dengan manajemen baterai agresif —
+    // MIUI/ColorOS/FunTouch/OneUI) menahan/membekukan jendela standalone di
+    // background TANPA memicu 'visibilitychange' dengan konsisten seperti di
+    // tab browser biasa. Makanya dipasang beberapa event sekaligus yang
+    // sama-sama memanggil reg.update() — kalau satu event gagal terpicu di
+    // device tertentu, yang lain diharapkan tetap menangkapnya:
+    const recheck = () => reg.update().catch(() => {});
     document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'visible') reg.update().catch(() => {});
+      if (document.visibilityState === 'visible') recheck();
     });
-    // Jaring pengaman tambahan: cek ulang tiap 15 menit selama app terbuka,
+    window.addEventListener('focus', recheck);
+    window.addEventListener('pageshow', recheck);
+    // Jaring pengaman tambahan: cek ulang tiap 5 menit selama app terbuka,
     // buat sesi yang dibiarkan nyala lama tanpa pernah background/foreground.
-    setInterval(() => reg.update().catch(() => {}), 15 * 60 * 1000);
+    setInterval(recheck, 5 * 60 * 1000);
 
     // FIX BUG: sebelumnya popup juga baru muncul SETELAH worker baru selesai
     // 'activate' (lewat controllerchange). Karena activate baru terjadi
@@ -5654,6 +5663,39 @@ function registerSW() {
 function showUpdateBanner() {
   document.getElementById('updateOverlay')?.classList.add('visible');
   document.getElementById('updateModal')?.classList.add('visible');
+}
+// Tombol "Cek Update" manual di Pengaturan — jaring pengaman kalau deteksi
+// otomatis (visibilitychange/focus/pageshow) kebetulan tidak terpicu di HP
+// tertentu. Cukup panggil reg.update() dan kasih tahu hasilnya lewat toast;
+// kalau memang ada versi baru, showUpdateBanner() dari registerSW() (lewat
+// listener 'updatefound'/'controllerchange' yang sudah terpasang) yang akan
+// menampilkan popupnya.
+async function manualCheckUpdate() {
+  const sub = document.getElementById('settCheckUpdateSub');
+  if (!('serviceWorker' in navigator)) { toast('Fitur update tidak didukung di browser ini', 'wrn'); return; }
+  if (sub) sub.textContent = 'Mengecek...';
+  try {
+    const reg = await navigator.serviceWorker.getRegistration();
+    if (!reg) {
+      if (sub) sub.textContent = 'Ketuk untuk cek versi terbaru sekarang';
+      toast('Service worker belum terpasang, coba muat ulang app', 'wrn');
+      return;
+    }
+    let found = false;
+    const onFound = () => { found = true; };
+    reg.addEventListener('updatefound', onFound);
+    await reg.update();
+    // Kasih jeda sebentar biar browser sempat mulai instalasi worker baru
+    // (kalau memang ketemu) sebelum kita simpulkan hasilnya.
+    setTimeout(() => {
+      reg.removeEventListener('updatefound', onFound);
+      if (sub) sub.textContent = 'Ketuk untuk cek versi terbaru sekarang';
+      if (!found && !reg.waiting) toast('Sudah pakai versi terbaru', 'ok');
+    }, 1500);
+  } catch (e) {
+    if (sub) sub.textContent = 'Ketuk untuk cek versi terbaru sekarang';
+    toast('Gagal mengecek update, cek koneksi', 'err');
+  }
 }
 function dismissUpdateBanner() {
   document.getElementById('updateOverlay')?.classList.remove('visible');
@@ -5693,16 +5735,20 @@ function triggerInstall() { if (window._dip) { window._dip.prompt(); document.ge
 function dismissInstall(e) { e.stopPropagation(); document.getElementById('installBanner')?.classList.add('gone'); DB.set('ibDismissed',true); }
 
 // ── CEK ONGKIR ───────────────────────────────
-// Fitur cek ongkos kirim, datanya diambil dari API RajaOngkir (by Komerce)
-// lewat proxy serverless kita sendiri di /api/ongkir (LIHAT api/ongkir.js).
-// Kita TIDAK pernah menyimpan tarif manual di sini — semua angka datang
+// Fitur cek ongkos kirim, datanya diambil dari Biteship API lewat proxy
+// serverless kita sendiri di /api/ongkir (LIHAT api/ongkir.js). Kita
+// TIDAK pernah menyimpan tarif manual di sini — semua angka datang
 // langsung dari API supaya akurat & selalu ikut update tarif asli tiap
 // ekspedisi. Kalau /api/ongkir belum di-setup (API key belum diisi di
 // Vercel), fitur ini akan kasih pesan yang jelas, bukan angka palsu.
+// CATATAN: "Indah Cargo" dihapus dari daftar karena Biteship tidak
+// menyediakan kurir ini (beda dari RajaOngkir). Kalau mau tambah kurir
+// lain yang didukung Biteship (mis. J&T/jnt, AnterAja/anteraja, TIKI),
+// tinggal tambahkan barisnya di sini DAN di COURIER_MAP pada
+// api/ongkir.js.
 const OCK_COURIERS = [
   { code: 'jne', name: 'JNE' },
   { code: 'wahana', name: 'Wahana' },
-  { code: 'indah', name: 'Indah Cargo' },
   { code: 'lion', name: 'Lion Parcel' },
   { code: 'sicepat', name: 'SiCepat' },
 ];
@@ -5847,7 +5893,7 @@ async function ockCheck() {
   const results = document.getElementById('ockResults');
   const mySeq = ++ockCheckSeq;
   if (btn) { btn.disabled = true; btn.textContent = 'Mengecek...'; }
-  if (results) results.innerHTML = `<div class="ock-loading">Mengambil tarif terbaru dari RajaOngkir...</div>`;
+  if (results) results.innerHTML = `<div class="ock-loading">Mengambil tarif terbaru dari Biteship...</div>`;
 
   try {
     const res = await fetch('/api/ongkir', {
