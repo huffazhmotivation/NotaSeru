@@ -218,18 +218,43 @@ function startRealtimeSync() {
         if (eventType === 'INSERT' || eventType === 'UPDATE') {
           const k = newRow.key;
           const v = newRow.value;
-          // Jangan re-render kalau nilai tidak berubah
-          const current = DB.get(k, null);
-          if (JSON.stringify(current) === JSON.stringify(v)) return;
-          // BUG FIX #3: Tulis langsung ke localStorage (bypass patched DB.set)
-          try { localStorage.setItem('ns3_' + k, JSON.stringify(v)); } catch {}
-          // Gabungkan logo/signature ke dalam settings object agar render nota tetap jalan
-          if (k === 'logo' || k === 'signature') {
+
+          if (k === 'settings') {
+            // BUG FIX (logo/scale hilang sendiri): row 'settings' di cloud SELALU
+            // "slim" (logo & signature sengaja dibuang sebelum push, lihat
+            // CloudDB._push). Event realtime ini juga bisa nyantol balik ke
+            // device yang BARU SAJA melakukan push (mis. setelah atur skala/
+            // posisi logo lalu Simpan), karena subscription tidak membedakan
+            // asal perubahan. Sebelumnya kode di sini langsung menimpa
+            // localStorage['ns3_settings'] dengan payload slim itu apa adanya,
+            // sehingga logo (dan kadang signature) ikut lenyap secara acak,
+            // tergantung timing realtime — persis gejala "kadang ada kadang
+            // hilang". Perbaikannya: gabungkan dulu dengan logo/signature yang
+            // sudah tersimpan lokal, sama seperti yang dilakukan pullAll().
             try {
-              const s = JSON.parse(localStorage.getItem('ns3_settings') || '{}');
-              if (v) s[k] = v; else delete s[k];
-              localStorage.setItem('ns3_settings', JSON.stringify(s));
+              const currentRaw = localStorage.getItem('ns3_settings');
+              const currentObj = currentRaw ? JSON.parse(currentRaw) : {};
+              const merged = Object.assign({}, v, {
+                logo: currentObj.logo,
+                signature: currentObj.signature
+              });
+              if (JSON.stringify(currentObj) === JSON.stringify(merged)) return;
+              localStorage.setItem('ns3_settings', JSON.stringify(merged));
             } catch {}
+          } else {
+            // Jangan re-render kalau nilai tidak berubah
+            const current = DB.get(k, null);
+            if (JSON.stringify(current) === JSON.stringify(v)) return;
+            // BUG FIX #3: Tulis langsung ke localStorage (bypass patched DB.set)
+            try { localStorage.setItem('ns3_' + k, JSON.stringify(v)); } catch {}
+            // Gabungkan logo/signature ke dalam settings object agar render nota tetap jalan
+            if (k === 'logo' || k === 'signature') {
+              try {
+                const s = JSON.parse(localStorage.getItem('ns3_settings') || '{}');
+                if (v) s[k] = v; else delete s[k];
+                localStorage.setItem('ns3_settings', JSON.stringify(s));
+              } catch {}
+            }
           }
           // Re-render UI yang relevan
           _reRenderForKey(k);
