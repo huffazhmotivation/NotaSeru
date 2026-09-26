@@ -1,2 +1,17 @@
 [build]
 publish = "."
+
+# Pastikan browser/CDN selalu ambil versi terbaru file ini langsung dari
+# origin, bukan dari cache — kalau tidak, walaupun CACHE_NAME di
+# service-worker.js sudah dinaikkan tiap deploy, browser bisa saja masih
+# membandingkan dengan salinan LAMA file ini dari cache, sehingga update
+# tidak pernah kedeteksi sebagai "berubah".
+[[headers]]
+  for = "/service-worker.js"
+  [headers.values]
+    Cache-Control = "no-cache, no-store, must-revalidate"
+
+[[headers]]
+  for = "/manifest.json"
+  [headers.values]
+    Cache-Control = "no-cache, must-revalidate"

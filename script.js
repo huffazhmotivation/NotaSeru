@@ -5591,7 +5591,6 @@ function registerSW() {
   // tidak akan memicu controllerchange sama sekali, tapi guard ini dijaga
   // buat berjaga-jaga di browser yang perilakunya beda.
   const hadControllerBefore = !!navigator.serviceWorker.controller;
-  navigator.serviceWorker.register('./service-worker.js').catch(() => {});
   navigator.serviceWorker.addEventListener('controllerchange', () => {
     // FIX: sebelumnya kalau event ini kepencet 2x (mis. browser sempat
     // fire controllerchange lebih dari sekali), _swReloading yang dicek
@@ -5603,11 +5602,52 @@ function registerSW() {
     showUpdateBanner();
   });
 
-  // Jaga-jaga: kalau ternyata sudah ada worker yang "waiting" saat halaman
-  // ini pertama kali load (skipWaiting-nya sempat gagal/telat), tetap
-  // tampilkan popup update supaya user tidak stuck di versi lama.
-  navigator.serviceWorker.getRegistration().then((reg) => {
-    if (reg && reg.waiting && hadControllerBefore) showUpdateBanner();
+  navigator.serviceWorker.register('./service-worker.js').then((reg) => {
+    if (!reg) return;
+
+    // FIX BUG: sebelumnya popup HANYA mengandalkan event 'controllerchange',
+    // yang baru terpicu kalau browser SENDIRI memutuskan untuk mengecek ulang
+    // file service-worker.js dan menemukan isinya beda. Browser cuma ngecek
+    // itu pas ada navigasi/reload BENERAN ke halaman. Kalau app dibuka dari
+    // ikon home screen tapi Android/iOS cuma me-resume tab yang sudah nempel
+    // di background (bukan reload betulan — ini yang paling sering kejadian
+    // di PWA yang "sudah lama ga di-close paksa"), seluruh script ini
+    // (termasuk registerSW) tidak pernah jalan ulang, jadi update tidak
+    // pernah dicek di momen itu. Sekarang kita:
+    // 1) paksa reg.update() tiap kali halaman ini pertama load, DAN
+    // 2) paksa reg.update() lagi tiap kali tab/app kembali ke foreground
+    //    (visibilitychange → 'visible'), supaya kejadian "resume dari
+    //    background" tetap memicu pengecekan, bukan cuma reload penuh.
+    reg.update().catch(() => {});
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') reg.update().catch(() => {});
+    });
+    // Jaring pengaman tambahan: cek ulang tiap 15 menit selama app terbuka,
+    // buat sesi yang dibiarkan nyala lama tanpa pernah background/foreground.
+    setInterval(() => reg.update().catch(() => {}), 15 * 60 * 1000);
+
+    // FIX BUG: sebelumnya popup juga baru muncul SETELAH worker baru selesai
+    // 'activate' (lewat controllerchange). Karena activate baru terjadi
+    // setelah install selesai + skipWaiting + clients.claim(), ada jeda dan
+    // di beberapa kombinasi WebView/Android event controllerchange-nya kadang
+    // tidak konsisten terpicu. Sekarang begitu worker baru selesai di-install
+    // (status 'installed', sebelum activate) dan ini BUKAN instalasi pertama
+    // kali, popup langsung ditampilkan juga di sini sebagai jalur cadangan —
+    // showUpdateBanner() aman dipanggil dobel (cuma nge-toggle class CSS).
+    reg.addEventListener('updatefound', () => {
+      const newWorker = reg.installing;
+      if (!newWorker) return;
+      newWorker.addEventListener('statechange', () => {
+        if (newWorker.state === 'installed' && hadControllerBefore) {
+          showUpdateBanner();
+        }
+      });
+    });
+
+    // Jaga-jaga: kalau ternyata sudah ada worker yang "waiting" saat halaman
+    // ini pertama kali load (skipWaiting-nya sempat gagal/telat), tetap
+    // tampilkan popup update supaya user tidak stuck di versi lama.
+    if (reg.waiting && hadControllerBefore) showUpdateBanner();
   }).catch(() => {});
 }
 
@@ -5746,8 +5786,20 @@ function ockSearch(kind, query) {
       }
       const items = json.data || [];
       if (!items.length) { box.innerHTML = `<div class="ock-suggest-empty">Tidak ditemukan</div>`; return; }
+      // FIX BUG: sebelumnya label lokasi ditaruh langsung pakai JSON.stringify()
+      // di dalam atribut onmousedown="..." yang sudah pakai tanda kutip dua.
+      // JSON.stringify() SELALU membungkus hasilnya dengan tanda kutip dua juga,
+      // jadi begitu string itu disisipkan, kutip pembukanya langsung menutup
+      // atribut onmousedown lebih awal → sisa kodenya (yang harusnya jadi
+      // pemanggilan ockPick(...)) malah "bocor" jadi teks/atribut biasa dan
+      // tidak pernah dieksekusi. Efeknya: klik di rekomendasi kecamatan
+      // kelihatan seperti tidak ngapa-ngapain, di SEMUA hasil pencarian (bukan
+      // cuma yang mengandung karakter aneh), karena JSON.stringify pasti
+      // menghasilkan tanda kutip di awal & akhir. Sekarang datanya dilewatkan
+      // lewat atribut data-* (di-escape dengan xss(), sama seperti teksnya)
+      // dan dibaca oleh ockPickFromEl(), bukan lewat interpolasi string ke JS.
       box.innerHTML = items.map(it => `
-        <div class="ock-suggest-item" onmousedown="event.preventDefault();ockPick('${kind}',${it.id},${JSON.stringify(it.label)})">${xss(it.label)}</div>
+        <div class="ock-suggest-item" data-ock-id="${xss(it.id)}" data-ock-label="${xss(it.label)}" onmousedown="event.preventDefault();ockPickFromEl(this,'${kind}')">${xss(it.label)}</div>
       `).join('');
     } catch (e) {
       if (mySeq !== ockSearchSeq) return;
@@ -5756,6 +5808,11 @@ function ockSearch(kind, query) {
   }, 350);
 }
 
+function ockPickFromEl(el, kind) {
+  const id = el.getAttribute('data-ock-id');
+  const label = el.getAttribute('data-ock-label') || '';
+  ockPick(kind, id, label);
+}
 function ockPick(kind, id, label) {
   const box = document.getElementById(kind === 'origin' ? 'ockOriginSuggest' : 'ockDestSuggest');
   const inp = document.getElementById(kind === 'origin' ? 'ockOriginInput' : 'ockDestInput');
