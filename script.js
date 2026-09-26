@@ -2494,7 +2494,7 @@ function buildPreview(inv, targetId = 'invoicePreview') {
       <!-- Header -->
       <div style="background:${headerC};padding:36px 48px 32px;display:flex;justify-content:space-between;align-items:center;position:relative">
         <div style="display:flex;align-items:center;gap:14px;max-width:55%">
-          <div style="width:60px;height:60px;border-radius:12px;overflow:hidden;background:rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;flex-shrink:0">${logoImg}</div>
+          <div style="width:68px;height:68px;border-radius:12px;overflow:hidden;background:rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;flex-shrink:0">${logoImg}</div>
           <div style="min-width:0">
             <div style="font-size:20px;font-weight:800;color:#fff;letter-spacing:-.02em">${xss(s.storeName||'Nama Toko')}</div>
             ${s.storeAddress ? `<div style="font-size:12px;color:rgba(255,255,255,.7);margin-top:2px;line-height:1.4;word-break:break-word;white-space:normal">${xss(s.storeAddress)}</div>` : ''}
@@ -2591,7 +2591,7 @@ function buildPreview(inv, targetId = 'invoicePreview') {
               ${s.storeAddress ? `<div style="font-size:12px;color:rgba(255,255,255,.65);margin-top:2px;line-height:1.4;word-break:break-word;white-space:normal;max-width:220px">${xss(s.storeAddress)}</div>` : ''}
               ${s.storePhone ? `<div style="font-size:12px;color:rgba(255,255,255,.65)">${xss(s.storePhone)}</div>` : ''}
             </div>
-            <div style="width:56px;height:56px;border-radius:12px;overflow:hidden;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;flex-shrink:0">${logoImg}</div>
+            <div style="width:64px;height:64px;border-radius:12px;overflow:hidden;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;flex-shrink:0">${logoImg}</div>
           </div>
         </div>
       </div>
@@ -2671,7 +2671,7 @@ function buildPreview(inv, targetId = 'invoicePreview') {
             ${s.storeAddress ? `<div style="font-size:12px;color:#6B7280;margin-top:2px;line-height:1.4;word-break:break-word;white-space:normal;max-width:220px">${xss(s.storeAddress)}</div>` : ''}
             ${s.storePhone ? `<div style="font-size:12px;color:#6B7280">${xss(s.storePhone)}</div>` : ''}
           </div>
-          <div style="width:56px;height:56px;border-radius:10px;overflow:hidden;background:#F3F4F6;border:1px solid #E5E7EB;display:flex;align-items:center;justify-content:center;flex-shrink:0">${logoImg}</div>
+          <div style="width:64px;height:64px;border-radius:10px;overflow:hidden;background:#F3F4F6;border:1px solid #E5E7EB;display:flex;align-items:center;justify-content:center;flex-shrink:0">${logoImg}</div>
         </div>
       </div>
 
@@ -2740,7 +2740,7 @@ function buildPreview(inv, targetId = 'invoicePreview') {
       <div style="background:${C.darker};padding:40px 48px 32px">
         <div style="display:flex;justify-content:space-between;align-items:center">
           <div style="display:flex;align-items:center;gap:14px">
-            <div style="width:60px;height:60px;border-radius:12px;overflow:hidden;background:rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;flex-shrink:0">${logoImg}</div>
+            <div style="width:68px;height:68px;border-radius:12px;overflow:hidden;background:rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;flex-shrink:0">${logoImg}</div>
             <div>
               <div style="font-size:19px;font-weight:800;color:${C.text}">${xss(s.storeName||'Nama Toko')}</div>
               ${s.storeAddress ? `<div style="font-size:12px;color:rgba(255,255,255,.6);margin-top:2px;line-height:1.4;word-break:break-word;white-space:normal;max-width:220px">${xss(s.storeAddress)}</div>` : ''}
@@ -2836,7 +2836,7 @@ function buildPreview(inv, targetId = 'invoicePreview') {
     html = `<div style="font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',Arial,sans-serif;color:#292420;width:794px;min-height:1123px;box-sizing:border-box;display:flex;flex-direction:column;background:#FFFDF8">
       <!-- Header centered, letterhead style -->
       <div style="padding:40px 56px 22px;text-align:center;border-bottom:3px double ${C.dark}">
-        <div style="width:52px;height:52px;border-radius:50%;overflow:hidden;background:${C.softer};border:1px solid ${C.border};display:flex;align-items:center;justify-content:center;margin:0 auto 10px">${logoImg}</div>
+        <div style="width:60px;height:60px;border-radius:50%;overflow:hidden;background:${C.softer};border:1px solid ${C.border};display:flex;align-items:center;justify-content:center;margin:0 auto 10px">${logoImg}</div>
         <div style="font-family:Georgia,'Times New Roman',serif;font-size:24px;font-weight:700;color:#1C1917;letter-spacing:.03em">${xss(s.storeName||'Nama Toko')}</div>
         <div style="font-size:11.5px;color:#78716C;margin-top:4px">${[s.storeAddress, s.storePhone].filter(Boolean).map(xss).join(' &nbsp;·&nbsp; ')}</div>
         <div style="font-size:11px;font-weight:700;color:${C.dark};letter-spacing:.35em;text-transform:uppercase;margin-top:16px">Invoice</div>
@@ -2932,7 +2932,7 @@ function buildPreview(inv, targetId = 'invoicePreview') {
         <div style="height:14px;margin:0 -28px 14px;background:radial-gradient(circle at 8px 0, transparent 8px, #fff 8.5px) repeat-x left top / 22px 14px, #F4F4F5"></div>
 
         <div style="text-align:center;padding-top:2px">
-          <div style="width:44px;height:44px;border-radius:8px;overflow:hidden;background:#F4F4F5;display:flex;align-items:center;justify-content:center;margin:0 auto 8px">${logoImg}</div>
+          <div style="width:50px;height:50px;border-radius:8px;overflow:hidden;background:#F4F4F5;display:flex;align-items:center;justify-content:center;margin:0 auto 8px">${logoImg}</div>
           <div style="font-size:15px;font-weight:800;letter-spacing:.02em;text-transform:uppercase">${xss(s.storeName||'Nama Toko')}</div>
           ${s.storeAddress ? `<div style="font-size:10.5px;color:#71717A;margin-top:4px;line-height:1.5">${xss(s.storeAddress)}</div>` : ''}
           ${s.storePhone ? `<div style="font-size:10.5px;color:#71717A">${xss(s.storePhone)}</div>` : ''}
@@ -2994,7 +2994,7 @@ function buildPreview(inv, targetId = 'invoicePreview') {
       <!-- Sidebar -->
       <div style="width:230px;background:${C.darker};padding:40px 26px;display:flex;flex-direction:column;justify-content:space-between;flex-shrink:0">
         <div>
-          <div style="width:56px;height:56px;border-radius:12px;overflow:hidden;background:rgba(255,255,255,.12);display:flex;align-items:center;justify-content:center;margin-bottom:18px">${logoImg}</div>
+          <div style="width:64px;height:64px;border-radius:12px;overflow:hidden;background:rgba(255,255,255,.12);display:flex;align-items:center;justify-content:center;margin-bottom:18px">${logoImg}</div>
           <div style="font-size:17px;font-weight:800;color:#fff;line-height:1.3">${xss(s.storeName||'Nama Toko')}</div>
           ${s.storeAddress ? `<div style="font-size:11px;color:rgba(255,255,255,.55);margin-top:8px;line-height:1.6">${xss(s.storeAddress)}</div>` : ''}
           ${s.storePhone ? `<div style="font-size:11px;color:rgba(255,255,255,.55);margin-top:4px">${xss(s.storePhone)}</div>` : ''}
@@ -3065,7 +3065,7 @@ function buildPreview(inv, targetId = 'invoicePreview') {
       <!-- Header hitam -->
       <div style="background:#111111;padding:46px 56px 32px;text-align:center;position:relative">
         <div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,transparent,${C.main},transparent)"></div>
-        <div style="width:54px;height:54px;border-radius:50%;overflow:hidden;background:rgba(255,255,255,.08);border:1.5px solid ${C.main};display:flex;align-items:center;justify-content:center;margin:0 auto 14px">${logoImg}</div>
+        <div style="width:62px;height:62px;border-radius:50%;overflow:hidden;background:rgba(255,255,255,.08);border:1.5px solid ${C.main};display:flex;align-items:center;justify-content:center;margin:0 auto 14px">${logoImg}</div>
         <div style="font-family:Georgia,'Times New Roman',serif;font-size:23px;font-weight:700;color:#fff;letter-spacing:.05em">${xss(s.storeName||'Nama Toko')}</div>
         <div style="font-size:10.5px;color:rgba(255,255,255,.5);margin-top:6px;letter-spacing:.03em">${[s.storeAddress, s.storePhone].filter(Boolean).map(xss).join(' &nbsp;·&nbsp; ')}</div>
         <div style="display:flex;align-items:center;justify-content:center;gap:10px;margin-top:20px">
@@ -3143,7 +3143,7 @@ function buildPreview(inv, targetId = 'invoicePreview') {
         <!-- Header -->
         <div style="padding:36px 44px 24px;display:flex;justify-content:space-between;align-items:flex-start">
           <div style="display:flex;align-items:center;gap:12px">
-            <div style="width:48px;height:48px;border-radius:12px;overflow:hidden;background:${C.soft};display:flex;align-items:center;justify-content:center;flex-shrink:0">${logoImg}</div>
+            <div style="width:55px;height:55px;border-radius:12px;overflow:hidden;background:${C.soft};display:flex;align-items:center;justify-content:center;flex-shrink:0">${logoImg}</div>
             <div>
               <div style="font-size:16px;font-weight:800;color:#111827">${xss(s.storeName||'Nama Toko')}</div>
               ${s.storeAddress ? `<div style="font-size:11px;color:#9CA3AF;margin-top:2px">${xss(s.storeAddress)}</div>` : ''}
@@ -3228,7 +3228,7 @@ function buildPreview(inv, targetId = 'invoicePreview') {
     html = `<div style="font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',Arial,sans-serif;color:#111827;width:794px;min-height:1123px;box-sizing:border-box;padding:44px 52px;display:flex;flex-direction:column">
       <!-- Kop surat -->
       <div style="display:flex;align-items:center;gap:14px;padding-bottom:16px">
-        <div style="width:54px;height:54px;border-radius:8px;overflow:hidden;background:${C.softer};border:1px solid ${C.border};display:flex;align-items:center;justify-content:center;flex-shrink:0">${logoImg}</div>
+        <div style="width:62px;height:62px;border-radius:8px;overflow:hidden;background:${C.softer};border:1px solid ${C.border};display:flex;align-items:center;justify-content:center;flex-shrink:0">${logoImg}</div>
         <div style="flex:1;min-width:0">
           <div style="font-size:19px;font-weight:800;color:#111827;letter-spacing:-.01em">${xss(s.storeName||'Nama Toko')}</div>
           <div style="font-size:11.5px;color:#6B7280;margin-top:2px;line-height:1.5">${[s.storeAddress, s.storePhone].filter(Boolean).map(xss).join(' &nbsp;·&nbsp; ')}</div>
@@ -3337,7 +3337,7 @@ function buildPreview(inv, targetId = 'invoicePreview') {
       <!-- Header -->
       <div style="display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:20px;border-bottom:1px solid #E5E7EB">
         <div style="display:flex;align-items:center;gap:10px">
-          <div style="width:38px;height:38px;border-radius:8px;overflow:hidden;background:#F3F4F6;display:flex;align-items:center;justify-content:center;flex-shrink:0">${logoImg}</div>
+          <div style="width:44px;height:44px;border-radius:8px;overflow:hidden;background:#F3F4F6;display:flex;align-items:center;justify-content:center;flex-shrink:0">${logoImg}</div>
           <div>
             <div style="font-size:14.5px;font-weight:800;color:#111827">${xss(s.storeName||'Nama Toko')}</div>
             ${s.storeAddress ? `<div style="font-size:10.5px;color:#9CA3AF;margin-top:1px">${xss(s.storeAddress)}</div>` : ''}
@@ -3973,7 +3973,7 @@ async function _renderCanvas_OLD() {
         img.src = s.logo; // always base64 data URL — safe
       });
       if (logoImg) {
-        const lx = 40, ly = HDR_H - 56, lw = 50, lh = 50;
+        const lx = 40, ly = HDR_H - 64, lw = 58, lh = 58;
         ctx.save();
         roundRect(ctx, lx, ly, lw, lh, 8);
         ctx.clip();
@@ -4904,8 +4904,6 @@ function loadSettingsUI() {
   const logoPrev = document.getElementById('logoPrev');
   const logoPh   = document.getElementById('logoPh');
   const logoScaleRow = document.getElementById('logoScaleRow');
-  const logoScaleSlider = document.getElementById('logoScaleSlider');
-  const logoScaleVal = document.getElementById('logoScaleVal');
   const curLogoScale = s.logoScale || 100;
   if (s.logo) {
     if (logoPrev) {
@@ -4921,8 +4919,6 @@ function loadSettingsUI() {
     if (logoPh)   logoPh.style.display = '';
     if (logoScaleRow) logoScaleRow.style.display = 'none';
   }
-  if (logoScaleSlider) logoScaleSlider.value = curLogoScale;
-  if (logoScaleVal) logoScaleVal.textContent = curLogoScale + '%';
   // Reset tanda tangan
   setText('signStatus', s.signature ? 'Tanda tangan tersimpan ✓' : '');
 }
@@ -4998,33 +4994,16 @@ function uploadLogo(input) {
       p.style.display = 'block';
     }
     if (ph) ph.style.display = 'none';
-    // Tampilkan slider skala logo begitu ada logo yang diupload
+    // Tampilkan tombol "Atur Posisi & Crop Logo" begitu ada logo yang diupload
     const scaleRow = document.getElementById('logoScaleRow'); if (scaleRow) scaleRow.style.display = 'block';
-    const slider = document.getElementById('logoScaleSlider'); if (slider) slider.value = s.logoScale || 100;
-    const lbl = document.getElementById('logoScaleVal'); if (lbl) lbl.textContent = (s.logoScale || 100) + '%';
     toast('Logo diupload ✓', 'ok');
   };
   r.readAsDataURL(file);
 }
 
-// Skala tampilan logo di nota — bisa diatur bebas oleh user (40%–250%),
-// tidak lagi mentok mengisi penuh kotak logo secara mutlak. Slider ini
-// dipakai untuk atur ukuran cepat; posisi/crop presisi ada di modal
-// "Atur Posisi & Crop Logo" (lihat openLogoEditor dkk di bawah).
-function setLogoScale(val) {
-  const scale = Math.max(40, Math.min(250, Number(val) || 100));
-  const lbl = document.getElementById('logoScaleVal'); if (lbl) lbl.textContent = scale + '%';
-  const prev = document.getElementById('logoPrev'); if (prev) prev.style.backgroundSize = scale + '%';
-  const s = DB.get('settings', {}); s.logoScale = scale; DB.set('settings', s);
-  // Sinkronkan slider zoom di modal editor kalau kebetulan sedang terbuka
-  const zoomSlider = document.getElementById('logoEditorZoom');
-  if (zoomSlider) zoomSlider.value = scale;
-  const editorImg = document.getElementById('logoEditorImg');
-  if (editorImg) editorImg.style.backgroundSize = scale + '%';
-  if (typeof _logoEditor !== 'undefined') _logoEditor.scale = scale;
-}
-
 // ── Modal "Atur Posisi & Crop Logo" ──────────────────────────
+// Satu-satunya kontrol ukuran/posisi logo sekarang (slider cepat di halaman
+// Pengaturan sudah dihapus) — zoom & geser posisi dilakukan di sini saja.
 // Fitur pengaturan logo yang lebih lengkap dari sekadar slider ukuran:
 // user bisa GESER (pan/crop) posisi logo di dalam kotaknya, sekaligus
 // PERBESAR/PERKECIL (zoom), lalu baru disimpan. Selama modal terbuka,
@@ -5075,11 +5054,9 @@ function saveLogoEditor() {
   s.logoPosX = _logoEditor.posX;
   s.logoPosY = _logoEditor.posY;
   DB.set('settings', s);
-  // Sinkron ke preview kecil & slider cepat di halaman Pengaturan
+  // Sinkron ke preview kecil di halaman Pengaturan
   const prev = document.getElementById('logoPrev');
   if (prev) { prev.style.backgroundSize = s.logoScale + '%'; prev.style.backgroundPosition = `${s.logoPosX}% ${s.logoPosY}%`; }
-  const slider = document.getElementById('logoScaleSlider'); if (slider) slider.value = s.logoScale;
-  const lbl = document.getElementById('logoScaleVal'); if (lbl) lbl.textContent = s.logoScale + '%';
   closeLogoEditor();
   toast('Tampilan logo disimpan ✓', 'ok');
 }

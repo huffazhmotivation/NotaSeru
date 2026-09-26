@@ -671,13 +671,6 @@
       </div>
       <input type="file" id="logoInput" accept="image/*" style="display:none" onchange="uploadLogo(this)">
       <div id="logoScaleRow" style="display:none;padding:2px 2px 0">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-          <span style="font-size:12.5px;font-weight:600;color:var(--txt-2)">Ukuran Logo di Nota</span>
-          <span id="logoScaleVal" style="font-size:12.5px;font-weight:700;color:var(--primary)">100%</span>
-        </div>
-        <input type="range" id="logoScaleSlider" min="40" max="250" step="5" value="100"
-          oninput="setLogoScale(this.value)" style="width:100%;accent-color:var(--primary)">
-        <div style="font-size:11px;color:var(--txt-3);margin-top:4px">Geser cepat untuk memperbesar/memperkecil. Untuk geser posisi (crop) yang presisi, pakai tombol di bawah.</div>
         <button type="button" class="logo-edit-btn" onclick="openLogoEditor()">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6.13 1L6 16a2 2 0 0 0 2 2h15"/><path d="M1 6.13L16 6a2 2 0 0 1 2 2v15"/></svg>
           Atur Posisi &amp; Crop Logo
