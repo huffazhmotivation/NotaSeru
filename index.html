@@ -93,20 +93,21 @@
 <!-- TOAST -->
 <div class="toast-wrap" id="toastWrap"></div>
 
-<!-- UPDATE BANNER — muncul otomatis kalau versi baru aplikasi sudah siap
-     dipakai (service worker sudah selesai update di background). User tinggal
-     ketuk "Muat ulang" biar dapat versi terbarunya, tanpa perlu tau istilah
-     cache/service worker segala. -->
-<div id="updateBanner" class="update-banner" role="status">
-  <div class="update-banner-ic">
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6"/><path d="M2.5 22v-6h6"/><path d="M2 11.5a10 10 0 0 1 18.8-4.3"/><path d="M22 12.5a10 10 0 0 1-18.8 4.2"/></svg>
+<!-- UPDATE POPUP — muncul di tengah layar otomatis kalau versi baru aplikasi
+     sudah siap dipakai (service worker sudah selesai update di background).
+     User tinggal ketuk "Muat ulang" biar dapat versi terbarunya, tanpa perlu
+     tau istilah cache/service worker segala. -->
+<div id="updateOverlay" class="update-overlay" onclick="dismissUpdateBanner()"></div>
+<div id="updateModal" class="update-modal" role="alertdialog" aria-modal="true" aria-labelledby="updateModalTitle">
+  <div class="update-modal-ic">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6"/><path d="M2.5 22v-6h6"/><path d="M2 11.5a10 10 0 0 1 18.8-4.3"/><path d="M22 12.5a10 10 0 0 1-18.8 4.2"/></svg>
   </div>
-  <div class="update-banner-txt">
-    <div class="update-banner-title">Update tersedia</div>
-    <div class="update-banner-sub">Muat ulang untuk pakai versi terbaru</div>
+  <div class="update-modal-title" id="updateModalTitle">Update tersedia</div>
+  <div class="update-modal-sub">Ada versi terbaru NotaSeru dengan perbaikan &amp; peningkatan. Muat ulang sekarang untuk mulai pakai.</div>
+  <div class="update-modal-actions">
+    <button type="button" class="update-modal-btn-later" onclick="dismissUpdateBanner()">Nanti</button>
+    <button type="button" class="update-modal-btn-reload" id="updateModalReloadBtn" onclick="applyAppUpdate()">Muat ulang</button>
   </div>
-  <button type="button" class="update-banner-btn" onclick="applyAppUpdate()">Muat ulang</button>
-  <button type="button" class="update-banner-close" onclick="dismissUpdateBanner()" aria-label="Tutup">✕</button>
 </div>
 
 <!-- OVERLAY -->
@@ -125,6 +126,10 @@
   <button class="nav-item" onclick="nav('income')" id="nav-income">
     <div class="nav-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg></div>
     <span class="nav-label">Keuangan</span><div class="nav-dot"></div>
+  </button>
+  <button class="nav-item" onclick="nav('ongkir')" id="nav-ongkir">
+    <div class="nav-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="7" width="15" height="11"/><path d="M16 10h4l3 3v5h-7z"/><circle cx="6" cy="19" r="2"/><circle cx="18" cy="19" r="2"/></svg></div>
+    <span class="nav-label">Ongkir</span><div class="nav-dot"></div>
   </button>
   <button class="nav-item" onclick="nav('settings')" id="nav-settings">
     <div class="nav-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg></div>
@@ -612,6 +617,71 @@
   <div style="padding:0 20px 20px">
     <div class="section-title" style="margin-bottom:12px">Riwayat Pengeluaran</div>
     <div id="expList"></div>
+  </div>
+</div>
+
+<!-- ============================
+     CEK ONGKIR
+============================= -->
+<div class="page" id="page-ongkir">
+  <div class="top-header">
+    <div class="top-header-inner">
+      <div class="header-spacer"></div>
+      <div class="header-title">Cek Ongkir</div>
+      <div class="header-spacer"></div>
+    </div>
+  </div>
+
+  <div style="padding:16px 20px 100px">
+    <div class="ock-card">
+      <div class="ock-field-group">
+        <div class="ock-field" style="position:relative">
+          <label class="ock-label">Dari</label>
+          <input type="text" class="ock-input" id="ockOriginInput" placeholder="Kota/kecamatan asal, mis. Sleman"
+            autocomplete="off" oninput="ockSearch('origin', this.value)" onfocus="ockSearch('origin', this.value)">
+          <div class="ock-suggest" id="ockOriginSuggest"></div>
+        </div>
+        <button type="button" class="ock-swap-btn" onclick="ockSwap()" aria-label="Tukar asal & tujuan">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+        </button>
+        <div class="ock-field" style="position:relative">
+          <label class="ock-label">Ke</label>
+          <input type="text" class="ock-input" id="ockDestInput" placeholder="Kota/kecamatan tujuan, mis. Cakung"
+            autocomplete="off" oninput="ockSearch('dest', this.value)" onfocus="ockSearch('dest', this.value)">
+          <div class="ock-suggest" id="ockDestSuggest"></div>
+        </div>
+      </div>
+
+      <div class="ock-field" style="margin-top:14px">
+        <label class="ock-label">Berat paket</label>
+        <input type="text" class="ock-input" id="ockWeightInput" inputmode="numeric" placeholder="Gram, mis. 1000"
+          oninput="ockOnWeightInput(this)">
+        <div class="ock-chip-row" style="margin-top:8px">
+          <button type="button" class="ock-chip" onclick="ockSetWeight(100)">100g</button>
+          <button type="button" class="ock-chip" onclick="ockSetWeight(250)">250g</button>
+          <button type="button" class="ock-chip" onclick="ockSetWeight(500)">500g</button>
+          <button type="button" class="ock-chip" onclick="ockSetWeight(1000)">1kg</button>
+          <button type="button" class="ock-chip" onclick="ockSetWeight(2000)">2kg</button>
+          <button type="button" class="ock-chip" onclick="ockSetWeight(5000)">5kg</button>
+        </div>
+      </div>
+
+      <div class="ock-field" style="margin-top:14px">
+        <label class="ock-label">Ekspedisi</label>
+        <div class="ock-chip-row" id="ockCourierChips">
+          <!-- diisi ockInitCourierChips() -->
+        </div>
+      </div>
+
+      <label class="ock-save-origin">
+        <input type="checkbox" id="ockSaveOriginChk" checked>
+        <span>Ingat kota asal sebagai default</span>
+      </label>
+
+      <button type="button" class="ock-submit-btn" id="ockSubmitBtn" onclick="ockCheck()">Cek Ongkir</button>
+    </div>
+
+    <div id="ockResults"></div>
   </div>
 </div>
 

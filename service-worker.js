@@ -1,4 +1,4 @@
-const CACHE_NAME = 'notaseru-v3.5';
+const CACHE_NAME = 'notaseru-v3.7';
 const ASSETS = [
   '/index.html',
   '/style.css',
@@ -11,7 +11,20 @@ const ASSETS = [
 self.addEventListener('install', (e) => {
   e.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(ASSETS).catch(() => {});
+      // PENTING: pakai fetch manual dengan {cache:'reload'}, BUKAN cache.addAll()
+      // biasa. cache.addAll() diam-diam bisa ambil versi lama dari HTTP cache
+      // browser kalau file itu masih dianggap "fresh" oleh header cache-control
+      // hosting (Netlify/Vercel) — akibatnya versi baru sudah aktif tapi isi
+      // filenya tetap yang lama, jadi tombol "Muat ulang" kelihatan seperti
+      // tidak melakukan apa-apa. Dengan {cache:'reload'} kita paksa ambil
+      // langsung dari network setiap kali ada update.
+      return Promise.all(
+        ASSETS.map((url) =>
+          fetch(url, { cache: 'reload' })
+            .then((res) => { if (res.ok) return cache.put(url, res); })
+            .catch(() => {})
+        )
+      );
     })
   );
   self.skipWaiting();
@@ -32,6 +45,30 @@ self.addEventListener('fetch', (e) => {
   // Jangan intercept request ke Supabase atau CDN eksternal
   const url = new URL(e.request.url);
   if (url.origin !== self.location.origin) return;
+
+  // Jangan cache request ke /api/* (mis. cek ongkir) — hasilnya dinamis
+  // tergantung parameter, jadi selalu harus hit network langsung.
+  if (url.pathname.startsWith('/api/')) {
+    e.respondWith(fetch(e.request));
+    return;
+  }
+
+  // Untuk dokumen HTML (navigasi halaman): coba network dulu supaya shell
+  // app selalu sefresh mungkin, baru fallback ke cache kalau offline/gagal.
+  if (e.request.mode === 'navigate' || e.request.destination === 'document') {
+    e.respondWith(
+      fetch(e.request, { cache: 'no-store' })
+        .then((response) => {
+          if (response && response.status === 200) {
+            const clone = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(e.request, clone));
+          }
+          return response;
+        })
+        .catch(() => caches.match(e.request).then((c) => c || caches.match('/index.html')))
+    );
+    return;
+  }
 
   e.respondWith(
     caches.match(e.request).then((cached) => {

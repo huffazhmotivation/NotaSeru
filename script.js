@@ -337,7 +337,7 @@ function nav(page) {
   }
   prevPage = curPage;
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-  const nm = { dashboard:'nav-dashboard','invoice-list':'nav-invoice-list', income:'nav-income', expense:'nav-income', settings:'nav-settings' };
+  const nm = { dashboard:'nav-dashboard','invoice-list':'nav-invoice-list', income:'nav-income', expense:'nav-income', ongkir:'nav-ongkir', settings:'nav-settings' };
   const ni = nm[page]; if (ni) document.getElementById(ni)?.classList.add('active');
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   // Update akun row setiap kali masuk settings
@@ -356,6 +356,7 @@ function nav(page) {
   if (page === 'income') renderIncomePage();
   if (page === 'expense') renderExpensePage();
   if (page === 'dashboard') renderDashboard();
+  if (page === 'ongkir' && typeof ockInit === 'function') ockInit();
   if (page === 'settings') { renderCatalogList(); renderEkspedisiList(); selectTemplate(curTemplate || 'classic', null, false); selectTplColor(curTplColor || 'amber', false); }
   const el = document.getElementById('page-' + page);
   if (el) { el.classList.add('active'); curPage = page; window.scrollTo(0,0); }
@@ -5586,26 +5587,59 @@ function registerSW() {
   if (!('serviceWorker' in navigator)) return;
   // Kalau sebelumnya sudah pernah ada controller (bukan instalasi pertama
   // kali di device ini), controllerchange berikutnya berarti pergantian ke
-  // versi baru → baru saat itu banner ditampilkan. Instalasi pertama kali
+  // versi baru → baru saat itu popup ditampilkan. Instalasi pertama kali
   // tidak akan memicu controllerchange sama sekali, tapi guard ini dijaga
   // buat berjaga-jaga di browser yang perilakunya beda.
   const hadControllerBefore = !!navigator.serviceWorker.controller;
   navigator.serviceWorker.register('./service-worker.js').catch(() => {});
   navigator.serviceWorker.addEventListener('controllerchange', () => {
+    // FIX: sebelumnya kalau event ini kepencet 2x (mis. browser sempat
+    // fire controllerchange lebih dari sekali), _swReloading yang dicek
+    // di applyAppUpdate() bisa telanjur true padahal reload belum pernah
+    // benar2 jalan → tombol jadi kelihatan "diam". Reset guard-nya di sini
+    // tiap kali ada controller baru.
+    window._swReloading = false;
     if (!hadControllerBefore) return;
     showUpdateBanner();
   });
+
+  // Jaga-jaga: kalau ternyata sudah ada worker yang "waiting" saat halaman
+  // ini pertama kali load (skipWaiting-nya sempat gagal/telat), tetap
+  // tampilkan popup update supaya user tidak stuck di versi lama.
+  navigator.serviceWorker.getRegistration().then((reg) => {
+    if (reg && reg.waiting && hadControllerBefore) showUpdateBanner();
+  }).catch(() => {});
 }
 
 function showUpdateBanner() {
-  const el = document.getElementById('updateBanner');
-  if (el) el.classList.add('visible');
+  document.getElementById('updateOverlay')?.classList.add('visible');
+  document.getElementById('updateModal')?.classList.add('visible');
 }
 function dismissUpdateBanner() {
-  const el = document.getElementById('updateBanner');
-  if (el) el.classList.remove('visible');
+  document.getElementById('updateOverlay')?.classList.remove('visible');
+  document.getElementById('updateModal')?.classList.remove('visible');
 }
 function applyAppUpdate() {
+  // FIX BUG: sebelumnya klik tombol ini tidak kelihatan reaksinya sama
+  // sekali karena tidak ada guard/umpan balik apapun — kalau reload sempat
+  // "gagal jalan" (tab masih dianggap sibuk oleh browser, atau user
+  // sempat dobel-klik), tidak ada tanda apa-apa yang kelihatan di layar
+  // dan juga tidak ada cara buat coba lagi. Sekarang tombolnya dikasih
+  // status loading + guard, dan tetap ada fallback kalau reload normal
+  // tidak kunjung jalan dalam waktu singkat.
+  if (window._swReloading) return;
+  window._swReloading = true;
+
+  const btn = document.getElementById('updateModalReloadBtn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Memuat…'; }
+
+  // Fallback: kalau untuk alasan apapun reload normal tidak jalan dalam
+  // 1.2 detik (mis. dicegah browser), paksa navigasi ulang dengan cara lain.
+  const fallback = setTimeout(() => {
+    window.location.href = window.location.pathname + '?_swupdate=' + Date.now();
+  }, 1200);
+  window.addEventListener('pagehide', () => clearTimeout(fallback));
+
   location.reload();
 }
 function setupInstall() {
@@ -5617,6 +5651,205 @@ function setupInstall() {
 }
 function triggerInstall() { if (window._dip) { window._dip.prompt(); document.getElementById('installBanner')?.classList.add('gone'); } }
 function dismissInstall(e) { e.stopPropagation(); document.getElementById('installBanner')?.classList.add('gone'); DB.set('ibDismissed',true); }
+
+// ── CEK ONGKIR ───────────────────────────────
+// Fitur cek ongkos kirim, datanya diambil dari API RajaOngkir (by Komerce)
+// lewat proxy serverless kita sendiri di /api/ongkir (LIHAT api/ongkir.js).
+// Kita TIDAK pernah menyimpan tarif manual di sini — semua angka datang
+// langsung dari API supaya akurat & selalu ikut update tarif asli tiap
+// ekspedisi. Kalau /api/ongkir belum di-setup (API key belum diisi di
+// Vercel), fitur ini akan kasih pesan yang jelas, bukan angka palsu.
+const OCK_COURIERS = [
+  { code: 'jne', name: 'JNE' },
+  { code: 'wahana', name: 'Wahana' },
+  { code: 'indah', name: 'Indah Cargo' },
+  { code: 'lion', name: 'Lion Parcel' },
+  { code: 'sicepat', name: 'SiCepat' },
+];
+let ockInited = false;
+const ockState = {
+  originId: null, originLabel: '',
+  destId: null, destLabel: '',
+  weight: 1000,
+  couriers: Object.fromEntries(OCK_COURIERS.map(c => [c.code, true])),
+};
+let ockSearchTimer = null;
+let ockSearchSeq = 0;
+let ockCheckSeq = 0;
+
+function ockInit() {
+  if (!ockInited) {
+    ockInitCourierChips();
+    const savedOrigin = DB.get('ockDefaultOrigin', null);
+    if (savedOrigin && savedOrigin.id) {
+      ockState.originId = savedOrigin.id;
+      ockState.originLabel = savedOrigin.label;
+      const inp = document.getElementById('ockOriginInput');
+      if (inp) inp.value = savedOrigin.label;
+    }
+    const wInp = document.getElementById('ockWeightInput');
+    if (wInp && !wInp.value) wInp.value = ockState.weight;
+    ockInited = true;
+  }
+}
+
+function ockInitCourierChips() {
+  const box = document.getElementById('ockCourierChips');
+  if (!box) return;
+  box.innerHTML = OCK_COURIERS.map(c => `
+    <button type="button" class="ock-chip${ockState.couriers[c.code] ? ' active' : ''}"
+      id="ockChip-${c.code}" onclick="ockToggleCourier('${c.code}')">${xss(c.name)}</button>
+  `).join('');
+}
+
+function ockToggleCourier(code) {
+  ockState.couriers[code] = !ockState.couriers[code];
+  document.getElementById(`ockChip-${code}`)?.classList.toggle('active', ockState.couriers[code]);
+}
+
+function ockSetWeight(g) {
+  ockState.weight = g;
+  const inp = document.getElementById('ockWeightInput');
+  if (inp) inp.value = g;
+}
+function ockOnWeightInput(el) {
+  const n = parseInt((el.value || '').replace(/[^0-9]/g, ''), 10);
+  ockState.weight = isNaN(n) ? 0 : n;
+}
+
+function ockSwap() {
+  const oId = ockState.originId, oLbl = ockState.originLabel;
+  ockState.originId = ockState.destId; ockState.originLabel = ockState.destLabel;
+  ockState.destId = oId; ockState.destLabel = oLbl;
+  const oi = document.getElementById('ockOriginInput'), di = document.getElementById('ockDestInput');
+  if (oi) oi.value = ockState.originLabel || '';
+  if (di) di.value = ockState.destLabel || '';
+}
+
+function ockSearch(kind, query) {
+  clearTimeout(ockSearchTimer);
+  const box = document.getElementById(kind === 'origin' ? 'ockOriginSuggest' : 'ockDestSuggest');
+  const q = (query || '').trim();
+  if (!box) return;
+  if (q.length < 3) { box.classList.remove('visible'); box.innerHTML = ''; return; }
+  const mySeq = ++ockSearchSeq;
+  ockSearchTimer = setTimeout(async () => {
+    box.innerHTML = `<div class="ock-suggest-empty">Mencari...</div>`;
+    box.classList.add('visible');
+    try {
+      const res = await fetch(`/api/ongkir?search=${encodeURIComponent(q)}`);
+      const json = await res.json().catch(() => null);
+      if (mySeq !== ockSearchSeq) return; // hasil basi, sudah ada pencarian lebih baru
+      if (!res.ok || !json) {
+        box.innerHTML = `<div class="ock-suggest-empty">${xss((json && json.error) || 'Gagal mencari lokasi')}</div>`;
+        return;
+      }
+      const items = json.data || [];
+      if (!items.length) { box.innerHTML = `<div class="ock-suggest-empty">Tidak ditemukan</div>`; return; }
+      box.innerHTML = items.map(it => `
+        <div class="ock-suggest-item" onmousedown="event.preventDefault();ockPick('${kind}',${it.id},${JSON.stringify(it.label)})">${xss(it.label)}</div>
+      `).join('');
+    } catch (e) {
+      if (mySeq !== ockSearchSeq) return;
+      box.innerHTML = `<div class="ock-suggest-empty">Gagal mencari lokasi, cek koneksi</div>`;
+    }
+  }, 350);
+}
+
+function ockPick(kind, id, label) {
+  const box = document.getElementById(kind === 'origin' ? 'ockOriginSuggest' : 'ockDestSuggest');
+  const inp = document.getElementById(kind === 'origin' ? 'ockOriginInput' : 'ockDestInput');
+  if (inp) inp.value = label;
+  if (box) { box.classList.remove('visible'); box.innerHTML = ''; }
+  if (kind === 'origin') {
+    ockState.originId = id; ockState.originLabel = label;
+    if (document.getElementById('ockSaveOriginChk')?.checked) {
+      DB.set('ockDefaultOrigin', { id, label });
+    }
+  } else {
+    ockState.destId = id; ockState.destLabel = label;
+  }
+}
+
+function ockFmtRupiah(n) {
+  try {
+    return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(n);
+  } catch (e) {
+    return 'Rp ' + Number(n || 0).toLocaleString('id-ID');
+  }
+}
+
+async function ockCheck() {
+  const selectedCouriers = OCK_COURIERS.filter(c => ockState.couriers[c.code]).map(c => c.code);
+  if (!ockState.originId) return toast('Pilih kota/kecamatan asal dulu', 'wrn');
+  if (!ockState.destId) return toast('Pilih kota/kecamatan tujuan dulu', 'wrn');
+  if (!ockState.weight || ockState.weight <= 0) return toast('Isi berat paket dulu', 'wrn');
+  if (!selectedCouriers.length) return toast('Pilih minimal 1 ekspedisi', 'wrn');
+
+  const btn = document.getElementById('ockSubmitBtn');
+  const results = document.getElementById('ockResults');
+  const mySeq = ++ockCheckSeq;
+  if (btn) { btn.disabled = true; btn.textContent = 'Mengecek...'; }
+  if (results) results.innerHTML = `<div class="ock-loading">Mengambil tarif terbaru dari RajaOngkir...</div>`;
+
+  try {
+    const res = await fetch('/api/ongkir', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        origin: ockState.originId,
+        destination: ockState.destId,
+        weight: ockState.weight,
+        couriers: selectedCouriers,
+      }),
+    });
+    const json = await res.json().catch(() => null);
+    if (mySeq !== ockCheckSeq) return;
+    if (!res.ok || !json) {
+      const msg = (json && json.error) || 'Gagal mengambil data ongkir';
+      if (results) results.innerHTML = `<div class="ock-error">${xss(msg)}</div>`;
+      toast('Gagal cek ongkir', 'err');
+      return;
+    }
+    ockRenderResults(json.data || []);
+  } catch (e) {
+    if (mySeq !== ockCheckSeq) return;
+    if (results) results.innerHTML = `<div class="ock-error">Gagal terhubung ke server. Cek koneksi internet kamu.</div>`;
+    toast('Gagal cek ongkir', 'err');
+  } finally {
+    if (mySeq === ockCheckSeq && btn) { btn.disabled = false; btn.textContent = 'Cek Ongkir'; }
+  }
+}
+
+function ockRenderResults(data) {
+  const results = document.getElementById('ockResults');
+  if (!results) return;
+  if (!data.length) { results.innerHTML = `<div class="ock-error">Tidak ada data untuk ditampilkan</div>`; return; }
+
+  results.innerHTML = data.map(courier => {
+    if (!courier.available || !courier.services || !courier.services.length) {
+      return `
+        <div class="ock-result-card ock-result-unavailable">
+          <div class="ock-result-head"><span>${xss(courier.name)}</span><span class="ock-result-badge">Tidak tersedia</span></div>
+          <div class="ock-result-reason">${xss(courier.reason || 'Tidak ada layanan untuk rute ini')}</div>
+        </div>`;
+    }
+    const rows = courier.services.map(s => `
+      <div class="ock-service-row">
+        <div>
+          <div class="ock-service-name">${xss(s.service || '')}</div>
+          ${s.description ? `<div class="ock-service-desc">${xss(s.description)}</div>` : ''}
+          ${s.etd ? `<div class="ock-service-etd">Estimasi ${xss(String(s.etd))} hari</div>` : ''}
+        </div>
+        <div class="ock-service-cost">${ockFmtRupiah(s.cost)}</div>
+      </div>`).join('');
+    return `
+      <div class="ock-result-card">
+        <div class="ock-result-head"><span>${xss(courier.name)}</span></div>
+        ${rows}
+      </div>`;
+  }).join('');
+}
 
 // ── Utils ────────────────────────────────────
 function fmtCur(n, code) {
