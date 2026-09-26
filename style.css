@@ -288,7 +288,7 @@ img{max-width:100%;display:block;}
 /* Logo */
 .logo-area{background:var(--bg-card);border:2px dashed var(--border);border-radius:var(--r-lg);padding:22px;text-align:center;cursor:pointer;transition:var(--ease);margin-bottom:16px;}
 .logo-area:active{border-color:var(--primary);background:var(--primary-soft);}
-.logo-prev{width:76px;height:76px;border-radius:var(--r-md);object-fit:contain;margin:0 auto 8px;display:none;}
+.logo-prev{width:76px;height:76px;border-radius:var(--r-md);margin:0 auto 8px;display:none;background-repeat:no-repeat;background-position:50% 50%;background-size:100%;}
 .logo-ph-ic{display:flex;align-items:center;justify-content:center;width:56px;height:56px;background:var(--bg-input);border-radius:var(--r-md);margin:0 auto 8px;color:var(--txt-3);}
 .logo-txt{font-size:12px;color:var(--txt-3);font-weight:500;}
 
@@ -593,8 +593,30 @@ img{max-width:100%;display:block;}
 
 /* Logo area bigger in settings */
 .logo-area{background:var(--bg-card);border:2px dashed var(--border);border-radius:var(--r-lg);padding:28px 22px;text-align:center;cursor:pointer;transition:var(--ease);margin-bottom:16px;}
-.logo-prev{width:96px;height:96px;border-radius:var(--r-md);object-fit:contain;margin:0 auto 8px;display:none;}
+/* .logo-prev sekarang berupa <div> dengan background-image (bukan <img>),
+   supaya skala/geser logo konsisten antara preview di sini & hasil nota,
+   dan tidak lagi kadang hilang saat dirender ke PNG/PDF (html2canvas). */
+.logo-prev{width:96px;height:96px;border-radius:var(--r-md);margin:0 auto 8px;display:none;background-repeat:no-repeat;background-position:50% 50%;background-size:100%;}
 .logo-ph-ic{display:flex;align-items:center;justify-content:center;width:70px;height:70px;background:var(--bg-input);border-radius:var(--r-md);margin:0 auto 8px;color:var(--txt-3);}
+
+/* Tombol buka modal pengaturan logo lanjutan (geser/crop + zoom) */
+.logo-edit-btn{display:flex;align-items:center;justify-content:center;gap:6px;width:100%;padding:10px;margin-top:10px;border-radius:var(--r-sm);border:1.5px solid var(--border-soft);background:var(--bg-input);color:var(--txt-2);font-size:12.5px;font-weight:700;cursor:pointer;font-family:var(--font);transition:var(--ease);}
+.logo-edit-btn:active{transform:scale(.97);background:var(--primary-soft);color:var(--primary);}
+
+/* ── Logo Editor Modal: area geser (crop) + zoom logo ── */
+.logo-editor-stage{position:relative;width:220px;height:220px;max-width:100%;margin:12px auto 0;border-radius:20px;overflow:hidden;background:repeating-conic-gradient(#f1f1f4 0% 25%, #fafafb 0% 50%) 50% / 20px 20px;touch-action:none;cursor:grab;border:1px solid var(--border-soft);}
+.logo-editor-stage:active{cursor:grabbing;}
+.logo-editor-img{position:absolute;inset:0;background-repeat:no-repeat;pointer-events:none;}
+.logo-editor-frame{position:absolute;inset:0;border-radius:20px;box-shadow:0 0 0 999px rgba(0,0,0,.28);pointer-events:none;}
+.logo-editor-hint{text-align:center;font-size:11.5px;color:var(--txt-3);margin-top:10px;padding:0 10px;}
+.logo-editor-zoom-row{display:flex;align-items:center;gap:10px;margin-top:18px;padding:0 4px;}
+
+/* ── Petunjuk visual: daftar bank masih bisa digeser ke kanan ── */
+.bank-scroll-wrap{position:relative;}
+.bank-scroll-hint{position:absolute;top:0;right:0;bottom:4px;width:46px;display:flex;align-items:center;justify-content:flex-end;padding-right:2px;background:linear-gradient(to right, transparent, var(--bg-card) 70%);pointer-events:none;opacity:1;transition:opacity .25s ease;}
+.bank-scroll-hint.hide{opacity:0;}
+.bank-scroll-hint svg{color:var(--primary);animation:bankScrollNudge 1.4s ease-in-out infinite;}
+@keyframes bankScrollNudge{0%,100%{transform:translateX(0);opacity:.55;}50%{transform:translateX(4px);opacity:1;}}
 
 /* Finance cards dark mode - vibrant */
 /* Finance summary cards — flat ledger tiles, a small tick of color instead of a pastel glow block */

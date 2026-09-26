@@ -132,6 +132,20 @@ function renderBankPresets() {
       <span style="font-size:9.5px;color:var(--txt-3);text-align:center;white-space:nowrap">Manual</span>
     </div>`;
   renderBankLogoImgPreview();
+  // Tunggu 1 frame supaya scrollWidth sudah kehitung, baru cek perlu tanda
+  // panah "masih bisa digeser" atau tidak.
+  requestAnimationFrame(updateBankScrollHint);
+}
+// Tanda panah + fade di ujung kanan daftar bank, supaya user baru sadar
+// daftarnya bisa digeser ke kanan dan masih ada pilihan bank lain.
+// Otomatis hilang begitu daftar sudah digeser sampai (hampir) mentok.
+function updateBankScrollHint() {
+  const wrap = document.getElementById('bankPresetList');
+  const hint = document.getElementById('bankScrollHint');
+  if (!wrap || !hint) return;
+  const maxScroll = wrap.scrollWidth - wrap.clientWidth;
+  const nearEnd = wrap.scrollLeft >= maxScroll - 8;
+  hint.classList.toggle('hide', maxScroll <= 4 || nearEnd);
 }
 function pickBankPreset(code) {
   const logoEl = document.getElementById('settBankLogo');
@@ -178,7 +192,7 @@ function renderBankLogoImgPreview() {
   } else {
     box.innerHTML = `
       <label style="display:flex;align-items:center;gap:10px;width:100%;cursor:pointer">
-        <span style="display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:8px;background:var(--bg-input);color:var(--txt-3);font-size:18px;flex-shrink:0">📷</span>
+        <span style="display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:8px;background:var(--bg-input);color:var(--txt-3);flex-shrink:0"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 9 12 4 17 9"/><line x1="12" y1="4" x2="12" y2="16"/></svg></span>
         <span style="flex:1">
           <span style="display:block;font-size:12.5px;font-weight:700;color:var(--txt-1)">Upload logo bank asli (opsional)</span>
           <span style="display:block;font-size:11px;color:var(--txt-3)">PNG/JPG/SVG resmi dari bank/e-wallet kamu</span>
@@ -2406,12 +2420,18 @@ function buildPreview(inv, targetId = 'invoicePreview') {
   const fmtRp = n => fmtCur(n, inv.currency || 'IDR');
 
   // ── Shared helpers ──────────────────────────────────────────
-  // Skala logo diatur user (40%-180%) — bukan lagi dipaksa 100% mengisi
-  // penuh kotaknya. Semua kotak logo di template pakai flex center,
-  // jadi logo otomatis tetap di tengah walau skalanya diperkecil/diperbesar.
-  const logoScale = Math.max(40, Math.min(180, Number(s.logoScale) || 100));
+  // Skala & posisi logo diatur user (40%-250%, bisa digeser/crop juga) —
+  // bukan lagi dipaksa 100% mengisi penuh kotaknya. Dipakai sebagai
+  // background-image (bukan <img width/height %>) karena <img> dengan
+  // width/height dalam persen kadang gagal dihitung oleh html2canvas saat
+  // export PNG/PDF, sehingga logo kadang hilang. background-image jauh
+  // lebih stabil dirender oleh html2canvas dan sekaligus memungkinkan fitur
+  // geser/crop lewat background-position.
+  const logoScale = Math.max(40, Math.min(250, Number(s.logoScale) || 100));
+  const logoPosX = Math.max(0, Math.min(100, s.logoPosX != null ? Number(s.logoPosX) : 50));
+  const logoPosY = Math.max(0, Math.min(100, s.logoPosY != null ? Number(s.logoPosY) : 50));
   const logoImg = s.logo
-    ? `<img src="${s.logo}" style="width:${logoScale}%;height:${logoScale}%;object-fit:contain;display:block">`
+    ? `<div style="width:100%;height:100%;background-image:url('${s.logo}');background-repeat:no-repeat;background-size:${logoScale}%;background-position:${logoPosX}% ${logoPosY}%"></div>`
     : `<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" stroke-width="1.5" stroke-linecap="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>`;
 
   const signImg = s.signature
@@ -4888,11 +4908,16 @@ function loadSettingsUI() {
   const logoScaleVal = document.getElementById('logoScaleVal');
   const curLogoScale = s.logoScale || 100;
   if (s.logo) {
-    if (logoPrev) { logoPrev.src = s.logo; logoPrev.style.display = 'block'; logoPrev.style.transform = `scale(${curLogoScale / 100})`; }
+    if (logoPrev) {
+      logoPrev.style.backgroundImage = `url('${s.logo}')`;
+      logoPrev.style.backgroundSize = curLogoScale + '%';
+      logoPrev.style.backgroundPosition = `${s.logoPosX ?? 50}% ${s.logoPosY ?? 50}%`;
+      logoPrev.style.display = 'block';
+    }
     if (logoPh)   logoPh.style.display = 'none';
     if (logoScaleRow) logoScaleRow.style.display = 'block';
   } else {
-    if (logoPrev) { logoPrev.src = ''; logoPrev.style.display = 'none'; }
+    if (logoPrev) { logoPrev.style.backgroundImage = ''; logoPrev.style.display = 'none'; }
     if (logoPh)   logoPh.style.display = '';
     if (logoScaleRow) logoScaleRow.style.display = 'none';
   }
@@ -4959,9 +4984,20 @@ function uploadLogo(input) {
     // Push logo ke cloud terpisah
     if (typeof CloudDB !== 'undefined' && CloudDB._push) CloudDB._push('logo', data);
     // Simpan ke settings untuk kompatibilitas render nota (slim, tanpa logo untuk cloud)
-    const s = DB.get('settings', {}); s.logo = data; if (!s.logoScale) s.logoScale = 100; DB.set('settings', s);
+    const s = DB.get('settings', {});
+    s.logo = data;
+    if (!s.logoScale) s.logoScale = 100;
+    if (s.logoPosX == null) s.logoPosX = 50;
+    if (s.logoPosY == null) s.logoPosY = 50;
+    DB.set('settings', s);
     const p = document.getElementById('logoPrev'); const ph = document.getElementById('logoPh');
-    if (p) { p.src = data; p.style.display = 'block'; p.style.transform = `scale(${(s.logoScale || 100) / 100})`; } if (ph) ph.style.display = 'none';
+    if (p) {
+      p.style.backgroundImage = `url('${data}')`;
+      p.style.backgroundSize = (s.logoScale || 100) + '%';
+      p.style.backgroundPosition = `${s.logoPosX}% ${s.logoPosY}%`;
+      p.style.display = 'block';
+    }
+    if (ph) ph.style.display = 'none';
     // Tampilkan slider skala logo begitu ada logo yang diupload
     const scaleRow = document.getElementById('logoScaleRow'); if (scaleRow) scaleRow.style.display = 'block';
     const slider = document.getElementById('logoScaleSlider'); if (slider) slider.value = s.logoScale || 100;
@@ -4971,13 +5007,121 @@ function uploadLogo(input) {
   r.readAsDataURL(file);
 }
 
-// Skala tampilan logo di nota — bisa diatur bebas oleh user (40%–180%),
-// tidak lagi mentok mengisi penuh kotak logo secara mutlak.
+// Skala tampilan logo di nota — bisa diatur bebas oleh user (40%–250%),
+// tidak lagi mentok mengisi penuh kotak logo secara mutlak. Slider ini
+// dipakai untuk atur ukuran cepat; posisi/crop presisi ada di modal
+// "Atur Posisi & Crop Logo" (lihat openLogoEditor dkk di bawah).
 function setLogoScale(val) {
-  const scale = Math.max(40, Math.min(180, Number(val) || 100));
+  const scale = Math.max(40, Math.min(250, Number(val) || 100));
   const lbl = document.getElementById('logoScaleVal'); if (lbl) lbl.textContent = scale + '%';
-  const prev = document.getElementById('logoPrev'); if (prev) prev.style.transform = `scale(${scale / 100})`;
+  const prev = document.getElementById('logoPrev'); if (prev) prev.style.backgroundSize = scale + '%';
   const s = DB.get('settings', {}); s.logoScale = scale; DB.set('settings', s);
+  // Sinkronkan slider zoom di modal editor kalau kebetulan sedang terbuka
+  const zoomSlider = document.getElementById('logoEditorZoom');
+  if (zoomSlider) zoomSlider.value = scale;
+  const editorImg = document.getElementById('logoEditorImg');
+  if (editorImg) editorImg.style.backgroundSize = scale + '%';
+  if (typeof _logoEditor !== 'undefined') _logoEditor.scale = scale;
+}
+
+// ── Modal "Atur Posisi & Crop Logo" ──────────────────────────
+// Fitur pengaturan logo yang lebih lengkap dari sekadar slider ukuran:
+// user bisa GESER (pan/crop) posisi logo di dalam kotaknya, sekaligus
+// PERBESAR/PERKECIL (zoom), lalu baru disimpan. Selama modal terbuka,
+// perubahan hanya di state sementara _logoEditor — baru ditulis ke
+// settings & dipakai di nota saat user menekan "Simpan".
+let _logoEditor = { scale: 100, posX: 50, posY: 50, natW: 1, natH: 1 };
+let _logoDragBound = false;
+
+function openLogoEditor() {
+  const s = DB.get('settings', {});
+  if (!s.logo) { toast('Upload logo dulu ya', 'err'); return; }
+  _logoEditor.scale = s.logoScale || 100;
+  _logoEditor.posX = s.logoPosX ?? 50;
+  _logoEditor.posY = s.logoPosY ?? 50;
+  const img = document.getElementById('logoEditorImg');
+  if (img) {
+    img.style.backgroundImage = `url('${s.logo}')`;
+    img.style.backgroundSize = _logoEditor.scale + '%';
+    img.style.backgroundPosition = `${_logoEditor.posX}% ${_logoEditor.posY}%`;
+  }
+  const zoom = document.getElementById('logoEditorZoom'); if (zoom) zoom.value = _logoEditor.scale;
+  // Ambil dimensi asli logo supaya perhitungan geser (pan) akurat & tidak
+  // "mentok" di posisi yang salah untuk logo yang tidak persegi.
+  const probe = new Image();
+  probe.onload = () => { _logoEditor.natW = probe.naturalWidth || 1; _logoEditor.natH = probe.naturalHeight || 1; };
+  probe.src = s.logo;
+  document.getElementById('logoEditorModal')?.classList.add('visible');
+  setupLogoEditorDrag();
+}
+function closeLogoEditor() {
+  document.getElementById('logoEditorModal')?.classList.remove('visible');
+}
+function resetLogoEditor() {
+  _logoEditor.scale = 100; _logoEditor.posX = 50; _logoEditor.posY = 50;
+  const img = document.getElementById('logoEditorImg');
+  if (img) { img.style.backgroundSize = '100%'; img.style.backgroundPosition = '50% 50%'; }
+  const zoom = document.getElementById('logoEditorZoom'); if (zoom) zoom.value = 100;
+  toast('Direset ke default', 'ok');
+}
+function setLogoEditorZoom(val) {
+  _logoEditor.scale = Math.max(40, Math.min(250, Number(val) || 100));
+  const img = document.getElementById('logoEditorImg');
+  if (img) img.style.backgroundSize = _logoEditor.scale + '%';
+}
+function saveLogoEditor() {
+  const s = DB.get('settings', {});
+  s.logoScale = _logoEditor.scale;
+  s.logoPosX = _logoEditor.posX;
+  s.logoPosY = _logoEditor.posY;
+  DB.set('settings', s);
+  // Sinkron ke preview kecil & slider cepat di halaman Pengaturan
+  const prev = document.getElementById('logoPrev');
+  if (prev) { prev.style.backgroundSize = s.logoScale + '%'; prev.style.backgroundPosition = `${s.logoPosX}% ${s.logoPosY}%`; }
+  const slider = document.getElementById('logoScaleSlider'); if (slider) slider.value = s.logoScale;
+  const lbl = document.getElementById('logoScaleVal'); if (lbl) lbl.textContent = s.logoScale + '%';
+  closeLogoEditor();
+  toast('Tampilan logo disimpan ✓', 'ok');
+}
+
+// Drag (mouse & touch) untuk geser posisi logo di dalam kotak (mode crop).
+// Listener dipasang sekali saja (flag _logoDragBound) supaya tidak dobel
+// tiap kali modal dibuka ulang.
+function setupLogoEditorDrag() {
+  const stage = document.getElementById('logoEditorStage');
+  if (!stage || _logoDragBound) return;
+  _logoDragBound = true;
+  let dragging = false, sx = 0, sy = 0, sPosX = 50, sPosY = 50;
+  const getRange = () => {
+    const rect = stage.getBoundingClientRect();
+    const dispW = rect.width * (_logoEditor.scale / 100);
+    const dispH = dispW * ((_logoEditor.natH / _logoEditor.natW) || 1);
+    return { rangeX: Math.max(0, dispW - rect.width), rangeY: Math.max(0, dispH - rect.height) };
+  };
+  const onDown = e => {
+    dragging = true;
+    const pt = e.touches ? e.touches[0] : e;
+    sx = pt.clientX; sy = pt.clientY; sPosX = _logoEditor.posX; sPosY = _logoEditor.posY;
+  };
+  const onMove = e => {
+    if (!dragging) return;
+    if (e.cancelable) e.preventDefault();
+    const pt = e.touches ? e.touches[0] : e;
+    const dx = pt.clientX - sx, dy = pt.clientY - sy;
+    const { rangeX, rangeY } = getRange();
+    const newPosX = rangeX > 0 ? Math.max(0, Math.min(100, sPosX - (dx / rangeX) * 100)) : sPosX;
+    const newPosY = rangeY > 0 ? Math.max(0, Math.min(100, sPosY - (dy / rangeY) * 100)) : sPosY;
+    _logoEditor.posX = newPosX; _logoEditor.posY = newPosY;
+    const img = document.getElementById('logoEditorImg');
+    if (img) img.style.backgroundPosition = `${newPosX}% ${newPosY}%`;
+  };
+  const onUp = () => { dragging = false; };
+  stage.addEventListener('mousedown', onDown);
+  stage.addEventListener('touchstart', onDown, { passive: true });
+  window.addEventListener('mousemove', onMove);
+  window.addEventListener('touchmove', onMove, { passive: false });
+  window.addEventListener('mouseup', onUp);
+  window.addEventListener('touchend', onUp);
 }
 
 function toggleDark(on) {

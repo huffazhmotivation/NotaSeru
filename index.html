@@ -665,7 +665,7 @@
     <div class="sett-section">
       <div class="section-title" style="margin-bottom:12px">Logo Toko</div>
       <div class="logo-area" onclick="document.getElementById('logoInput').click()">
-        <img id="logoPrev" class="logo-prev" src="" alt="Logo">
+        <div id="logoPrev" class="logo-prev"></div>
         <div class="logo-ph-ic" id="logoPh"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></div>
         <div class="logo-txt">Ketuk untuk upload logo</div>
       </div>
@@ -675,9 +675,13 @@
           <span style="font-size:12.5px;font-weight:600;color:var(--txt-2)">Ukuran Logo di Nota</span>
           <span id="logoScaleVal" style="font-size:12.5px;font-weight:700;color:var(--primary)">100%</span>
         </div>
-        <input type="range" id="logoScaleSlider" min="40" max="180" step="5" value="100"
+        <input type="range" id="logoScaleSlider" min="40" max="250" step="5" value="100"
           oninput="setLogoScale(this.value)" style="width:100%;accent-color:var(--primary)">
-        <div style="font-size:11px;color:var(--txt-3);margin-top:4px">Geser untuk memperkecil atau memperbesar logo — tidak lagi mentok mengisi penuh kotaknya.</div>
+        <div style="font-size:11px;color:var(--txt-3);margin-top:4px">Geser cepat untuk memperbesar/memperkecil. Untuk geser posisi (crop) yang presisi, pakai tombol di bawah.</div>
+        <button type="button" class="logo-edit-btn" onclick="openLogoEditor()">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6.13 1L6 16a2 2 0 0 0 2 2h15"/><path d="M1 6.13L16 6a2 2 0 0 1 2 2v15"/></svg>
+          Atur Posisi &amp; Crop Logo
+        </button>
       </div>
     </div>
 
@@ -711,7 +715,12 @@
         <div class="sett-row no-tap" style="align-items:flex-start">
           <div class="sett-content" style="width:100%">
             <div class="sett-label" style="margin-bottom:8px">Pilih Bank / E-Wallet (opsional)</div>
-            <div id="bankPresetList" style="display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;-webkit-overflow-scrolling:touch"></div>
+            <div class="bank-scroll-wrap">
+              <div id="bankPresetList" style="display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;-webkit-overflow-scrolling:touch" onscroll="updateBankScrollHint()"></div>
+              <div class="bank-scroll-hint" id="bankScrollHint">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 6 15 12 9 18"/></svg>
+              </div>
+            </div>
             <div id="bankLogoImgPreviewBox" style="display:flex;align-items:center;gap:10px;margin-top:10px;padding:10px;border-radius:var(--r-sm);background:var(--bg-input);border:1px dashed var(--border)"></div>
           </div>
         </div>
@@ -1361,6 +1370,34 @@
   <div class="tpl-preview-modal-footer">
     <div class="tpl-preview-color-row" id="tplPreviewColorRow"></div>
     <button class="tpl-preview-use-btn" onclick="confirmTemplateFromPreview()">Gunakan Template Ini</button>
+  </div>
+</div>
+
+<!-- Logo Editor Modal — atur posisi (crop/geser) & ukuran (zoom) logo toko -->
+<div class="tpl-preview-modal" id="logoEditorModal">
+  <div class="tpl-preview-modal-hd">
+    <button class="tpl-preview-close" onclick="closeLogoEditor()">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+    <div class="tpl-preview-modal-title"><small>Pengaturan Logo</small><span>Geser &amp; Perbesar</span></div>
+    <button class="tpl-preview-close" onclick="resetLogoEditor()" title="Reset ke default">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-9.36L1 10"/></svg>
+    </button>
+  </div>
+  <div class="tpl-preview-modal-body">
+    <div class="logo-editor-stage" id="logoEditorStage">
+      <div class="logo-editor-img" id="logoEditorImg"></div>
+      <div class="logo-editor-frame"></div>
+    </div>
+    <div class="logo-editor-hint">Seret logo untuk mengatur posisi (crop), lalu pakai slider untuk memperbesar/memperkecil.</div>
+    <div class="logo-editor-zoom-row">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--txt-3)" stroke-width="2" stroke-linecap="round"><circle cx="10" cy="10" r="6"/><line x1="21" y1="21" x2="15" y2="15"/><line x1="7" y1="10" x2="13" y2="10"/></svg>
+      <input type="range" id="logoEditorZoom" min="40" max="250" step="1" value="100" oninput="setLogoEditorZoom(this.value)" style="flex:1;accent-color:var(--primary)">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--txt-3)" stroke-width="2" stroke-linecap="round"><circle cx="10" cy="10" r="6"/><line x1="21" y1="21" x2="15" y2="15"/><line x1="10" y1="7" x2="10" y2="13"/><line x1="7" y1="10" x2="13" y2="10"/></svg>
+    </div>
+  </div>
+  <div class="tpl-preview-modal-footer">
+    <button class="tpl-preview-use-btn" onclick="saveLogoEditor()">Simpan Pengaturan Logo</button>
   </div>
 </div>
 
