@@ -2318,19 +2318,28 @@ function confirmTemplateFromPreview() {
   toast('Template diterapkan ✓', 'ok');
 }
 
-// Template nota: tampilkan 3 thumbnail saja, tombol untuk membuka semuanya
+// Template nota: tampilkan 3 thumbnail saja, tombol untuk meluaskan sisanya
 function toggleTemplateGrid(forceOpen) {
   const g = document.getElementById('templateGrid'); if (!g) return;
   const open = typeof forceOpen === 'boolean' ? forceOpen : g.classList.contains('collapsed');
   g.classList.toggle('collapsed', !open);
-  document.getElementById('tplMoreBtn')?.classList.toggle('open', open);
+  const btn = document.getElementById('tplMoreBtn');
+  btn?.classList.toggle('open', open);
+  btn?.setAttribute('aria-expanded', open ? 'true' : 'false');
   const lb = document.getElementById('tplMoreLabel');
-  if (lb) lb.textContent = open ? 'Tampilkan lebih sedikit' : 'Nota-nota lainnya';
+  if (lb) lb.textContent = open ? 'Tampilkan lebih sedikit' : 'Lihat template lainnya';
+  if (open) setTimeout(() => btn?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 380);
+}
+// Titik kecil di tombol kalau template terpilih ada di daftar yang tersembunyi
+function updateTplMoreHint() {
+  const g = document.getElementById('templateGrid');
+  document.getElementById('tplMoreBtn')?.classList.toggle('has-active', !!g?.querySelector('.tpl-card.active'));
 }
 
 function selectTemplate(name, el, persist = true) {
   curTemplate = name;
   document.querySelectorAll('.tpl-card').forEach(c => c.classList.toggle('active', c.dataset.tpl === name));
+  updateTplMoreHint();
   if (persist) { const s = DB.get('settings', {}); s.defaultTemplate = name; DB.set('settings', s); }
 }
 

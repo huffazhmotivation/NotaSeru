@@ -962,7 +962,8 @@
     <div class="sett-section">
       <div class="section-title" style="margin-bottom:12px">Template Nota</div>
       <div class="sett-card" style="padding:12px 16px">
-        <div class="template-grid collapsed" id="templateGrid">
+        <div class="tpl-picker">
+        <div class="template-grid" id="templateGridMain">
           <div class="tpl-card active" data-tpl="classic" onclick="previewTemplate('classic',this)">
             <div class="tpl-preview tpl-classic">
               <div class="tpl-logo-sm"></div>
@@ -985,6 +986,10 @@
             </div>
             <div class="tpl-name">Minimal</div>
           </div>
+        </div>
+        <div class="tpl-more-wrap collapsed" id="templateGrid">
+          <div class="tpl-more-inner">
+            <div class="template-grid">
           <div class="tpl-card" data-tpl="bold" onclick="previewTemplate('bold',this)">
             <div class="tpl-preview tpl-bold">
               <div class="tpl-header-bold">
@@ -1095,11 +1100,14 @@
             </div>
             <div class="tpl-name">Banner</div>
           </div>
+            </div>
+          </div>
         </div>
-        <button type="button" class="tpl-more-btn" id="tplMoreBtn" onclick="toggleTemplateGrid()">
-          <span id="tplMoreLabel">Nota-nota lainnya</span>
-          <svg id="tplMoreIc" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        <button type="button" class="tpl-more-btn" id="tplMoreBtn" onclick="toggleTemplateGrid()" aria-expanded="false" aria-controls="templateGrid">
+          <span class="tpl-more-txt"><i class="tpl-more-dot"></i><span id="tplMoreLabel">Lihat template lainnya</span><em id="tplMoreCount">12</em></span>
+          <svg id="tplMoreIc" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
         </button>
+        </div>
         <div style="text-align:center;font-size:11px;color:var(--txt-3);margin-top:10px">Ketuk template untuk lihat preview nota asli</div>
         <!-- Template Color Picker -->
         <div style="padding:10px 0 4px;border-top:1px solid var(--border-soft);margin-top:8px">

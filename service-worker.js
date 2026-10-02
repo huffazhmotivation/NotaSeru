@@ -1,4 +1,4 @@
-const CACHE_NAME = 'notaseru-v4.6';
+const CACHE_NAME = 'notaseru-v4.8';
 const ASSETS = [
   '/index.html',
   '/style.css',
@@ -67,6 +67,23 @@ self.addEventListener('fetch', (e) => {
           return response;
         })
         .catch(() => caches.match(e.request).then((c) => c || caches.match('/index.html')))
+    );
+    return;
+  }
+
+  // JS/CSS inti: network-first supaya perbaikan langsung terbaca
+  // (sebelumnya cache-first membuat script.js lama tetap dipakai -> highlight nav salah).
+  if (/\.(js|css)$/.test(url.pathname)) {
+    e.respondWith(
+      fetch(e.request, { cache: 'no-store' })
+        .then((response) => {
+          if (response && response.status === 200 && !response.redirected) {
+            const clone = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(e.request, clone));
+          }
+          return response;
+        })
+        .catch(() => caches.match(e.request))
     );
     return;
   }
