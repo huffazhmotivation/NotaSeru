@@ -920,13 +920,13 @@
           Tambah
         </button>
       </div>
-      <div onclick="nav('gudang')" id="gudangEntryCard" style="display:flex;align-items:center;gap:12px;padding:13px 14px;margin-bottom:10px;background:var(--primary-soft);border:1px solid var(--primary);border-radius:var(--r-lg);cursor:pointer">
+      <div onclick="nav('gudang')" id="gudangEntryCard" class="gudang-entry" style="display:flex;align-items:center;gap:12px;padding:13px 14px;margin-bottom:10px;border:1px solid var(--primary);border-radius:var(--r-lg);cursor:pointer">
         <div style="width:38px;height:38px;border-radius:var(--r-sm);background:var(--primary);color:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-6 9 6v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"/><path d="M9 21V12h6v9"/></svg>
         </div>
         <div style="flex:1;min-width:0">
-          <div style="font-size:13px;font-weight:700;color:var(--txt-1)">Gudang &amp; Stok Barang</div>
-          <div style="font-size:11px;color:var(--txt-2);margin-top:1px" id="gudangEntrySub">Atur stok, pantau sisa &amp; terjual, kelola gudang</div>
+          <div class="gudang-entry-title" style="font-size:13px;font-weight:700">Gudang &amp; Stok Barang</div>
+          <div class="gudang-entry-sub" style="font-size:11px;margin-top:1px" id="gudangEntrySub">Atur stok, pantau sisa &amp; terjual, kelola gudang</div>
         </div>
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2.2" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
       </div>
@@ -1147,7 +1147,7 @@
       <div class="sheet-title" id="profitSheetTitle">Pembukuan Nota</div>
       <div style="font-size:11px;color:var(--txt-3);margin-top:2px" id="profitSheetSub"></div>
     </div>
-    <button class="sheet-close" onclick="closeSheets()">✕</button>
+    <button class="sheet-close" onclick="closeSheets()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg></button>
   </div>
   <div class="sheet-body" id="profitSheetBody"></div>
 </div>
@@ -1160,14 +1160,14 @@
       <div class="sheet-title">Analisis Grup Nota</div>
       <div style="font-size:11px;color:var(--txt-3);margin-top:2px" id="grupSheetSub"></div>
     </div>
-    <button class="sheet-close" onclick="closeSheets()">✕</button>
+    <button class="sheet-close" onclick="closeSheets()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg></button>
   </div>
   <div class="sheet-body" id="grupSheetBody"></div>
 </div>
 
 <div class="sheet" id="expenseSheet">
   <div class="sheet-handle"></div>
-  <div class="sheet-hd"><div class="sheet-title" id="expSheetTitle">Tambah Pengeluaran</div><button class="sheet-close" onclick="closeSheets()">✕</button></div>
+  <div class="sheet-hd"><div class="sheet-title" id="expSheetTitle">Tambah Pengeluaran</div><button class="sheet-close" onclick="closeSheets()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg></button></div>
   <div class="sheet-body">
     <input type="hidden" id="editExpId">
     <div class="form-group"><label class="form-label">Nama Pengeluaran</label><input type="text" class="form-input" id="expName" placeholder="Contoh: Beli bahan baku"></div>
@@ -1192,7 +1192,7 @@
 <!-- Pemasukan di luar Nota (mis. modal masuk, pendapatan lain-lain) -->
 <div class="sheet" id="incomeSheet">
   <div class="sheet-handle"></div>
-  <div class="sheet-hd"><div class="sheet-title" id="incSheetTitle">Tambah Pemasukan</div><button class="sheet-close" onclick="closeSheets()">✕</button></div>
+  <div class="sheet-hd"><div class="sheet-title" id="incSheetTitle">Tambah Pemasukan</div><button class="sheet-close" onclick="closeSheets()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg></button></div>
   <div class="sheet-body">
     <input type="hidden" id="editIncId">
     <div class="form-group"><label class="form-label">Nama Pemasukan</label><input type="text" class="form-input" id="incName" placeholder="Contoh: Modal tambahan, Jual barang bekas"></div>
@@ -1216,7 +1216,7 @@
 <!-- Invoice Action Sheet -->
 <div class="sheet" id="invActionSheet">
   <div class="sheet-handle"></div>
-  <div class="sheet-hd"><div class="sheet-title" id="invActionTitle">Aksi Nota</div><button class="sheet-close" onclick="closeSheets()">✕</button></div>
+  <div class="sheet-hd"><div class="sheet-title" id="invActionTitle">Aksi Nota</div><button class="sheet-close" onclick="closeSheets()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg></button></div>
   <div id="invActionContent"></div>
   <div style="height:12px"></div>
 </div>
@@ -1224,7 +1224,7 @@
 <!-- Export Sheet -->
 <div class="sheet" id="exportSheet">
   <div class="sheet-handle"></div>
-  <div class="sheet-hd"><div class="sheet-title">Export Nota</div><button class="sheet-close" onclick="closeSheets()">✕</button></div>
+  <div class="sheet-hd"><div class="sheet-title">Export Nota</div><button class="sheet-close" onclick="closeSheets()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg></button></div>
   <div>
     <div class="as-item" onclick="exportPDF()"><div class="as-ic" style="background:var(--danger-soft);color:var(--danger)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div><div><div class="as-label">Simpan PDF</div><div class="as-sub">Format A4 siap cetak</div></div></div>
     <div class="as-item" onclick="exportPNG()"><div class="as-ic" style="background:var(--primary-soft);color:var(--primary)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></div><div><div class="as-label">Simpan PNG</div><div class="as-sub">Gambar resolusi tinggi</div></div></div>
@@ -1282,7 +1282,7 @@
 <!-- Signature Sheet -->
 <div class="sheet" id="signSheet">
   <div class="sheet-handle"></div>
-  <div class="sheet-hd"><div class="sheet-title">Tanda Tangan</div><button class="sheet-close" onclick="closeSheets()">✕</button></div>
+  <div class="sheet-hd"><div class="sheet-title">Tanda Tangan</div><button class="sheet-close" onclick="closeSheets()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg></button></div>
   <div class="sheet-body">
     <p style="font-size:12px;color:var(--txt-3);margin-bottom:12px">Gambar tanda tangan Anda di bawah ini menggunakan jari atau mouse</p>
     <div class="sign-canvas-wrap">
@@ -1307,7 +1307,7 @@
   <div class="sheet-handle"></div>
   <div class="sheet-hd">
     <div class="sheet-title">Pilih Produk</div>
-    <button class="sheet-close" onclick="closeSheets()">✕</button>
+    <button class="sheet-close" onclick="closeSheets()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg></button>
   </div>
   <div style="padding:0 20px 12px">
     <div class="search-inner">
@@ -1334,14 +1334,14 @@
   <div class="sheet-handle"></div>
   <div class="sheet-hd">
     <div class="sheet-title" id="prodFormTitle">Tambah Produk</div>
-    <button class="sheet-close" onclick="closeSheets()">✕</button>
+    <button class="sheet-close" onclick="closeSheets()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg></button>
   </div>
   <div class="sheet-body">
     <input type="hidden" id="editProdId">
     <div style="display:flex;gap:10px;margin-bottom:14px">
       <div style="flex:0 0 auto">
         <label class="form-label">Ikon</label>
-        <input type="text" id="prodEmoji" class="form-input" style="width:60px;text-align:center;font-size:22px;padding:8px" placeholder="🛍️" maxlength="2">
+        <div class="prod-ico-wrap"><input type="text" id="prodEmoji" class="form-input" style="width:60px;text-align:center;font-size:22px;padding:8px" placeholder=" " maxlength="2" aria-label="Ikon produk"><svg class="prod-ico-ph" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg></div>
       </div>
       <div style="flex:1">
         <label class="form-label">Nama Produk *</label>
@@ -1408,7 +1408,7 @@
   <div class="sheet-handle"></div>
   <div class="sheet-hd">
     <div class="sheet-title" id="smTitle">Atur Stok</div>
-    <button class="sheet-close" onclick="closeSheets()">✕</button>
+    <button class="sheet-close" onclick="closeSheets()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg></button>
   </div>
   <div class="sheet-body">
     <input type="hidden" id="smProdId">
@@ -1436,7 +1436,7 @@
   <div class="sheet-handle"></div>
   <div class="sheet-hd">
     <div class="sheet-title" id="whFormTitle">Tambah Gudang</div>
-    <button class="sheet-close" onclick="closeSheets()">✕</button>
+    <button class="sheet-close" onclick="closeSheets()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg></button>
   </div>
   <div class="sheet-body">
     <input type="hidden" id="editWhId">
@@ -1457,7 +1457,7 @@
   <div class="sheet-handle"></div>
   <div class="sheet-hd">
     <div class="sheet-title" id="ekspFormTitle">Tambah Ekspedisi</div>
-    <button class="sheet-close" onclick="closeSheets()">✕</button>
+    <button class="sheet-close" onclick="closeSheets()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg></button>
   </div>
   <div class="sheet-body">
     <input type="hidden" id="editEkspId">
@@ -1475,6 +1475,11 @@
     </button>
   </div>
 </div>
+
+<!-- Pintasan Gudang & Stok FAB — ditumpuk di atas tombol Tambah Nota -->
+<button class="gudang-fab" id="gudangFab" onclick="nav('gudang')" title="Gudang &amp; Stok" aria-label="Gudang &amp; Stok">
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-6 9 6v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"/><path d="M9 21V12h6v9"/></svg>
+</button>
 
 <!-- Tambah Nota FAB — floating, di atas kalkulator, selalu buat nota baru (kosong) -->
 <button class="add-nota-fab" id="addNotaFab" onclick="addNewInvoice()" title="Buat Nota Baru">

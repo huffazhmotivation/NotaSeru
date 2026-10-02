@@ -365,6 +365,27 @@ img{max-width:100%;display:block;}
 .add-nota-fab.hide{opacity:0;visibility:hidden;transform:scale(.85);pointer-events:none;}
 [data-theme="dark"] .add-nota-fab{border-color:rgba(255,255,255,.14);box-shadow:0 4px 18px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.08);}
 
+.gudang-fab{position:fixed;right:18px;bottom:calc(224px + var(--safe-b));width:52px;height:52px;border-radius:50%;background:color-mix(in srgb, var(--primary) 16%, transparent);backdrop-filter:blur(10px) saturate(150%);-webkit-backdrop-filter:blur(10px) saturate(150%);border:1px solid rgba(255,255,255,.24);color:#fff;box-shadow:0 4px 18px rgba(0,0,0,.14),inset 0 1px 0 rgba(255,255,255,.25);display:flex;align-items:center;justify-content:center;z-index:9990;cursor:pointer;transition:var(--spring),opacity .2s,visibility .2s;touch-action:manipulation;}
+.gudang-fab:active{transform:scale(.90);}
+.gudang-fab.hide{opacity:0;visibility:hidden;transform:scale(.85);pointer-events:none;}
+[data-theme="dark"] .gudang-fab{border-color:rgba(255,255,255,.14);box-shadow:0 4px 18px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.08);}
+
+/* Kartu pintasan Gudang & Stok di Pengaturan — teks wajib kontras di light & dark.
+   (Di dark mode, [data-color] menimpa --primary-soft jadi warna terang sehingga
+   teks putih tidak terbaca; di sini background dibuat transparan-tint.) */
+.gudang-entry{background:var(--primary-soft);}
+.gudang-entry-title{color:var(--txt-1);}
+.gudang-entry-sub{color:var(--txt-2);}
+[data-theme="dark"] .gudang-entry{background:color-mix(in srgb, var(--primary) 16%, var(--bg-card));}
+[data-theme="dark"] .gudang-entry-title{color:#F1F5EF;}
+[data-theme="dark"] .gudang-entry-sub{color:#AEB8A8;}
+
+/* Ikon produk: placeholder SVG minimalis, hilang saat ada isian */
+.prod-ico-wrap{position:relative;width:60px;}
+.prod-ico-ph{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);color:var(--txt-3);pointer-events:none;}
+.prod-ico-wrap input:not(:placeholder-shown) + .prod-ico-ph{display:none;}
+
+
 /* Tambah Nota FAB — sama gaya dengan calc-fab, ditumpuk di atasnya */
 
 

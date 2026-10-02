@@ -363,7 +363,7 @@ function saveStockMove() {
   DB.set('products', prods);
   gdPushLog({ productId: p.id, productName: p.name, type: _smType, qty: delta, before: cur, after, note });
   closeSheets();
-  toast('Stok "' + p.name + '" diperbarui ✓', 'ok');
+  toast('Stok "' + p.name + '" diperbarui', 'ok');
   renderGudang();
   if (typeof renderCatalogList === 'function') renderCatalogList();
 }
@@ -393,7 +393,7 @@ function saveWarehouse() {
   }
   DB.set('warehouses', list);
   closeSheets();
-  toast('Gudang "' + name + '" disimpan ✓', 'ok');
+  toast('Gudang "' + name + '" disimpan', 'ok');
   renderGudang();
 }
 
@@ -481,7 +481,7 @@ function gdRenderSummary(map) {
 
 function gdEmpty(title, sub) {
   return '<div style="text-align:center;padding:36px 16px">' +
-    '<div style="font-size:30px;margin-bottom:8px">📦</div>' +
+    '<div style="margin-bottom:8px;color:var(--txt-3)"><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/></svg></div>' +
     '<div style="font-size:14px;font-weight:700;color:var(--txt-1);margin-bottom:4px">' + title + '</div>' +
     '<div style="font-size:12px;color:var(--txt-3)">' + sub + '</div></div>';
 }
@@ -497,7 +497,7 @@ function gdStokHTML(map, whs) {
     const S = GD_STATE[st.state];
     const wh = whs.find(w => w.id === p.warehouseId);
     const unit = xss(p.unit || 'pcs');
-    const meta = [wh ? '🏬 ' + xss(wh.name) : 'Tanpa gudang', p.sku ? 'SKU ' + xss(p.sku) : '', p.price > 0 ? fmtRp(p.price) : ''].filter(Boolean).join(' · ');
+    const meta = [wh ? xss(wh.name) : 'Tanpa gudang', p.sku ? 'SKU ' + xss(p.sku) : '', p.price > 0 ? fmtRp(p.price) : ''].filter(Boolean).join(' · ');
     const stats = p.trackStock ? (
       '<div style="display:grid;grid-template-columns:repeat(' + (p.cost > 0 ? 3 : 2) + ',1fr);gap:8px;margin-top:10px">' +
         '<div style="background:var(--bg-input);border-radius:var(--r-sm);padding:8px 10px"><div style="font-size:10px;color:var(--txt-3);font-weight:600">Sisa</div><div style="font-size:15px;font-weight:800;color:' + S.color + '">' + fmtQty(st.sisa) + ' <span style="font-size:10px;font-weight:600">' + unit + '</span></div></div>' +
@@ -508,11 +508,11 @@ function gdStokHTML(map, whs) {
     ) : '<div style="font-size:12px;color:var(--txt-3);margin-top:8px">Stok produk ini belum dilacak.</div>';
     const btnStyle = 'padding:7px 12px;border-radius:var(--r-xs);border:none;font-size:12px;font-weight:700;cursor:pointer;font-family:var(--font);';
     const actions = p.trackStock
-      ? '<button onclick="openStockMove(\'' + p.id + '\')" style="' + btnStyle + 'background:var(--primary);color:#fff;flex:1">± Atur Stok</button>'
+      ? '<button onclick="openStockMove(\'' + p.id + '\')" style="' + btnStyle + 'background:var(--primary);color:#fff;flex:1;display:flex;align-items:center;justify-content:center;gap:6px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><line x1="4" y1="8" x2="20" y2="8"/><line x1="4" y1="16" x2="20" y2="16"/><circle cx="9" cy="8" r="2.2"/><circle cx="15" cy="16" r="2.2"/></svg>Atur Stok</button>'
       : '<button onclick="gdEnableTracking(\'' + p.id + '\')" style="' + btnStyle + 'background:var(--primary);color:#fff;flex:1">Aktifkan Stok</button>';
     return '<div style="background:var(--bg-card);border:1px solid var(--border-soft);border-radius:var(--r-lg);padding:14px;margin-bottom:10px">' +
       '<div style="display:flex;align-items:center;gap:10px">' +
-        '<div style="width:38px;height:38px;border-radius:var(--r-sm);background:var(--primary-soft);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">' + (p.emoji ? xss(p.emoji) : '📦') + '</div>' +
+        '<div style="width:38px;height:38px;border-radius:var(--r-sm);background:var(--primary-soft);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">' + (p.emoji ? xss(p.emoji) : '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/></svg>') + '</div>' +
         '<div style="flex:1;min-width:0"><div style="font-size:14px;font-weight:700;color:var(--txt-1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + xss(p.name) + '</div>' +
         '<div style="font-size:11px;color:var(--txt-3);margin-top:1px">' + meta + '</div></div>' +
         '<span class="' + S.cls + '" style="flex-shrink:0">' + S.label + '</span>' +
@@ -588,7 +588,7 @@ function gdGudangHTML(map, whs) {
   const card = (title, note, sm, actions, id) =>
     '<div style="background:var(--bg-card);border:1px solid var(--border-soft);border-radius:var(--r-lg);padding:14px;margin-bottom:10px">' +
       '<div style="display:flex;align-items:center;gap:10px">' +
-        '<div style="width:38px;height:38px;border-radius:var(--r-sm);background:var(--primary-soft);color:var(--primary);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">🏬</div>' +
+        '<div style="width:38px;height:38px;border-radius:var(--r-sm);background:var(--primary-soft);color:var(--primary);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><path d="M3 9l9-6 9 6v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"/><path d="M9 21V12h6v9"/></svg></div>' +
         '<div style="flex:1;min-width:0"><div style="font-size:14px;font-weight:700;color:var(--txt-1)">' + xss(title) + '</div>' +
         (note ? '<div style="font-size:11px;color:var(--txt-3);margin-top:1px">' + xss(note) + '</div>' : '') + '</div>' +
         (actions || '') +

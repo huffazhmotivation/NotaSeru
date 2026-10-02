@@ -366,6 +366,7 @@ function nav(page) {
   if (el) { el.classList.add('active'); curPage = page; window.scrollTo(0,0); }
   // Sembunyikan FAB "Tambah Nota" saat sudah di form nota (biar tidak dobel/nyangkut isian)
   document.getElementById('addNotaFab')?.classList.toggle('hide', page === 'invoice-form');
+  document.getElementById('gudangFab')?.classList.toggle('hide', page === 'gudang' || page === 'invoice-form');
   // BUG FIX: textarea auto-resize dihitung dengan benar hanya ketika elemen
   // sudah terlihat (display:block). Sebelumnya loadSettingsUI() cuma dipanggil
   // sekali saat boot, saat halaman settings masih display:none, sehingga
