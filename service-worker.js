@@ -1,8 +1,9 @@
-const CACHE_NAME = 'notaseru-v4.2';
+const CACHE_NAME = 'notaseru-v4.4';
 const ASSETS = [
   '/index.html',
   '/style.css',
   '/script.js',
+  '/gudang.js',
   '/auth.js',
   '/config.js',
   '/manifest.json'

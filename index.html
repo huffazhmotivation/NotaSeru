@@ -437,7 +437,10 @@
         </div>
         <div class="tot-row tot-grand"><span class="tot-label">Grand Total</span><span class="tot-val" id="grandDisplay">Rp 0</span></div>
         <div class="tot-row"><span class="tot-label">DP / Uang Muka</span><input type="text" class="inline-input dp-input-full" id="dpInput" placeholder="Rp 0" onfocus="fmtInlineFocus(this)" oninput="fmtInline(this);recalc()"></div>
-        <div class="tot-row tot-sisa"><span class="tot-label">Sisa Bayar</span><span class="tot-val" id="sisaDisplay">Rp 0</span></div>
+        <div class="tot-row"><span class="tot-label">Pembayaran / Pelunasan</span><input type="text" class="inline-input dp-input-full" id="bayarInput" placeholder="Rp 0" onfocus="fmtInlineFocus(this)" oninput="fmtInline(this);recalc()"></div>
+        <div class="tot-row" id="bayarDateRow" style="display:none"><span class="tot-label" style="font-size:12px">Tanggal Pembayaran</span><input type="date" class="inline-input" id="bayarDateInput" style="width:140px;text-align:right" onchange="recalc()"></div>
+        <div class="tot-row tot-sisa"><span class="tot-label" id="sisaLabel">Sisa Bayar</span><span class="tot-val" id="sisaDisplay">Rp 0</span></div>
+        <div id="payNoteBox" style="display:none;margin-top:8px;padding:9px 12px;border-radius:var(--r-md);font-size:12px;font-weight:600;line-height:1.5"></div>
       </div>
 
       <!-- Notes -->
@@ -692,6 +695,34 @@
 </div>
 
 <!-- ============================
+     GUDANG & STOK
+============================= -->
+<div class="page" id="page-gudang">
+  <div class="top-header">
+    <div class="top-header-inner">
+      <button class="back-btn" onclick="goBack()"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg></button>
+      <div class="header-title">Gudang &amp; Stok</div>
+      <button class="header-action" onclick="gdHeaderAdd()" id="gdHeaderAddBtn">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      </button>
+    </div>
+  </div>
+  <div style="padding:16px 20px 24px">
+    <div id="gdSummary" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px"></div>
+    <div class="segmented" id="gdTabs" style="margin-bottom:12px">
+      <div class="chip active" onclick="gdSetTab('stok',this)">Stok</div>
+      <div class="chip" onclick="gdSetTab('riwayat',this)">Riwayat</div>
+      <div class="chip" onclick="gdSetTab('gudang',this)">Gudang</div>
+    </div>
+    <div id="gdFilters" style="display:flex;gap:8px;margin-bottom:12px">
+      <input type="search" class="form-input" id="gdSearch" placeholder="Cari produk..." oninput="gdSetQuery(this.value)" autocomplete="off" style="flex:1;padding:10px 14px;font-size:14px">
+      <select class="form-select" id="gdWhFilter" onchange="gdSetWh(this.value)" style="flex:0 0 42%;padding:10px 12px;font-size:13px"></select>
+    </div>
+    <div id="gdBody"></div>
+  </div>
+</div>
+
+<!-- ============================
      SETTINGS
 ============================= -->
 <div class="page" id="page-settings">
@@ -884,10 +915,20 @@
     <div class="sett-section">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
         <div class="section-title">Katalog Produk</div>
-        <button onclick="openProductForm()" style="display:flex;align-items:center;gap:5px;padding:6px 12px;border-radius:var(--r-full);background:var(--primary);color:#fff;border:none;font-size:12px;font-weight:600;cursor:pointer;font-family:var(--font)">
+        <button onclick="openGudangProductForm()" style="display:flex;align-items:center;gap:5px;padding:6px 12px;border-radius:var(--r-full);background:var(--primary);color:#fff;border:none;font-size:12px;font-weight:600;cursor:pointer;font-family:var(--font)">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           Tambah
         </button>
+      </div>
+      <div onclick="nav('gudang')" id="gudangEntryCard" style="display:flex;align-items:center;gap:12px;padding:13px 14px;margin-bottom:10px;background:var(--primary-soft);border:1px solid var(--primary);border-radius:var(--r-lg);cursor:pointer">
+        <div style="width:38px;height:38px;border-radius:var(--r-sm);background:var(--primary);color:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-6 9 6v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"/><path d="M9 21V12h6v9"/></svg>
+        </div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13px;font-weight:700;color:var(--txt-1)">Gudang &amp; Stok Barang</div>
+          <div style="font-size:11px;color:var(--txt-2);margin-top:1px" id="gudangEntrySub">Atur stok, pantau sisa &amp; terjual, kelola gudang</div>
+        </div>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2.2" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
       </div>
       <div class="sett-card">
         <div style="padding:4px 16px 8px" id="catalogList">
@@ -1321,10 +1362,93 @@
       <label class="form-label">Deskripsi (Opsional)</label>
       <input type="text" id="prodDesc" class="form-input" placeholder="Keterangan singkat produk">
     </div>
+    <div style="border-top:1px solid var(--border-soft);margin:6px 0 14px;padding-top:14px">
+      <label style="display:flex;align-items:center;justify-content:space-between;gap:10px;cursor:pointer;margin-bottom:12px">
+        <span style="font-size:13px;font-weight:700;color:var(--txt-1)">Lacak stok produk ini
+          <span style="display:block;font-size:11px;font-weight:500;color:var(--txt-3);margin-top:2px">Stok otomatis berkurang saat nota dibuat</span></span>
+        <input type="checkbox" id="prodTrack" onchange="gdToggleTrackUI()" style="width:20px;height:20px;accent-color:var(--primary)">
+      </label>
+      <div id="prodStockFields" style="display:none">
+        <div class="form-row" style="margin-bottom:14px">
+          <div>
+            <label class="form-label" id="prodStockLabel">Stok Awal</label>
+            <input type="text" id="prodStock" class="form-input" inputmode="decimal" placeholder="0">
+          </div>
+          <div>
+            <label class="form-label">Batas Stok Menipis</label>
+            <input type="text" id="prodMinStock" class="form-input" inputmode="decimal" placeholder="0 (opsional)">
+          </div>
+        </div>
+        <div class="form-row" style="margin-bottom:14px">
+          <div>
+            <label class="form-label">Gudang</label>
+            <select id="prodWarehouse" class="form-select"></select>
+          </div>
+          <div>
+            <label class="form-label">Kode / SKU</label>
+            <input type="text" id="prodSku" class="form-input" placeholder="Opsional">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Harga Modal / Beli (Opsional)</label>
+          <input type="text" id="prodCost" class="form-input" placeholder="Rp 0" oninput="fmtInline(this)">
+        </div>
+        <div id="prodStockInfo" style="display:none;font-size:11.5px;color:var(--txt-3);margin:-4px 0 14px;line-height:1.5"></div>
+      </div>
+    </div>
     <button class="btn btn-primary btn-block" onclick="saveProduct()">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
       Simpan Produk
     </button>
+  </div>
+</div>
+
+<!-- Stock Move Sheet -->
+<div class="sheet" id="stockMoveSheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-hd">
+    <div class="sheet-title" id="smTitle">Atur Stok</div>
+    <button class="sheet-close" onclick="closeSheets()">✕</button>
+  </div>
+  <div class="sheet-body">
+    <input type="hidden" id="smProdId">
+    <div id="smInfo" style="padding:12px 14px;background:var(--bg-input);border-radius:var(--r-md);margin-bottom:14px;font-size:13px;color:var(--txt-1)"></div>
+    <div class="segmented segmented-status" id="smType" style="margin-bottom:14px">
+      <div class="chip active" data-tone="lunas" onclick="smSetType('in',this)">Masuk (+)</div>
+      <div class="chip" data-tone="belum" onclick="smSetType('out',this)">Keluar (−)</div>
+      <div class="chip" onclick="smSetType('set',this)">Atur Sisa</div>
+    </div>
+    <div class="form-group">
+      <label class="form-label" id="smQtyLabel">Jumlah Masuk</label>
+      <input type="text" id="smQty" class="form-input" inputmode="decimal" placeholder="0" oninput="smPreview()">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Keterangan (Opsional)</label>
+      <input type="text" id="smNote" class="form-input" placeholder="Contoh: Restok dari supplier, barang rusak, stok opname">
+    </div>
+    <div id="smPreviewBox" style="font-size:12px;font-weight:600;color:var(--txt-2);margin:-4px 0 14px"></div>
+    <button class="btn btn-primary btn-block" onclick="saveStockMove()">Simpan</button>
+  </div>
+</div>
+
+<!-- Warehouse Form Sheet -->
+<div class="sheet" id="gudangFormSheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-hd">
+    <div class="sheet-title" id="whFormTitle">Tambah Gudang</div>
+    <button class="sheet-close" onclick="closeSheets()">✕</button>
+  </div>
+  <div class="sheet-body">
+    <input type="hidden" id="editWhId">
+    <div class="form-group">
+      <label class="form-label">Nama Gudang *</label>
+      <input type="text" id="whName" class="form-input" placeholder="Contoh: Gudang Utama, Toko, Rak Depan">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Lokasi / Catatan (Opsional)</label>
+      <input type="text" id="whNote" class="form-input" placeholder="Contoh: Jl. Melati No. 5, lantai 2">
+    </div>
+    <button class="btn btn-primary btn-block" onclick="saveWarehouse()">Simpan Gudang</button>
   </div>
 </div>
 
@@ -1422,6 +1546,7 @@
 
 </div><!-- #app -->
 <script src="script.js"></script>
+<script src="gudang.js"></script>
 <script src="auth.js"></script>
 <!-- Custom Color Picker Modal -->
 <div id="customColorModal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.55);backdrop-filter:blur(4px);align-items:center;justify-content:center">

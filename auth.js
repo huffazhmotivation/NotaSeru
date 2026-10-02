@@ -253,7 +253,7 @@ const CloudDB = {
     } catch {}
 
     // --- Key lain ---
-    const OTHER_KEYS = ['expenses','products','ekspedisi'];
+    const OTHER_KEYS = ['expenses','products','ekspedisi','warehouses','stockLog'];
     for (const k of OTHER_KEYS) {
       const v = DB.get(k, null);
       if (v !== null) rows.push({ user_id: _authUser.id, key: k, value: v, updated_at: now });
@@ -427,6 +427,7 @@ function _reRenderForKey(key) {
       if (typeof renderInvList      === 'function') renderInvList();
       if (typeof renderDashboard    === 'function') renderDashboard();
       if (typeof renderIncomePage   === 'function') renderIncomePage();
+      if (typeof renderGudang       === 'function') renderGudang();
     } else if (key === 'expenses') {
       if (typeof renderDashboard    === 'function') renderDashboard();
       if (typeof renderExpenseList  === 'function') renderExpenseList();
@@ -437,7 +438,11 @@ function _reRenderForKey(key) {
       if (typeof applyAppearance       === 'function') applyAppearance();
       if (typeof renderCatalogList     === 'function') renderCatalogList();
       if (typeof renderEkspedisiList   === 'function') renderEkspedisiList();
+    } else if (key === 'warehouses' || key === 'stockLog') {
+      if (typeof renderGudang          === 'function') renderGudang();
+      if (typeof renderCatalogList     === 'function') renderCatalogList();
     } else if (key === 'products' || key === 'ekspedisi') {
+      if (typeof renderGudang          === 'function') renderGudang();
       if (typeof renderCatalogList     === 'function') renderCatalogList();
       if (typeof renderEkspedisiList   === 'function') renderEkspedisiList();
       if (typeof populateEkspedisiSelect === 'function') populateEkspedisiSelect();

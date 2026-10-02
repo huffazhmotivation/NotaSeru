@@ -294,6 +294,8 @@ function saveFormDraft() {
     ongkir: document.getElementById('ongkirInput')?.value || '',
     ekspedisi: document.getElementById('ekspedisiInput')?.value || '',
     dp: document.getElementById('dpInput')?.value || '',
+    bayar: document.getElementById('bayarInput')?.value || '',
+    bayarDate: document.getElementById('bayarDateInput')?.value || '',
     notes: document.getElementById('invNotes')?.value || '',
     template: curTemplate,
     tplColor: curTplColor,
@@ -317,6 +319,7 @@ function restoreFormDraft(draft) {
   document.getElementById('ongkirInput').value = draft.ongkir || '';
   if (draft.ekspedisi) document.getElementById('ekspedisiInput').value = draft.ekspedisi;
   document.getElementById('dpInput').value = draft.dp || '';
+  { const b = document.getElementById('bayarInput'); if (b) b.value = draft.bayar || ''; const bd = document.getElementById('bayarDateInput'); if (bd) bd.value = draft.bayarDate || ''; }
   document.getElementById('invNotes').value = draft.notes || '';
   if (draft.template) selectTemplate(draft.template, null, false);
   items = draft.items && draft.items.length ? draft.items : [{ id: Date.now(), name: '', qty: 1, price: 0 }];
@@ -337,7 +340,7 @@ function nav(page) {
   }
   prevPage = curPage;
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-  const nm = { dashboard:'nav-dashboard','invoice-list':'nav-invoice-list', income:'nav-income', expense:'nav-income', ongkir:'nav-ongkir', settings:'nav-settings' };
+  const nm = { dashboard:'nav-dashboard','invoice-list':'nav-invoice-list', income:'nav-income', expense:'nav-income', ongkir:'nav-ongkir', settings:'nav-settings', gudang:'nav-settings' };
   const ni = nm[page]; if (ni) document.getElementById(ni)?.classList.add('active');
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   // Update akun row setiap kali masuk settings
@@ -357,6 +360,7 @@ function nav(page) {
   if (page === 'expense') renderExpensePage();
   if (page === 'dashboard') renderDashboard();
   if (page === 'ongkir' && typeof ockInit === 'function') ockInit();
+  if (page === 'gudang' && typeof renderGudang === 'function') renderGudang();
   if (page === 'settings') { renderCatalogList(); renderEkspedisiList(); selectTemplate(curTemplate || 'classic', null, false); selectTplColor(curTplColor || 'amber', false); }
   const el = document.getElementById('page-' + page);
   if (el) { el.classList.add('active'); curPage = page; window.scrollTo(0,0); }
@@ -540,7 +544,7 @@ function buildItemsFromOrderText(orderText) {
     name = name.replace(WA_GREETINGS, '').trim();
     if (!name) return null;
     const matched = prods.find(p => name.toLowerCase().includes(p.name.toLowerCase()) || p.name.toLowerCase().includes(name.toLowerCase()));
-    return { id: Date.now() + Math.random(), name: matched ? matched.name : name, qty: qty || 1, price: matched ? (matched.price || 0) : 0 };
+    return { id: Date.now() + Math.random(), name: matched ? matched.name : name, qty: qty || 1, price: matched ? (matched.price || 0) : 0, productId: matched ? matched.id : undefined };
   }).filter(Boolean);
   return newItems.length ? newItems : null;
 }
@@ -628,6 +632,7 @@ function resetForm() {
   const eInp = document.getElementById('ekspedisiInput'); if (eInp) eInp.value = '';
   const eSel = document.getElementById('ekspedisiSelect'); if (eSel) eSel.value = '';
   document.getElementById('dpInput').value = '';
+  { const b = document.getElementById('bayarInput'); if (b) b.value = ''; const bd = document.getElementById('bayarDateInput'); if (bd) bd.value = ''; }
   document.getElementById('invNotes').value = '';
   selectTemplate(curTemplate || 'classic', null, false);
   genInvNum();
@@ -660,7 +665,7 @@ function addBlankItem() {
 }
 
 function addItemFromProduct(prod) {
-  items.push({ id: Date.now(), name: prod.name, qty: 1, price: prod.price || 0 });
+  items.push({ id: Date.now(), name: prod.name, qty: 1, price: prod.price || 0, productId: prod.id });
   renderItems();
   recalc();
   closeSheets();
@@ -727,6 +732,7 @@ function updItem(id, f, v) {
   const item = items.find(i => i.id === id); if (!item) return;
   if (f === 'qty') item.qty = Math.max(1, parseInt(v) || 1);
   else item[f] = v;
+  if (f === 'name' && item.productId) { const _p = DB.get('products', []).find(x => x.id === item.productId); if (!_p || (_p.name || '').trim().toLowerCase() !== String(v || '').trim().toLowerCase()) delete item.productId; }
   const st = document.getElementById('ist-' + id);
   if (st) st.textContent = fmtRp(calcItemTotal(item));
   recalc();
@@ -779,23 +785,53 @@ function recalc() {
   const discVal = curDiscType === 'rupiah' ? parseMoney(discRaw) : (parseFloat(discRaw) || 0);
   const ongkir = parseMoney(document.getElementById('ongkirInput')?.value || '0');
   const dp = parseMoney(document.getElementById('dpInput')?.value || '0');
+  const bayar = parseMoney(document.getElementById('bayarInput')?.value || '0');
   let discAmt = curDiscType === 'rupiah' ? Math.min(discVal, sub) : (sub * discVal / 100);
   const grand = sub - discAmt + ongkir;
-  const sisa = Math.max(0, grand - dp);
+  const paid = dp + bayar;
+  const selisih = grand - paid; // >0 masih kurang, <0 kelebihan bayar
   setText('subtotalDisplay', fmtRp(sub));
   setText('grandDisplay', fmtRp(grand));
-  setText('sisaDisplay', fmtRp(sisa));
-  syncStatusFromDp(dp, grand);
+  setText('sisaLabel', selisih < 0 ? 'Kelebihan Bayar' : 'Sisa Bayar');
+  setText('sisaDisplay', fmtRp(Math.abs(selisih)));
+  // Tanggal pembayaran: muncul kalau ada pembayaran, otomatis diisi hari ini
+  const bdRow = document.getElementById('bayarDateRow');
+  const bdInp = document.getElementById('bayarDateInput');
+  if (bdRow) bdRow.style.display = bayar > 0 ? '' : 'none';
+  if (bdInp && bayar > 0 && !bdInp.value) bdInp.value = new Date().toISOString().split('T')[0];
+  renderPayNote(dp, bayar, grand);
+  syncStatusFromDp(paid, grand);
 }
 
-// Sinkronkan dropdown status nota mengikuti nominal DP yang diisi:
-// DP kosong/0 -> "Belum Bayar", DP kurang dari total -> "DP", DP >= total nota -> "Lunas".
-function syncStatusFromDp(dp, grand) {
+// Keterangan otomatis di form: DP + Pembayaran dibandingkan dengan Grand Total
+function renderPayNote(dp, bayar, grand) {
+  const box = document.getElementById('payNoteBox');
+  if (!box) return;
+  const paid = dp + bayar;
+  if (paid <= 0 || grand <= 0) { box.style.display = 'none'; return; }
+  const diff = paid - grand;
+  let bg, col, txt;
+  if (diff === 0) {
+    bg = 'var(--success-soft)'; col = 'var(--success)';
+    txt = '✓ Pembayaran pas — nota LUNAS. Total terbayar ' + fmtRp(paid) + '.';
+  } else if (diff > 0) {
+    bg = 'var(--primary-soft)'; col = 'var(--primary)';
+    txt = '⚠ Kelebihan bayar ' + fmtRp(diff) + ' dari total nota. Selisih otomatis dicatat ke Profit.';
+  } else {
+    bg = 'var(--warning-soft)'; col = 'var(--warning)';
+    txt = (bayar > 0 ? '⚠ Pembayaran masih kurang. ' : '◐ Baru DP. ') + 'Terbayar ' + fmtRp(paid) + ', sisa ' + fmtRp(-diff) + ' belum dibayar.';
+  }
+  box.style.display = ''; box.style.background = bg; box.style.color = col; box.textContent = txt;
+}
+
+// Sinkronkan dropdown status nota mengikuti TOTAL uang yang sudah dibayar (DP + Pembayaran):
+// 0 -> "Belum Bayar", kurang dari total -> "DP" (sebagian), >= total nota -> "Lunas".
+function syncStatusFromDp(paid, grand) {
   const statusEl = document.getElementById('invStatus');
   if (!statusEl) return;
-  if (dp <= 0) { statusEl.value = 'belum'; return; }
+  if (paid <= 0) { statusEl.value = 'belum'; return; }
   if (grand <= 0) return;
-  statusEl.value = dp >= grand ? 'lunas' : 'dp';
+  statusEl.value = paid >= grand ? 'lunas' : 'dp';
 }
 
 function saveInvoice() {
@@ -807,8 +843,13 @@ function saveInvoice() {
   const disc = curDiscType === 'rupiah' ? parseMoney(discRaw) : (parseFloat(discRaw) || 0);
   const ongkir = parseMoney(document.getElementById('ongkirInput').value || '0');
   const dp = parseMoney(document.getElementById('dpInput').value || '0');
+  const bayar = parseMoney(document.getElementById('bayarInput')?.value || '0');
+  const bayarDate = bayar > 0 ? (document.getElementById('bayarDateInput')?.value || new Date().toISOString().split('T')[0]) : '';
   const discAmt = curDiscType === 'rupiah' ? Math.min(disc, sub) : (sub * disc / 100);
   const grand = sub - discAmt + ongkir;
+  // Stok: tautkan item ke produk katalog & peringatkan kalau stok tidak cukup
+  if (typeof gdLinkItems === 'function') gdLinkItems(items);
+  if (typeof gdConfirmStock === 'function' && !gdConfirmStock(items, curInvId)) return null;
   const inv = {
     id: curInvId || Date.now().toString(),
     number: document.getElementById('invNumber').value,
@@ -818,7 +859,9 @@ function saveInvoice() {
     items: JSON.parse(JSON.stringify(items)),
     sub, disc, discType: curDiscType, discAmt, ongkir,
     ekspedisi: document.getElementById('ekspedisiInput')?.value || '',
-    dp, grand, sisa: Math.max(0, grand - dp),
+    dp, bayar, bayarDate, grand,
+    sisa: Math.max(0, grand - dp - bayar),
+    lebih: Math.max(0, dp + bayar - grand),
     currency: curCurrency,
     notes: document.getElementById('invNotes').value,
     template: curTemplate,
@@ -838,6 +881,7 @@ function saveInvoice() {
   DB.set('invoices', invs);
   clearFormDraft();
   toast('Nota disimpan ✓', 'ok');
+  if (typeof gdNotifyLowStock === 'function') gdNotifyLowStock(inv);
   return inv;
 }
 
@@ -893,7 +937,7 @@ function renderProductPicker(query = '') {
       </div>
       <div style="text-align:right;flex-shrink:0">
         <div style="font-size:13px;font-weight:700;color:var(--primary)">${p.price > 0 ? fmtRp(p.price) : 'Bebas'}</div>
-        <div style="font-size:10px;color:var(--txt-3);margin-top:2px">per ${p.unit || 'pcs'}</div>
+        <div style="font-size:10px;color:var(--txt-3);margin-top:2px">per ${p.unit || 'pcs'}</div>${typeof gdPickerStockLabel === 'function' ? gdPickerStockLabel(p) : ''}
       </div>
     </div>`).join('');
 }
@@ -904,6 +948,7 @@ function selectProduct(prod) {
     const item = items.find(i => i.id === _pickerTargetId);
     if (item) {
       item.name = prod.name;
+      item.productId = prod.id;
       if (prod.price > 0) item.price = prod.price;
       renderItems(); recalc();
     }
@@ -950,6 +995,7 @@ function pickSuggest(itemId, prod) {
   const item = items.find(i => i.id === itemId);
   if (item) {
     item.name = prod.name;
+    item.productId = prod.id;
     if (prod.price > 0) item.price = prod.price;
     renderItems(); recalc();
   }
@@ -973,7 +1019,7 @@ function renderCatalogList() {
       </div>
       <div style="flex:1;min-width:0">
         <div style="font-size:13px;font-weight:600;color:var(--txt-1)">${xss(p.name)}</div>
-        <div style="font-size:11px;color:var(--txt-3);margin-top:1px">${p.price > 0 ? fmtRp(p.price) : 'Harga bebas'} · ${p.unit || 'pcs'}</div>
+        <div style="font-size:11px;color:var(--txt-3);margin-top:1px">${p.price > 0 ? fmtRp(p.price) : 'Harga bebas'} · ${p.unit || 'pcs'}${typeof gdCatalogStockLabel === 'function' ? gdCatalogStockLabel(p) : ''}</div>
       </div>
       <div style="display:flex;gap:6px;flex-shrink:0">
         <button onclick="editProduct('${p.id}')" style="padding:5px 10px;border-radius:var(--r-xs);background:var(--warning-soft);color:var(--warning);border:none;font-size:11px;font-weight:600;cursor:pointer;font-family:var(--font)">Edit</button>
@@ -994,6 +1040,7 @@ function openProductForm(id = null) {
     document.getElementById('prodUnit').value = p.unit || 'pcs';
     document.getElementById('prodDesc').value = p.desc || '';
     document.getElementById('prodEmoji').value = p.emoji || '';
+    if (typeof gdFillProductForm === 'function') gdFillProductForm(p);
   } else {
     document.getElementById('prodFormTitle').textContent = 'Tambah Produk';
     document.getElementById('editProdId').value = '';
@@ -1002,6 +1049,7 @@ function openProductForm(id = null) {
     document.getElementById('prodUnit').value = 'pcs';
     document.getElementById('prodDesc').value = '';
     document.getElementById('prodEmoji').value = '';
+    if (typeof gdFillProductForm === 'function') gdFillProductForm(null);
   }
   openSheet('productFormSheet');
 }
@@ -1022,6 +1070,10 @@ function saveProduct() {
     emoji: document.getElementById('prodEmoji').value.trim(),
     createdAt: eid ? undefined : Date.now()
   };
+  if (typeof gdMergeProductStock === 'function') {
+    const _old = eid ? prods.find(p => p.id === eid) : null;
+    if (!gdMergeProductStock(prod, _old)) return;
+  }
   if (eid) {
     const idx = prods.findIndex(p => p.id === eid);
     prod.createdAt = idx !== -1 ? prods[idx].createdAt : Date.now();
@@ -1033,6 +1085,7 @@ function saveProduct() {
   DB.set('products', prods);
   toast(`Produk "${name}" disimpan ✓`, 'ok');
   renderCatalogList();
+  if (typeof renderGudang === 'function') renderGudang();
   if (typeof _fromPicker !== 'undefined' && _fromPicker) {
     _fromPicker = false;
     closeSheets();
@@ -1047,6 +1100,7 @@ function deleteProduct(id) {
   DB.set('products', DB.get('products', []).filter(p => p.id !== id));
   toast('Produk dihapus', 'ok');
   renderCatalogList();
+  if (typeof renderGudang === 'function') renderGudang();
 }
 
 // ── Filter periode daftar Nota (sama seperti filter periode di tab Keuangan) ──
@@ -1721,6 +1775,7 @@ function editInv(id) {
   document.getElementById('ongkirInput').value = inv.ongkir > 0 ? fmtRp(inv.ongkir) : '';
   const eInp = document.getElementById('ekspedisiInput'); if (eInp) eInp.value = inv.ekspedisi || '';
   document.getElementById('dpInput').value = inv.dp > 0 ? fmtRp(inv.dp) : '';
+  { const b = document.getElementById('bayarInput'); if (b) b.value = inv.bayar > 0 ? fmtRp(inv.bayar) : ''; const bd = document.getElementById('bayarDateInput'); if (bd) bd.value = inv.bayarDate || ''; }
   document.getElementById('invNotes').value = inv.notes || '';
   // BUG FIX: jangan timpa curTemplate/curTplColor dengan template lama milik
   // nota ini. Template nota sekarang selalu mengikuti pilihan TERBARU di
@@ -1741,6 +1796,9 @@ function dupInv(id) {
   genInvNum();
   document.getElementById('invFormTitle').textContent = 'Duplikat Nota';
   document.getElementById('invDate').value = new Date().toISOString().split('T')[0];
+  // Nota duplikat adalah transaksi baru: pembayaran/pelunasan nota lama tidak ikut terbawa
+  { const b = document.getElementById('bayarInput'); if (b) b.value = ''; const bd = document.getElementById('bayarDateInput'); if (bd) bd.value = ''; }
+  recalc();
   toast('Nota diduplikat', 'ok');
 }
 
@@ -1770,7 +1828,7 @@ function openProfitDrawer(id, e) {
   if (card) { card.style.transition = 'transform .38s cubic-bezier(.22,1,.36,1)'; card.style.transform = 'translateX(0)'; window._swipeOpenCard = null; }
 
   setText('profitSheetTitle', `Pembukuan · ${xss(inv.customer?.name || inv.number)}`);
-  setText('profitSheetSub', `Omset: ${fmtRp(inv.grand || 0, inv.currency)}`);
+  setText('profitSheetSub', `Omset: ${fmtRp(inv.grand || 0, inv.currency)}` + (invPaid(inv) > 0 ? ` · Terbayar: ${fmtRp(invPaid(inv), inv.currency)}` : ''));
 
   const saved = DB.get('inv_profit_' + id, null);
   const expenses = saved ? saved.expenses : [];
@@ -1780,8 +1838,10 @@ function openProfitDrawer(id, e) {
 
 function renderProfitSheet(invId, inv, expenses) {
   const omset = inv.grand || 0;
+  const lebih = invLebihAmt(inv);
+  const kurang = invPaid(inv) > 0 ? invSisaAmt(inv) : 0;
   const totalExp = expenses.reduce((s, e) => s + (e.amount || 0), 0);
-  const profit = omset - totalExp;
+  const profit = omset + lebih - totalExp;
   const profitClass = profit > 0 ? 'positive' : profit < 0 ? 'negative' : 'zero';
 
   const rows = expenses.map((exp, i) => `
@@ -1801,6 +1861,8 @@ function renderProfitSheet(invId, inv, expenses) {
     <div class="profit-result" style="margin-bottom:14px">
       <div class="profit-result-row"><span class="profit-result-label">Omset (Grand Total)</span><span class="profit-result-val">${fmtRp(omset)}</span></div>
       <div class="profit-result-divider" style="margin:6px 0"></div>
+      ${lebih > 0 ? `<div class="profit-result-row"><span class="profit-result-label">Kelebihan Bayar (+)</span><span class="profit-result-val">+${fmtRp(lebih)}</span></div>
+      <div class="profit-result-divider" style="margin:6px 0"></div>` : ''}
       <div class="profit-result-row"><span class="profit-result-label">Total Pengeluaran</span><span class="profit-result-val" id="ps-total-exp">${fmtRp(totalExp)}</span></div>
       <div class="profit-result-divider" style="margin:6px 0"></div>
       <div class="profit-result-main">
@@ -1808,6 +1870,9 @@ function renderProfitSheet(invId, inv, expenses) {
         <span class="profit-result-main-val ${profitClass}" id="ps-profit">${profit >= 0 ? '+' : ''}${fmtRp(profit)}</span>
       </div>
     </div>
+    ${invPaid(inv) > 0 ? `<div style="font-size:12px;font-weight:700;color:var(--txt-2);margin-bottom:8px;text-transform:uppercase;letter-spacing:.04em">Riwayat Pembayaran</div>
+    ${payHistoryHTML(inv, false)}
+    ${kurang > 0 ? `<div style="font-size:12px;font-weight:600;color:var(--warning);background:var(--warning-soft);border-radius:var(--r-md);padding:9px 12px;margin-bottom:14px">Masih kurang ${fmtRp(kurang, inv.currency)} dari total nota. Belum dihitung sebagai pemasukan sampai dibayar.</div>` : '<div style="height:10px"></div>'}` : ''}
     <div style="font-size:12px;font-weight:700;color:var(--txt-2);margin-bottom:8px;text-transform:uppercase;letter-spacing:.04em">Daftar Pengeluaran</div>
     <div id="ps-exp-list">${rows}</div>
     <div class="profit-add-row">
@@ -1833,7 +1898,7 @@ function updateProfitExp(invId, idx, field, val) {
 
 function updateProfitCalc(invId) {
   const d = window._profitData?.[invId]; if (!d) return;
-  const omset = d.inv.grand || 0;
+  const omset = (d.inv.grand || 0) + invLebihAmt(d.inv);
   const totalExp = d.expenses.reduce((s, e) => s + (e.amount || 0), 0);
   const profit = omset - totalExp;
   const el = document.getElementById('ps-total-exp');
@@ -1867,7 +1932,7 @@ function deleteProfitExp(invId, idx) {
 function saveProfitData(invId) {
   const d = window._profitData?.[invId]; if (!d) return;
   const expenses = d.expenses.filter(e => e.name || e.amount > 0);
-  const omset = d.inv.grand || 0;
+  const omset = (d.inv.grand || 0) + invLebihAmt(d.inv); // termasuk kelebihan bayar (kalau ada)
   const totalExp = expenses.reduce((s, e) => s + (e.amount || 0), 0);
   const profit = omset - totalExp;
   DB.set('inv_profit_' + invId, { expenses, profit, omset, savedAt: Date.now() });
@@ -2474,8 +2539,8 @@ function buildPreview(inv, targetId = 'invoicePreview') {
       ${discRow}${ongkirRow}
     </table>`;
 
-  const dpRow = inv.dp > 0
-    ? `<div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;padding:10px 14px;background:${C.dark};border-radius:6px"><span style="font-size:13px;font-weight:700;color:${C.text}">DP / Uang Muka</span><span style="font-size:14px;font-weight:800;color:${C.text}">${fmtRp(inv.dp)}</span></div><div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;padding:12px 14px;background:${C.darker};border-radius:6px;border:2px solid ${C.darkest}"><span style="font-size:14px;font-weight:800;color:${C.soft}">Sisa Pembayaran</span><span style="font-size:15px;font-weight:900;color:${C.soft}">${fmtRp(inv.sisa)}</span></div>` : '';
+  const dpRow = invPaid(inv) > 0
+    ? `${inv.dp > 0 ? `<div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;padding:10px 14px;background:${C.dark};border-radius:6px"><span style="font-size:13px;font-weight:700;color:${C.text}">DP / Uang Muka</span><span style="font-size:14px;font-weight:800;color:${C.text}">${fmtRp(inv.dp)}</span></div>` : ''}${inv.bayar > 0 ? `<div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;padding:10px 14px;background:${C.dark};border-radius:6px"><span style="font-size:13px;font-weight:700;color:${C.text}">Pembayaran</span><span style="font-size:14px;font-weight:800;color:${C.text}">${fmtRp(inv.bayar)}</span></div>` : ''}<div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;padding:12px 14px;background:${C.darker};border-radius:6px;border:2px solid ${C.darkest}"><span style="font-size:14px;font-weight:800;color:${C.soft}">${invEnd(inv).label}</span><span style="font-size:15px;font-weight:900;color:${C.soft}">${fmtRp(invEnd(inv).val)}</span></div>` : '';
 
   const bankLogoEl = (s.bankLogo || s.bankLogoImg) ? bankBadgeHTML(s.bankLogo, 26, s.bankLogoImg) : '';
   const bankInfo = (s.bankName || s.bankNo)
@@ -2961,7 +3026,8 @@ function buildPreview(inv, targetId = 'invoicePreview') {
         <div style="border-top:1.5px dashed #18181B;margin:6px 0"></div>
         ${dashRow('TOTAL', fmtRp(inv.grand), true)}
         ${inv.dp > 0 ? dashRow('DP', fmtRp(inv.dp)) : ''}
-        ${inv.dp > 0 ? dashRow('Sisa', fmtRp(inv.sisa), true) : ''}
+        ${inv.bayar > 0 ? dashRow('Pembayaran', fmtRp(inv.bayar)) : ''}
+        ${invPaid(inv) > 0 ? dashRow(invEnd(inv).label === 'Kelebihan Bayar' ? 'Lebih' : 'Sisa', fmtRp(invEnd(inv).val), true) : ''}
 
         ${(s.bankName || s.bankNo) ? `<div style="border-top:1px dashed #A1A1AA;margin:10px 0 8px"></div>
         <div style="text-align:center;font-size:10.5px;color:#52525B;line-height:1.6">
@@ -3289,7 +3355,7 @@ function buildPreview(inv, targetId = 'invoicePreview') {
             <span style="font-size:13px;font-weight:800;color:#111827;text-transform:uppercase;letter-spacing:.04em">Grand Total</span>
             <span style="font-size:19px;font-weight:900;color:${C.dark}">${fmtRp(inv.grand)}</span>
           </div>
-          ${inv.dp > 0 ? `<div style="padding:10px 16px;border-top:1px solid #D1D5DB;display:flex;justify-content:space-between;font-size:12px"><span style="color:#6B7280">DP</span><span style="font-weight:700;color:#111827">${fmtRp(inv.dp)}</span></div><div style="padding:10px 16px;border-top:1px solid #D1D5DB;display:flex;justify-content:space-between;font-size:12.5px"><span style="font-weight:700;color:#111827">Sisa Pembayaran</span><span style="font-weight:900;color:${C.dark}">${fmtRp(inv.sisa)}</span></div>` : ''}
+          ${invPaid(inv) > 0 ? `${inv.dp > 0 ? `<div style="padding:10px 16px;border-top:1px solid #D1D5DB;display:flex;justify-content:space-between;font-size:12px"><span style="color:#6B7280">DP</span><span style="font-weight:700;color:#111827">${fmtRp(inv.dp)}</span></div>` : ''}${inv.bayar > 0 ? `<div style="padding:10px 16px;border-top:1px solid #D1D5DB;display:flex;justify-content:space-between;font-size:12px"><span style="color:#6B7280">Pembayaran</span><span style="font-weight:700;color:#111827">${fmtRp(inv.bayar)}</span></div>` : ''}<div style="padding:10px 16px;border-top:1px solid #D1D5DB;display:flex;justify-content:space-between;font-size:12.5px"><span style="font-weight:700;color:#111827">${invEnd(inv).label}</span><span style="font-weight:900;color:${C.dark}">${fmtRp(invEnd(inv).val)}</span></div>` : ''}
         </div>
       </div>
 
@@ -3393,7 +3459,7 @@ function buildPreview(inv, targetId = 'invoicePreview') {
               <span style="font-size:13px;font-weight:800;color:#111827;text-transform:uppercase;letter-spacing:.04em">Grand Total</span>
               <span style="font-size:19px;font-weight:900;color:#111827">${fmtRp(inv.grand)}</span>
             </div>
-            ${inv.dp > 0 ? `<div style="display:flex;justify-content:space-between;padding:5px 0;margin-top:2px;font-size:12px;color:#6B7280"><span>DP</span><span style="font-weight:700;color:#111827">${fmtRp(inv.dp)}</span></div><div style="display:flex;justify-content:space-between;padding:5px 0;font-size:13px"><span style="font-weight:800;color:#111827">Sisa Pembayaran</span><span style="font-weight:900;color:${C.dark}">${fmtRp(inv.sisa)}</span></div>` : ''}
+            ${invPaid(inv) > 0 ? `${inv.dp > 0 ? `<div style="display:flex;justify-content:space-between;padding:5px 0;margin-top:2px;font-size:12px;color:#6B7280"><span>DP</span><span style="font-weight:700;color:#111827">${fmtRp(inv.dp)}</span></div>` : ''}${inv.bayar > 0 ? `<div style="display:flex;justify-content:space-between;padding:5px 0;margin-top:2px;font-size:12px;color:#6B7280"><span>Pembayaran</span><span style="font-weight:700;color:#111827">${fmtRp(inv.bayar)}</span></div>` : ''}<div style="display:flex;justify-content:space-between;padding:5px 0;font-size:13px"><span style="font-weight:800;color:#111827">${invEnd(inv).label}</span><span style="font-weight:900;color:${C.dark}">${fmtRp(invEnd(inv).val)}</span></div>` : ''}
           </div>
         </div>
 
@@ -3474,7 +3540,7 @@ function buildPreview(inv, targetId = 'invoicePreview') {
           <span style="font-size:26px;font-weight:900;color:#111827">${fmtRp(inv.grand)}</span>
         </div>
         <div style="width:100%;height:3px;background:${C.main};margin-top:-4px"></div>
-        ${inv.dp > 0 ? `<div style="display:flex;gap:40px;font-size:13px;color:#9CA3AF;margin-top:8px"><span>DP</span><span style="color:#374151;font-weight:600">${fmtRp(inv.dp)}</span></div><div style="display:flex;gap:40px;font-size:14px"><span style="font-weight:700;color:#111827">Sisa Pembayaran</span><span style="font-weight:900;color:${C.dark}">${fmtRp(inv.sisa)}</span></div>` : ''}
+        ${invPaid(inv) > 0 ? `${inv.dp > 0 ? `<div style="display:flex;gap:40px;font-size:13px;color:#9CA3AF;margin-top:8px"><span>DP</span><span style="color:#374151;font-weight:600">${fmtRp(inv.dp)}</span></div>` : ''}${inv.bayar > 0 ? `<div style="display:flex;gap:40px;font-size:13px;color:#9CA3AF;margin-top:8px"><span>Pembayaran</span><span style="color:#374151;font-weight:600">${fmtRp(inv.bayar)}</span></div>` : ''}<div style="display:flex;gap:40px;font-size:14px"><span style="font-weight:700;color:#111827">${invEnd(inv).label}</span><span style="font-weight:900;color:${C.dark}">${fmtRp(invEnd(inv).val)}</span></div>` : ''}
       </div>
 
       ${bankInfo}${notesRow}
@@ -3585,7 +3651,7 @@ async function exportKeuanganXLSX() {
         inv.customer?.name || '-',
         statusLabel,
         fmtNum(inv.grand),
-        inv.notes || ''
+        [inv.notes, invPayText(inv)].filter(Boolean).join(' | ')
       ]);
     });
     sheetPemasukan.push([], ['', '', '', '', 'TOTAL', totalOmset, '']);
@@ -4114,21 +4180,27 @@ async function _renderCanvas_OLD() {
   ctx.fillText(fmtM(inv.grand), W-PAD, Y + 26);
   Y += GT_H + 8;
 
-  // DP / Sisa
-  if (inv.dp > 0) {
-    fillRoundRect(ctx, TOT_X-10, Y, TOT_W+10, 32, 6, C.dark);
-    ctx.font = ff(12, 700); ctx.fillStyle = C.text; ctx.textAlign = 'left';
-    ctx.fillText('DP / Uang Muka', TOT_X, Y + 21);
-    ctx.textAlign = 'right';
-    ctx.fillText(fmtM(inv.dp), W-PAD, Y + 21);
-    Y += 38;
+  // DP / Pembayaran / Sisa (atau Kelebihan Bayar)
+  if (invPaid(inv) > 0) {
+    const _payRows = [];
+    if (inv.dp > 0) _payRows.push(['DP / Uang Muka', inv.dp]);
+    if (inv.bayar > 0) _payRows.push(['Pembayaran', inv.bayar]);
+    _payRows.forEach(([lbl, val]) => {
+      fillRoundRect(ctx, TOT_X-10, Y, TOT_W+10, 32, 6, C.dark);
+      ctx.font = ff(12, 700); ctx.fillStyle = C.text; ctx.textAlign = 'left';
+      ctx.fillText(lbl, TOT_X, Y + 21);
+      ctx.textAlign = 'right';
+      ctx.fillText(fmtM(val), W-PAD, Y + 21);
+      Y += 38;
+    });
+    const _end = invEnd(inv);
     fillRoundRect(ctx, TOT_X-10, Y, TOT_W+10, 34, 6, C.darker);
     ctx.strokeStyle = C.darkest || '#451A03'; ctx.lineWidth = 2;
     roundRect(ctx, TOT_X-10, Y, TOT_W+10, 34, 6); ctx.stroke();
     ctx.font = ff(13, 800); ctx.fillStyle = C.soft || '#FEF3C7'; ctx.textAlign = 'left';
-    ctx.fillText('Sisa Pembayaran', TOT_X, Y + 23);
+    ctx.fillText(_end.label, TOT_X, Y + 23);
     ctx.textAlign = 'right';
-    ctx.fillText(fmtM(inv.sisa), W-PAD, Y + 23);
+    ctx.fillText(fmtM(_end.val), W-PAD, Y + 23);
     Y += 42;
   }
 
@@ -4522,13 +4594,67 @@ function openFinAddSheet() {
   }
 }
 
+// ── Pembayaran nota: DP + Pembayaran/Pelunasan ─────────────
+// Total terbayar = DP + Pembayaran. Selisih dengan Grand Total menentukan
+// sisa (kurang bayar) atau kelebihan bayar.
+function invPaid(inv)     { return (Number(inv?.dp)||0) + (Number(inv?.bayar)||0); }
+function invSisaAmt(inv)  { return Math.max(0, (Number(inv?.grand)||0) - invPaid(inv)); }
+function invLebihAmt(inv) { return Math.max(0, invPaid(inv) - (Number(inv?.grand)||0)); }
+// Baris penutup di nota: "Sisa Pembayaran" atau "Kelebihan Bayar"
+function invEnd(inv) {
+  const diff = (Number(inv?.grand)||0) - invPaid(inv);
+  return diff < 0 ? { label: 'Kelebihan Bayar', val: -diff } : { label: 'Sisa Pembayaran', val: diff };
+}
+
+// Riwayat pembayaran otomatis (urut: DP lalu Pembayaran) lengkap dengan keterangan
+function invPayEntries(inv) {
+  const out = [];
+  const grand = Number(inv?.grand) || 0;
+  const cur = inv?.currency;
+  let run = 0;
+  const mk = (kind, label, amt, date) => {
+    run += amt;
+    const diff = run - grand;
+    let tone, note;
+    if (diff === 0) { tone = 'ok'; note = 'Pas — nota lunas, tidak ada selisih'; }
+    else if (diff > 0) { tone = 'over'; note = 'Kelebihan bayar ' + fmtRp(diff, cur) + ' — otomatis dihitung ke profit'; }
+    else { tone = 'short'; note = (kind === 'dp' ? 'DP diterima. ' : 'Pembayaran masih kurang. ') + 'Sisa ' + fmtRp(-diff, cur) + ' belum dibayar'; }
+    out.push({ kind, label, amount: amt, date, note, tone, total: run, diff });
+  };
+  if ((Number(inv?.dp)||0) > 0) mk('dp', 'DP / Uang Muka', Number(inv.dp), inv.date || inv.createdAt);
+  if ((Number(inv?.bayar)||0) > 0) mk('bayar', 'Pembayaran / Pelunasan', Number(inv.bayar), inv.bayarDate || inv.date || inv.createdAt);
+  return out;
+}
+
+function invPayText(inv) {
+  return invPayEntries(inv).map(e => e.label + ' ' + fmtRp(e.amount, inv.currency) + ' (' + e.note + ')').join('; ');
+}
+
+function payHistoryHTML(inv, withNota) {
+  const es = invPayEntries(inv);
+  if (!es.length) return '';
+  const col = { ok: 'var(--success)', over: 'var(--primary)', short: 'var(--warning)' };
+  return es.map(e => `
+    <div style="padding:10px 12px;background:var(--bg-card);border:1px solid var(--border-soft);border-radius:var(--r-md);margin-bottom:7px">
+      <div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start">
+        <div style="min-width:0">
+          <div style="font-size:13px;font-weight:600;color:var(--txt-1)">${withNota ? xss((inv.number || '') + ' · ' + (inv.customer?.name || '-')) + ' — ' : ''}${e.label}</div>
+          <div style="font-size:11px;color:var(--txt-3)">${fmtDate(e.date)}</div>
+        </div>
+        <div style="font-size:14px;font-weight:700;color:var(--success);flex-shrink:0">+${fmtRp(e.amount, inv.currency)}</div>
+      </div>
+      <div style="font-size:11.5px;margin-top:4px;color:${col[e.tone]};font-weight:600">${e.note}</div>
+    </div>`).join('');
+}
+
 // Uang yang benar-benar sudah masuk dari sebuah nota:
-// Lunas = total nota, DP = hanya sebesar nominal DP-nya, Belum Bayar = 0.
+// Lunas = total yang dibayar (minimal total nota; kalau kelebihan, ikut dihitung),
+// DP/sebagian = DP + Pembayaran, Belum Bayar = 0.
 // (Beda dengan "Omset" yang tetap menghitung nilai penuh tiap nota terlepas dari status bayar.)
 function invActualIncome(inv) {
   if (!inv) return 0;
-  if (inv.status === 'lunas') return inv.grand || 0;
-  if (inv.status === 'dp') return inv.dp || 0;
+  if (inv.status === 'lunas') return Math.max(inv.grand || 0, invPaid(inv));
+  if (inv.status === 'dp') return invPaid(inv);
   return 0;
 }
 
@@ -4546,14 +4672,16 @@ function renderFinancePage() {
   const totalIncomeLain = filtIncs.reduce((s,i) => s+(i.amount||0), 0);
   const totalIncome = totalIncomeNota + totalIncomeLain;
   const totalExp = filtExps.reduce((s,e) => s+(e.amount||0), 0);
-  const totalLaba = totalOmset + totalIncomeLain - totalExp;
+  // Kelebihan bayar dari nota otomatis masuk ke profit (omset sudah dihitung penuh)
+  const totalLebih = filtInvs.reduce((s,i) => s+invLebihAmt(i), 0);
+  const totalLaba = totalOmset + totalLebih + totalIncomeLain - totalExp;
 
   setText('finOmset', fmtRp(totalOmset));
   setText('finOmsetNote', `${filtInvs.length} nota`);
   const labaEl = document.getElementById('finLaba');
   if (labaEl) { labaEl.textContent = fmtRp(totalLaba); labaEl.style.color = totalLaba >= 0 ? 'var(--primary)' : 'var(--danger)'; }
   const labaNote = document.getElementById('finLabaNote');
-  if (labaNote) labaNote.textContent = totalLaba >= 0 ? 'Profit' : 'Rugi';
+  if (labaNote) labaNote.textContent = (totalLaba >= 0 ? 'Profit' : 'Rugi') + (totalLebih > 0 ? ' · incl. kelebihan bayar ' + fmtRp(totalLebih) : '');
   setText('finIncome', fmtRp(totalIncome));
   setText('finExpense', fmtRp(totalExp));
 
@@ -4585,15 +4713,24 @@ function renderFinancePage() {
       filtInvs.forEach(i => { byStatus[i.status || 'belum'] = (byStatus[i.status || 'belum']||0) + invActualIncome(i); });
       // belumNilai = nilai nota yang belum dibayar sama sekali, sekadar info (bukan pemasukan)
       const belumNilai = filtInvs.filter(i => (i.status||'belum') === 'belum').reduce((s,i) => s+(i.grand||0), 0);
+      // Kurang bayar (sudah ada DP/pembayaran tapi belum lunas) & kelebihan bayar
+      const kurangNilai = filtInvs.filter(i => i.status === 'dp').reduce((s,i) => s+invSisaAmt(i), 0);
+      const lebihNilai = filtInvs.reduce((s,i) => s+invLebihAmt(i), 0);
+      const payHist = filtInvs.filter(i => invPaid(i) > 0).sort((a,b) => new Date(b.date||b.createdAt) - new Date(a.date||a.createdAt));
       const catIco = { modal:'💰', jasa:'🧾', aset:'📦', hutang:'🤝', lainnya:'✨' };
       const sortedIncs = [...filtIncs].sort((a,b) => new Date(b.date)-new Date(a.date));
       incList.innerHTML = `
         <div style="display:flex;flex-direction:column;gap:8px">
           ${byStatus.lunas ? `<div style="display:flex;justify-content:space-between;align-items:center;padding:11px 14px;background:var(--success-soft);border:1px solid rgba(16,185,129,0.35);border-radius:var(--r-md)"><div style="font-size:13px;font-weight:600;color:var(--success)">✓ Lunas</div><div style="font-size:13px;font-weight:700;color:var(--success)">${fmtRp(byStatus.lunas)}</div></div>` : ''}
           ${byStatus.dp ? `<div style="display:flex;justify-content:space-between;align-items:center;padding:11px 14px;background:var(--warning-soft);border:1px solid rgba(245,158,11,0.35);border-radius:var(--r-md)"><div style="font-size:13px;font-weight:600;color:var(--warning)">◐ DP / Uang Muka Diterima</div><div style="font-size:13px;font-weight:700;color:var(--warning)">${fmtRp(byStatus.dp)}</div></div>` : ''}
+          ${kurangNilai ? `<div style="display:flex;justify-content:space-between;align-items:center;padding:11px 14px;background:var(--warning-soft);border:1px solid rgba(245,158,11,0.35);border-radius:var(--r-md)"><div style="font-size:13px;font-weight:600;color:var(--warning)">⚠ Kurang Bayar (sisa tagihan)</div><div style="font-size:13px;font-weight:700;color:var(--warning)">${fmtRp(kurangNilai)}</div></div>` : ''}
+          ${lebihNilai ? `<div style="display:flex;justify-content:space-between;align-items:center;padding:11px 14px;background:var(--primary-soft);border:1px solid var(--primary);border-radius:var(--r-md)"><div style="font-size:13px;font-weight:600;color:var(--primary)">＋ Kelebihan Bayar (masuk profit)</div><div style="font-size:13px;font-weight:700;color:var(--primary)">${fmtRp(lebihNilai)}</div></div>` : ''}
           ${belumNilai ? `<div style="display:flex;justify-content:space-between;align-items:center;padding:11px 14px;background:var(--danger-soft);border:1px solid rgba(244,63,94,0.35);border-radius:var(--r-md)"><div style="font-size:13px;font-weight:600;color:var(--danger)">✗ Belum Bayar (nilai nota)</div><div style="font-size:13px;font-weight:700;color:var(--danger)">${fmtRp(belumNilai)}</div></div>` : ''}
           ${filtInvs.length ? `<div style="font-size:11px;color:var(--txt-3);text-align:center;margin-top:2px">${filtInvs.length} nota · Lihat detail di tab Nota</div>` : ''}
         </div>
+        ${payHist.length ? `
+        <div style="font-size:11px;font-weight:700;color:var(--txt-3);text-transform:uppercase;letter-spacing:.06em;margin:14px 0 8px">Riwayat Pembayaran Nota</div>
+        ${payHist.map(i => payHistoryHTML(i, true)).join('')}` : ''}
         ${sortedIncs.length ? `
         <div style="font-size:11px;font-weight:700;color:var(--txt-3);text-transform:uppercase;letter-spacing:.06em;margin:14px 0 8px">Pemasukan Lain (Di Luar Nota)</div>
         <div style="display:flex;flex-direction:column;gap:7px">
@@ -5216,7 +5353,7 @@ function saveSign() {
 
 // ── Backup/Restore ──────────────────────────
 function backupData() {
-  const data = { invoices:DB.get('invoices',[]), expenses:DB.get('expenses',[]), settings:DB.get('settings',{}), exportedAt:new Date().toISOString(), version:'3.0' };
+  const data = { invoices:DB.get('invoices',[]), expenses:DB.get('expenses',[]), settings:DB.get('settings',{}), products:DB.get('products',[]), warehouses:DB.get('warehouses',[]), stockLog:DB.get('stockLog',[]), exportedAt:new Date().toISOString(), version:'3.0' };
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));
   a.download = `notaseru-backup-${new Date().toISOString().split('T')[0]}.json`; a.click();
@@ -5231,6 +5368,9 @@ function handleRestore(input) {
       if (!confirm('Restore data? Data saat ini akan diganti.')) return;
       if (d.invoices) DB.set('invoices',d.invoices);
       if (d.expenses) DB.set('expenses',d.expenses);
+      if (d.products) DB.set('products',d.products);
+      if (d.warehouses) DB.set('warehouses',d.warehouses);
+      if (d.stockLog) DB.set('stockLog',d.stockLog);
       if (d.settings) { DB.set('settings',d.settings); loadSettingsUI(); applyAppearance(); }
       toast('Data direstore ✓','ok'); renderDashboard();
     } catch { toast('File tidak valid','err'); }
@@ -6047,6 +6187,7 @@ function curPh(suffix = '', code) {
 function refreshCurrencyPlaceholders() {
   const ongkir = document.getElementById('ongkirInput'); if (ongkir) ongkir.placeholder = curPh();
   const dp = document.getElementById('dpInput'); if (dp) dp.placeholder = curPh();
+  const bayarP = document.getElementById('bayarInput'); if (bayarP) bayarP.placeholder = curPh();
   const expA = document.getElementById('expAmount'); if (expA) expA.placeholder = curPh();
   const incA = document.getElementById('incAmount'); if (incA) incA.placeholder = curPh();
   const prodP = document.getElementById('prodPrice'); if (prodP) prodP.placeholder = curPh(' (opsional)');
@@ -6672,7 +6813,7 @@ async function _exportXLSX(fromD, toD, fromVal, toVal) {
     var sheetPemasukan = [['No','Tanggal','Nomor Nota','Nama Pelanggan','Status','Total (Rp)','Keterangan']];
     sortedInvs.forEach(function(inv,i){
       var st = inv.status==='lunas'?'Lunas':inv.status==='dp'?'DP / Uang Muka':'Belum Bayar';
-      sheetPemasukan.push([i+1, fmtT(inv.date||inv.createdAt), inv.number||'-', (inv.customer&&inv.customer.name)||'-', st, fmtN(inv.grand), inv.notes||'']);
+      sheetPemasukan.push([i+1, fmtT(inv.date||inv.createdAt), inv.number||'-', (inv.customer&&inv.customer.name)||'-', st, fmtN(inv.grand), [inv.notes, invPayText(inv)].filter(Boolean).join(' | ')]);
     });
     sheetPemasukan.push([],['','','','','TOTAL',totInv,'']);
 
