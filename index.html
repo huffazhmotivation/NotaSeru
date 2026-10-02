@@ -127,6 +127,10 @@
     <div class="nav-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg></div>
     <span class="nav-label">Keuangan</span><div class="nav-dot"></div>
   </button>
+  <button class="nav-item" onclick="nav('gudang')" id="nav-gudang">
+    <div class="nav-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg></div>
+    <span class="nav-label">Gudang</span><div class="nav-dot"></div>
+  </button>
   <button class="nav-item" onclick="nav('ongkir')" id="nav-ongkir">
     <div class="nav-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="7" width="15" height="11"/><path d="M16 10h4l3 3v5h-7z"/><circle cx="6" cy="19" r="2"/><circle cx="18" cy="19" r="2"/></svg></div>
     <span class="nav-label">Ongkir</span><div class="nav-dot"></div>
@@ -958,7 +962,7 @@
     <div class="sett-section">
       <div class="section-title" style="margin-bottom:12px">Template Nota</div>
       <div class="sett-card" style="padding:12px 16px">
-        <div class="template-grid" id="templateGrid">
+        <div class="template-grid collapsed" id="templateGrid">
           <div class="tpl-card active" data-tpl="classic" onclick="previewTemplate('classic',this)">
             <div class="tpl-preview tpl-classic">
               <div class="tpl-logo-sm"></div>
@@ -1061,7 +1065,41 @@
             </div>
             <div class="tpl-name">Garis</div>
           </div>
+          <div class="tpl-card tpl-extra" data-tpl="executive" onclick="previewTemplate('executive',this)">
+            <div class="tpl-preview tpl-executive">
+              <div class="tpl-ex-top"><div class="tpl-ex-logo"></div><div class="tpl-ex-title"></div></div>
+              <div class="tpl-ex-bar"></div>
+              <div class="tpl-ex-cells"><div></div><div></div><div></div></div>
+              <div class="tpl-ex-th"></div>
+              <div class="tpl-ex-row"></div><div class="tpl-ex-row"></div>
+            </div>
+            <div class="tpl-name">Executive</div>
+          </div>
+          <div class="tpl-card tpl-extra" data-tpl="prestige" onclick="previewTemplate('prestige',this)">
+            <div class="tpl-preview tpl-prestige">
+              <div class="tpl-pg-frame">
+                <div class="tpl-pg-logo"></div>
+                <div class="tpl-pg-name"></div>
+                <div class="tpl-pg-orn"></div>
+                <div class="tpl-pg-line"></div><div class="tpl-pg-line"></div>
+              </div>
+            </div>
+            <div class="tpl-name">Prestige</div>
+          </div>
+          <div class="tpl-card tpl-extra" data-tpl="banner" onclick="previewTemplate('banner',this)">
+            <div class="tpl-preview tpl-banner">
+              <div class="tpl-bn-head"></div>
+              <div class="tpl-bn-card"></div>
+              <div class="tpl-bn-item"></div><div class="tpl-bn-item"></div>
+              <div class="tpl-bn-pill"></div>
+            </div>
+            <div class="tpl-name">Banner</div>
+          </div>
         </div>
+        <button type="button" class="tpl-more-btn" id="tplMoreBtn" onclick="toggleTemplateGrid()">
+          <span id="tplMoreLabel">Nota-nota lainnya</span>
+          <svg id="tplMoreIc" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
         <div style="text-align:center;font-size:11px;color:var(--txt-3);margin-top:10px">Ketuk template untuk lihat preview nota asli</div>
         <!-- Template Color Picker -->
         <div style="padding:10px 0 4px;border-top:1px solid var(--border-soft);margin-top:8px">
@@ -1475,11 +1513,6 @@
     </button>
   </div>
 </div>
-
-<!-- Pintasan Gudang & Stok FAB — ditumpuk di atas tombol Tambah Nota -->
-<button class="gudang-fab" id="gudangFab" onclick="nav('gudang')" title="Gudang &amp; Stok" aria-label="Gudang &amp; Stok">
-  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-6 9 6v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"/><path d="M9 21V12h6v9"/></svg>
-</button>
 
 <!-- Tambah Nota FAB — floating, di atas kalkulator, selalu buat nota baru (kosong) -->
 <button class="add-nota-fab" id="addNotaFab" onclick="addNewInvoice()" title="Buat Nota Baru">

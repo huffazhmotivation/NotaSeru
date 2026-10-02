@@ -340,7 +340,7 @@ function nav(page) {
   }
   prevPage = curPage;
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-  const nm = { dashboard:'nav-dashboard','invoice-list':'nav-invoice-list', income:'nav-income', expense:'nav-income', ongkir:'nav-ongkir', settings:'nav-settings', gudang:'nav-settings' };
+  const nm = { dashboard:'nav-dashboard','invoice-list':'nav-invoice-list', income:'nav-income', expense:'nav-income', ongkir:'nav-ongkir', settings:'nav-settings', gudang:'nav-gudang' };
   const ni = nm[page]; if (ni) document.getElementById(ni)?.classList.add('active');
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   // Update akun row setiap kali masuk settings
@@ -366,7 +366,6 @@ function nav(page) {
   if (el) { el.classList.add('active'); curPage = page; window.scrollTo(0,0); }
   // Sembunyikan FAB "Tambah Nota" saat sudah di form nota (biar tidak dobel/nyangkut isian)
   document.getElementById('addNotaFab')?.classList.toggle('hide', page === 'invoice-form');
-  document.getElementById('gudangFab')?.classList.toggle('hide', page === 'gudang' || page === 'invoice-form');
   // BUG FIX: textarea auto-resize dihitung dengan benar hanya ketika elemen
   // sudah terlihat (display:block). Sebelumnya loadSettingsUI() cuma dipanggil
   // sekali saat boot, saat halaman settings masih display:none, sehingga
@@ -2319,6 +2318,16 @@ function confirmTemplateFromPreview() {
   toast('Template diterapkan ✓', 'ok');
 }
 
+// Template nota: tampilkan 3 thumbnail saja, tombol untuk membuka semuanya
+function toggleTemplateGrid(forceOpen) {
+  const g = document.getElementById('templateGrid'); if (!g) return;
+  const open = typeof forceOpen === 'boolean' ? forceOpen : g.classList.contains('collapsed');
+  g.classList.toggle('collapsed', !open);
+  document.getElementById('tplMoreBtn')?.classList.toggle('open', open);
+  const lb = document.getElementById('tplMoreLabel');
+  if (lb) lb.textContent = open ? 'Tampilkan lebih sedikit' : 'Nota-nota lainnya';
+}
+
 function selectTemplate(name, el, persist = true) {
   curTemplate = name;
   document.querySelectorAll('.tpl-card').forEach(c => c.classList.toggle('active', c.dataset.tpl === name));
@@ -3562,6 +3571,222 @@ function buildPreview(inv, targetId = 'invoicePreview') {
         <div style="font-size:10px;color:#D1D5DB;letter-spacing:.14em">NOTASERU · INVOICE PRO</div>
       </div>
     </div>`;
+
+  // ════════════════════════════════════════════════════════════
+  // 3 TEMPLATE PROFESIONAL BARU: EXECUTIVE · PRESTIGE · BANNER
+  // ════════════════════════════════════════════════════════════
+  } else if (tpl === 'executive' || tpl === 'prestige' || tpl === 'banner') {
+    const items_ = (inv.items || []).filter(i => i.name);
+    const unitNet = it => it.discItem > 0 ? (it.price - (it.discItemType === 'rupiah' ? it.discItem : it.price * it.discItem / 100)) : it.price;
+    const discTxt = it => it.discItem > 0 ? `disc ${it.discItemType === 'rupiah' ? fmtRp(it.discItem) : it.discItem + '%'}` : '';
+    const sans = "-apple-system,BlinkMacSystemFont,'Helvetica Neue',Arial,sans-serif";
+    const serif = "Georgia,'Times New Roman',serif";
+    const payLines = (ink, muted, accent) => invPaid(inv) > 0
+      ? `${inv.dp > 0 ? `<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:12.5px;color:${muted}"><span>DP / Uang Muka</span><span style="font-weight:700;color:${ink}">${fmtRp(inv.dp)}</span></div>` : ''}${inv.bayar > 0 ? `<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:12.5px;color:${muted}"><span>Pembayaran</span><span style="font-weight:700;color:${ink}">${fmtRp(inv.bayar)}</span></div>` : ''}<div style="display:flex;justify-content:space-between;padding:6px 0;font-size:13.5px"><span style="font-weight:800;color:${ink}">${invEnd(inv).label}</span><span style="font-weight:900;color:${accent}">${fmtRp(invEnd(inv).val)}</span></div>` : '';
+    const sumLines = (muted, ink) => `
+      <div style="display:flex;justify-content:space-between;padding:4px 0;font-size:12.5px;color:${muted}"><span>Subtotal</span><span style="font-weight:600;color:${ink}">${fmtRp(inv.sub)}</span></div>
+      ${inv.disc > 0 ? `<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:12.5px;color:${muted}"><span>Diskon ${inv.discType === 'rupiah' ? '' : inv.disc + '%'}</span><span style="font-weight:600;color:${ink}">- ${fmtRp(inv.discAmt)}</span></div>` : ''}
+      ${inv.ongkir > 0 ? `<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:12.5px;color:${muted}"><span>${ongkirLabel}</span><span style="font-weight:600;color:${ink}">${fmtRp(inv.ongkir)}</span></div>` : ''}`;
+    const custBlock = (muted, ink) => `
+      <div style="font-size:15px;font-weight:700;color:${ink}">${xss(inv.customer?.name || '-')}</div>
+      ${inv.customer?.phone ? `<div style="font-size:12px;color:${muted};margin-top:2px">${xss(inv.customer.phone)}</div>` : ''}
+      ${inv.customer?.address ? `<div style="font-size:12px;color:${muted};margin-top:1px;line-height:1.5">${xss(inv.customer.address)}</div>` : ''}`;
+    const storeContact = muted => `${s.storeAddress ? `<div style="font-size:11.5px;color:${muted};margin-top:3px;line-height:1.5;max-width:330px">${xss(s.storeAddress)}</div>` : ''}${s.storePhone ? `<div style="font-size:11.5px;color:${muted};margin-top:1px">${xss(s.storePhone)}</div>` : ''}`;
+    const signBlock = (lineColor, muted, align) => `
+      <div style="text-align:center">
+        <div style="width:140px;height:56px;display:flex;align-items:flex-end;justify-content:center;padding-bottom:3px">${signImg}</div>
+        <div style="width:140px;border-top:1.5px solid ${lineColor};padding-top:5px;font-size:11.5px;color:${muted}">${xss(signLabel)}</div>
+      </div>`;
+
+    if (tpl === 'executive') {
+      const exRows = items_.map((it, idx) => `
+        <tr style="background:${idx % 2 === 1 ? C.softer : '#fff'}">
+          <td style="padding:11px 14px;font-size:13px;color:#9CA3AF;border-bottom:1px solid ${C.border}">${idx + 1}</td>
+          <td style="padding:11px 14px;font-size:13.5px;color:#111827;font-weight:600;border-bottom:1px solid ${C.border}">${xss(it.name)}${it.discItem > 0 ? `<div style="font-size:10.5px;font-weight:500;color:${C.dark};margin-top:1px">${discTxt(it)}</div>` : ''}</td>
+          <td style="padding:11px 14px;font-size:13px;color:#374151;text-align:center;border-bottom:1px solid ${C.border}">${it.qty}</td>
+          <td style="padding:11px 14px;font-size:13px;color:#374151;text-align:right;border-bottom:1px solid ${C.border}">${fmtRp(unitNet(it))}</td>
+          <td style="padding:11px 14px;font-size:13.5px;font-weight:800;color:#111827;text-align:right;border-bottom:1px solid ${C.border}">${fmtRp(calcItemTotal(it))}</td>
+        </tr>`).join('');
+      const th = (t, a) => `<th style="padding:11px 14px;font-size:10.5px;font-weight:700;color:#fff;text-transform:uppercase;letter-spacing:.08em;text-align:${a}">${t}</th>`;
+      const cell = (label, val, extra = '') => `<div style="flex:1;padding:12px 14px;border-right:1px solid ${C.border}"><div style="font-size:9.5px;font-weight:700;color:${C.dark};text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px">${label}</div><div style="font-size:13px;font-weight:700;color:#111827;${extra}">${val}</div></div>`;
+      html = `<div style="font-family:${sans};color:#111827;width:794px;min-height:1123px;box-sizing:border-box;padding:48px 52px;display:flex;flex-direction:column">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start">
+          <div style="display:flex;align-items:center;gap:14px">
+            <div style="width:62px;height:62px;border-radius:12px;overflow:hidden;background:${C.softer};border:1px solid ${C.border};display:flex;align-items:center;justify-content:center;flex-shrink:0">${logoImg}</div>
+            <div>
+              <div style="font-size:19px;font-weight:800;color:#111827;letter-spacing:-.01em">${xss(s.storeName || 'Nama Toko')}</div>
+              ${storeContact('#6B7280')}
+            </div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-size:30px;font-weight:900;color:${headerC};letter-spacing:.12em">INVOICE</div>
+          </div>
+        </div>
+        <div style="height:4px;background:${headerC};border-radius:2px;margin:22px 0 18px"></div>
+
+        <div style="display:flex;border:1px solid ${C.border};border-right:none;border-radius:8px;background:${C.softer};overflow:hidden">
+          ${cell('No. Invoice', xss(inv.number))}
+          ${cell('Tanggal', fmtDate(inv.date))}
+          ${cell('Ditagihkan Kepada', xss(inv.customer?.name || '-'))}
+          ${cell('Status', sl, `color:${sc}`)}
+        </div>
+        ${(inv.customer?.phone || inv.customer?.address) ? `<div style="font-size:11.5px;color:#6B7280;margin-top:8px;line-height:1.5">${[inv.customer?.phone, inv.customer?.address].filter(Boolean).map(xss).join(' &nbsp;·&nbsp; ')}</div>` : ''}
+
+        <div style="margin-top:20px;flex:1">
+          <table style="width:100%;border-collapse:collapse">
+            <thead><tr style="background:${headerC}">${th('No', 'left')}${th('Deskripsi', 'left')}${th('Qty', 'center')}${th('Harga', 'right')}${th('Total', 'right')}</tr></thead>
+            <tbody>${exRows}</tbody>
+          </table>
+          <div style="display:flex;justify-content:flex-end;margin-top:14px">
+            <div style="width:300px">
+              ${sumLines('#6B7280', '#111827')}
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;padding:13px 16px;background:${headerC};border-radius:8px">
+                <span style="font-size:12.5px;font-weight:700;color:#fff;text-transform:uppercase;letter-spacing:.08em">Grand Total</span>
+                <span style="font-size:19px;font-weight:900;color:#fff">${fmtRp(inv.grand)}</span>
+              </div>
+              <div style="margin-top:6px">${payLines('#111827', '#6B7280', C.dark)}</div>
+            </div>
+          </div>
+          ${bankInfo}${notesRow}
+        </div>
+
+        <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-top:22px">
+          <div>${stamp_bottom}</div>
+          ${signBlock('#CBD5E1', '#9CA3AF')}
+        </div>
+        <div style="margin-top:22px;padding-top:14px;border-top:1px solid ${C.border};display:flex;justify-content:space-between;align-items:center">
+          <div style="font-size:12px;color:#6B7280;font-style:italic">${xss(thankyou)}</div>
+          <div style="font-size:10px;color:#9CA3AF;letter-spacing:.1em">NOTASERU · INVOICE PRO</div>
+        </div>
+      </div>`;
+
+    } else if (tpl === 'prestige') {
+      const pgRows = items_.map(it => `
+        <tr>
+          <td style="padding:11px 6px;font-size:13.5px;color:#1F2937;border-bottom:1px solid #E5E7EB">${xss(it.name)}${it.discItem > 0 ? `<div style="font-size:10.5px;font-style:italic;color:${C.dark};margin-top:1px">${discTxt(it)}</div>` : ''}</td>
+          <td style="padding:11px 6px;font-size:13px;color:#374151;text-align:center;border-bottom:1px solid #E5E7EB">${it.qty}</td>
+          <td style="padding:11px 6px;font-size:13px;color:#374151;text-align:right;border-bottom:1px solid #E5E7EB">${fmtRp(unitNet(it))}</td>
+          <td style="padding:11px 6px;font-size:13.5px;font-weight:700;color:#111827;text-align:right;border-bottom:1px solid #E5E7EB">${fmtRp(calcItemTotal(it))}</td>
+        </tr>`).join('');
+      const pth = (t, a) => `<th style="padding:9px 6px;font-size:11px;font-weight:400;font-style:italic;color:${C.dark};letter-spacing:.06em;text-align:${a};border-top:2px solid ${C.dark};border-bottom:1px solid ${C.dark}">${t}</th>`;
+      html = `<div style="font-family:${serif};color:#1F2937;width:794px;min-height:1123px;box-sizing:border-box;padding:26px">
+        <div style="min-height:1071px;box-sizing:border-box;border:3px double ${C.dark};padding:8px">
+          <div style="min-height:1051px;box-sizing:border-box;border:1px solid ${C.main};padding:38px 44px;display:flex;flex-direction:column">
+            <div style="text-align:center">
+              <div style="width:64px;height:64px;border-radius:50%;overflow:hidden;margin:0 auto 12px;background:${C.softer};border:2px solid ${C.main};display:flex;align-items:center;justify-content:center">${logoImg}</div>
+              <div style="font-size:23px;font-weight:700;color:#111827;letter-spacing:.2em;text-transform:uppercase">${xss(s.storeName || 'Nama Toko')}</div>
+              ${s.storeAddress ? `<div style="font-size:11.5px;color:#6B7280;margin:5px auto 0;line-height:1.5;max-width:420px">${xss(s.storeAddress)}</div>` : ''}
+              ${s.storePhone ? `<div style="font-size:11.5px;color:#6B7280;margin-top:1px">${xss(s.storePhone)}</div>` : ''}
+              <div style="display:flex;align-items:center;justify-content:center;gap:12px;margin-top:20px">
+                <div style="width:70px;height:1px;background:${C.main}"></div>
+                <div style="font-size:15px;font-style:italic;color:${C.dark};letter-spacing:.3em;text-transform:uppercase">Invoice</div>
+                <div style="width:70px;height:1px;background:${C.main}"></div>
+              </div>
+            </div>
+
+            <div style="display:flex;justify-content:space-between;margin-top:26px">
+              <div>
+                <div style="font-size:10.5px;font-style:italic;color:${C.dark};letter-spacing:.1em;margin-bottom:5px">Kepada Yth.</div>
+                ${custBlock('#6B7280', '#111827')}
+              </div>
+              <div style="text-align:right">
+                <div style="font-size:10.5px;font-style:italic;color:${C.dark};letter-spacing:.1em;margin-bottom:5px">Rincian</div>
+                <div style="font-size:12.5px;color:#374151;line-height:1.7">No. <strong style="color:#111827">${xss(inv.number)}</strong><br>${fmtDate(inv.date)}<br><span style="font-weight:700;color:${sc};letter-spacing:.08em">${sl}</span></div>
+              </div>
+            </div>
+
+            <div style="margin-top:24px;flex:1">
+              <table style="width:100%;border-collapse:collapse">
+                <thead><tr>${pth('Deskripsi', 'left')}${pth('Qty', 'center')}${pth('Harga', 'right')}${pth('Jumlah', 'right')}</tr></thead>
+                <tbody>${pgRows}</tbody>
+              </table>
+              <div style="display:flex;justify-content:flex-end;margin-top:14px">
+                <div style="width:290px">
+                  ${sumLines('#6B7280', '#111827')}
+                  <div style="display:flex;justify-content:space-between;align-items:baseline;margin-top:6px;padding:10px 0;border-top:3px double ${C.dark};border-bottom:1px solid ${C.dark}">
+                    <span style="font-size:13px;font-weight:700;color:#111827;letter-spacing:.12em;text-transform:uppercase">Total</span>
+                    <span style="font-size:21px;font-weight:700;color:${C.dark}">${fmtRp(inv.grand)}</span>
+                  </div>
+                  <div style="margin-top:6px">${payLines('#111827', '#6B7280', C.dark)}</div>
+                </div>
+              </div>
+              ${bankInfo}${notesRow}
+            </div>
+
+            <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-top:22px">
+              <div>${stamp_bottom}</div>
+              ${signBlock(C.dark, '#6B7280')}
+            </div>
+            <div style="margin-top:22px;text-align:center">
+              <div style="width:50px;height:1px;background:${C.main};margin:0 auto 12px"></div>
+              <div style="font-size:12.5px;color:#6B7280;font-style:italic">${xss(thankyou)}</div>
+            </div>
+          </div>
+        </div>
+      </div>`;
+
+    } else { // banner
+      const bnRows = items_.map(it => `
+        <div style="display:flex;align-items:center;gap:14px;padding:13px 16px;margin-bottom:8px;background:#fff;border:1px solid #E5E7EB;border-left:5px solid ${C.main};border-radius:8px">
+          <div style="flex:1;min-width:0">
+            <div style="font-size:14px;font-weight:700;color:#111827">${xss(it.name)}</div>
+            <div style="font-size:11.5px;color:#6B7280;margin-top:2px">${fmtRp(unitNet(it))}${it.discItem > 0 ? ` &nbsp;·&nbsp; <span style="color:${C.dark}">${discTxt(it)}</span>` : ''}</div>
+          </div>
+          <div style="min-width:42px;padding:4px 10px;border-radius:999px;background:${C.soft};color:${C.dark};font-size:12px;font-weight:800;text-align:center">× ${it.qty}</div>
+          <div style="min-width:110px;text-align:right;font-size:14.5px;font-weight:800;color:#111827">${fmtRp(calcItemTotal(it))}</div>
+        </div>`).join('');
+      const info = (label, val, extra = '') => `<div style="flex:1"><div style="font-size:9.5px;font-weight:700;color:#9CA3AF;text-transform:uppercase;letter-spacing:.12em;margin-bottom:4px">${label}</div><div style="font-size:13.5px;font-weight:700;color:#111827;${extra}">${val}</div></div>`;
+      html = `<div style="font-family:${sans};color:#111827;width:794px;min-height:1123px;box-sizing:border-box;display:flex;flex-direction:column;background:#fff">
+        <div style="background:${headerC};padding:42px 52px 74px;display:flex;justify-content:space-between;align-items:center">
+          <div style="display:flex;align-items:center;gap:14px">
+            <div style="width:64px;height:64px;border-radius:14px;overflow:hidden;background:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0">${logoImg}</div>
+            <div>
+              <div style="font-size:20px;font-weight:800;color:#fff">${xss(s.storeName || 'Nama Toko')}</div>
+              ${s.storeAddress ? `<div style="font-size:11.5px;color:rgba(255,255,255,.8);margin-top:3px;line-height:1.5;max-width:300px">${xss(s.storeAddress)}</div>` : ''}
+              ${s.storePhone ? `<div style="font-size:11.5px;color:rgba(255,255,255,.8);margin-top:1px">${xss(s.storePhone)}</div>` : ''}
+            </div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-size:36px;font-weight:900;color:#fff;letter-spacing:.04em;line-height:1">INVOICE</div>
+            <div style="font-size:12px;color:rgba(255,255,255,.85);margin-top:8px;letter-spacing:.06em">${xss(inv.number)}</div>
+          </div>
+        </div>
+
+        <div style="margin:-44px 52px 0;padding:20px 24px;background:#fff;border-radius:12px;box-shadow:0 6px 22px rgba(0,0,0,.10);border:1px solid #F3F4F6;display:flex;gap:24px">
+          <div style="flex:1.6">
+            <div style="font-size:9.5px;font-weight:700;color:#9CA3AF;text-transform:uppercase;letter-spacing:.12em;margin-bottom:5px">Ditagihkan Kepada</div>
+            ${custBlock('#6B7280', '#111827')}
+          </div>
+          ${info('Tanggal', fmtDate(inv.date))}
+          ${info('Status', sl, `color:${sc}`)}
+        </div>
+
+        <div style="padding:26px 52px 0;flex:1">
+          <div style="font-size:10.5px;font-weight:700;color:#9CA3AF;text-transform:uppercase;letter-spacing:.14em;margin-bottom:10px">Rincian Pesanan</div>
+          ${bnRows}
+          <div style="display:flex;justify-content:flex-end;margin-top:14px">
+            <div style="width:320px">
+              ${sumLines('#6B7280', '#111827')}
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;padding:14px 18px;background:${C.softer};border:2px solid ${C.main};border-radius:999px">
+                <span style="font-size:12px;font-weight:800;color:${C.dark};text-transform:uppercase;letter-spacing:.1em">Grand Total</span>
+                <span style="font-size:19px;font-weight:900;color:${C.dark}">${fmtRp(inv.grand)}</span>
+              </div>
+              <div style="margin-top:8px;padding:0 6px">${payLines('#111827', '#6B7280', C.dark)}</div>
+            </div>
+          </div>
+          ${bankInfo}${notesRow}
+        </div>
+
+        <div style="padding:22px 52px 0;display:flex;justify-content:space-between;align-items:flex-end">
+          <div>${stamp_bottom}</div>
+          ${signBlock('#CBD5E1', '#9CA3AF')}
+        </div>
+        <div style="margin:22px 52px 34px;padding-top:14px;border-top:1px solid #E5E7EB;display:flex;justify-content:space-between;align-items:center">
+          <div style="font-size:12px;color:#6B7280;font-style:italic">${xss(thankyou)}</div>
+          <div style="font-size:10px;color:#9CA3AF;letter-spacing:.1em">NOTASERU · INVOICE PRO</div>
+        </div>
+      </div>`;
+    }
   }
 
   const targetEl = document.getElementById(targetId);

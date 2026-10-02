@@ -597,6 +597,38 @@ img{max-width:100%;display:block;}
 .tpl-garis .tpl-gr-line{height:2px;background:#E5E7EB;border-radius:1px;}
 .tpl-garis .tpl-gr-total{height:3px;width:38%;align-self:flex-end;background:#D97706;border-radius:1px;}
 
+
+/* Template nota: hanya 3 thumbnail terlihat, sisanya dibuka lewat tombol "Nota-nota lainnya" */
+.template-grid.collapsed .tpl-card:nth-child(n+4){display:none;}
+.template-grid:not(.collapsed) .tpl-card:nth-child(n+4){animation:tplReveal .32s cubic-bezier(.32,.72,0,1) both;}
+@keyframes tplReveal{from{opacity:0;transform:translateY(-8px) scale(.96);}to{opacity:1;transform:none;}}
+.tpl-more-btn{display:flex;align-items:center;justify-content:center;gap:6px;width:100%;margin-top:10px;padding:9px;border-radius:var(--r-sm);border:1.5px dashed var(--border);background:var(--bg-input);color:var(--primary);font-size:12px;font-weight:700;font-family:var(--font);cursor:pointer;transition:var(--ease);}
+.tpl-more-btn:active{transform:scale(.97);background:var(--primary-soft);}
+.tpl-more-btn svg{transition:transform .3s;}
+.tpl-more-btn.open svg{transform:rotate(180deg);}
+
+/* Thumbnail template baru */
+.tpl-executive{display:flex;flex-direction:column;padding:5px;gap:2px;}
+.tpl-executive .tpl-ex-top{display:flex;justify-content:space-between;align-items:center;}
+.tpl-executive .tpl-ex-logo{width:9px;height:9px;border-radius:2px;background:#E5E7EB;}
+.tpl-executive .tpl-ex-title{width:24px;height:4px;background:#D97706;border-radius:1px;}
+.tpl-executive .tpl-ex-bar{height:2px;background:#D97706;border-radius:1px;}
+.tpl-executive .tpl-ex-cells{display:flex;gap:2px;margin-top:1px;}
+.tpl-executive .tpl-ex-cells div{flex:1;height:7px;background:#FFFBEB;border:1px solid #FDE68A;border-radius:1.5px;}
+.tpl-executive .tpl-ex-th{height:5px;background:#D97706;margin-top:2px;border-radius:1px;}
+.tpl-executive .tpl-ex-row{height:3px;background:#E5E7EB;border-radius:1px;}
+.tpl-prestige{display:flex;padding:3px;background:#fff;}
+.tpl-prestige .tpl-pg-frame{flex:1;border:2px double #92400E;display:flex;flex-direction:column;align-items:center;padding:4px 6px;gap:2px;}
+.tpl-prestige .tpl-pg-logo{width:9px;height:9px;border-radius:50%;border:1.5px solid #D97706;}
+.tpl-prestige .tpl-pg-name{width:60%;height:3px;background:#111827;border-radius:1px;}
+.tpl-prestige .tpl-pg-orn{width:70%;height:1px;background:#D97706;margin:1px 0;}
+.tpl-prestige .tpl-pg-line{width:80%;height:2px;background:#E5E7EB;border-radius:1px;}
+.tpl-banner{display:flex;flex-direction:column;background:#fff;}
+.tpl-banner .tpl-bn-head{height:20px;background:#D97706;}
+.tpl-banner .tpl-bn-card{height:11px;margin:-7px 6px 3px;background:#fff;border-radius:3px;box-shadow:0 1px 4px rgba(0,0,0,.2);}
+.tpl-banner .tpl-bn-item{height:4px;margin:0 6px 2px;border-left:2px solid #D97706;background:#F3F4F6;border-radius:1px;}
+.tpl-banner .tpl-bn-pill{height:5px;width:45%;margin:2px 6px 0 auto;border-radius:5px;border:1px solid #D97706;background:#FFFBEB;}
+
 /* ── Template Preview Modal (popup preview nota real) ── */
 .tpl-preview-modal{position:fixed;inset:0;background:var(--bg);z-index:900;display:flex;flex-direction:column;transform:translateY(100%);transition:transform .32s cubic-bezier(.32,.72,0,1);}
 .tpl-preview-modal.visible{transform:translateY(0);}
