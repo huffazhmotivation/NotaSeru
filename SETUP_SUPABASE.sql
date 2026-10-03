@@ -34,4 +34,17 @@ CREATE POLICY "Users can delete own data"
   ON public.userdata FOR DELETE
   USING (auth.uid() = user_id);
 
+-- 4. Fungsi hapus akun sendiri (dipakai tombol "Hapus Akun").
+--    Tanpa ini, akun auth tidak ikut terhapus dan email tetap "already registered".
+CREATE OR REPLACE FUNCTION public.delete_own_account()
+RETURNS void
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public, auth
+AS $$
+  DELETE FROM auth.users WHERE id = auth.uid();
+$$;
+REVOKE ALL ON FUNCTION public.delete_own_account() FROM public, anon;
+GRANT EXECUTE ON FUNCTION public.delete_own_account() TO authenticated;
+
 -- Selesai! Sekarang isi config.js dengan URL dan anon key project ini.

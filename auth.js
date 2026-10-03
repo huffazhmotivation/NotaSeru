@@ -562,6 +562,14 @@ async function doDeleteAccount() {
     showSyncBadge('Menghapus akun...');
     // Hapus semua data user dari tabel userdata
     await sb.from('userdata').delete().eq('user_id', _authUser.id).catch(() => {});
+    // Hapus akun auth-nya juga (butuh fungsi delete_own_account di SETUP_SUPABASE.sql),
+    // kalau tidak, email tetap "already registered" saat daftar ulang.
+    const { error: delErr } = await sb.rpc('delete_own_account');
+    if (delErr) {
+      hideSyncBadge();
+      toast('Akun belum bisa dihapus permanen: jalankan SETUP_SUPABASE.sql terbaru (' + delErr.message + ')', 'err');
+      return;
+    }
     // Sign out dulu agar tidak ada session aktif
     await sb.auth.signOut().catch(() => {});
     hideSyncBadge();
@@ -653,20 +661,56 @@ async function doRegister() {
   if (pass.length < 6)  { showAuthErr('Password minimal 6 karakter.'); return; }
   if (pass !== pass2)   { showAuthErr('Password tidak cocok.'); return; }
   setAuthLoading(true);
+  let signUpData = null;
   try {
     const { data, error } = await sb.auth.signUp({ email, password: pass, options: { data: { username } } });
-    if (error) { showAuthErr(error.message); return; }
-    if (data?.user && !data.user.email_confirmed_at && !data.session) {
+    if (error) {
+      const msg = String(error.message || '');
+      if (error.code === 'user_already_exists' || /already\s*(been\s*)?registered/i.test(msg)) {
+        _suggestLogin(email);
+      } else if (/rate limit|too many/i.test(msg)) {
+        showAuthErr('Terlalu banyak percobaan. Tunggu beberapa menit lalu coba lagi.');
+      } else if (/password/i.test(msg)) {
+        showAuthErr('Password terlalu lemah / tidak valid: ' + msg);
+      } else {
+        showAuthErr(msg);
+      }
+      return;
+    }
+    // Email sudah terdaftar & terkonfirmasi: Supabase mengembalikan user "palsu" tanpa identities
+    if (data?.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
+      _suggestLogin(email);
+      return;
+    }
+    signUpData = data;
+  } catch(e) {
+    showAuthErr('Gagal terhubung. Cek koneksi internet.');
+    setAuthLoading(false);
+    return;
+  }
+  // Akun SUDAH terbuat di titik ini. Error setelahnya tidak boleh membuat user mengulang daftar.
+  try {
+    if (signUpData?.user && !signUpData.user.email_confirmed_at && !signUpData.session) {
       showAuthErr('Cek email kamu untuk konfirmasi akun, lalu login.');
       switchAuthTab('login'); return;
     }
-    if (data?.user) {
+    if (signUpData?.user) {
       localStorage.setItem(USERNAME_KEY, username);
       localStorage.removeItem(GUEST_KEY);
-      await onSignedIn(data.user, true);
+      await onSignedIn(signUpData.user, true);
     }
-  } catch(e) { showAuthErr('Gagal terhubung. Cek koneksi internet.'); }
+  } catch(e) {
+    console.warn('[NS] Post-register error', e);
+    _suggestLogin(email, 'Akun berhasil dibuat, tapi terjadi kendala. Silakan login.');
+  }
   finally { setAuthLoading(false); }
+}
+
+function _suggestLogin(email, msg) {
+  switchAuthTab('login');
+  const el = document.getElementById('loginEmail');
+  if (el && email) el.value = email;
+  showAuthErr(msg || 'Email ini sudah terdaftar. Silakan login (atau gunakan "lupa password" bila perlu).');
 }
 
 // ── Logout ──
