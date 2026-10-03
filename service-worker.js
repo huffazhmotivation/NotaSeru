@@ -1,4 +1,4 @@
-const CACHE_NAME = 'notaseru-v4.8';
+const CACHE_NAME = 'notaseru-v4.9';
 const ASSETS = [
   '/index.html',
   '/style.css',
@@ -54,36 +54,22 @@ self.addEventListener('fetch', (e) => {
     return;
   }
 
-  // Untuk dokumen HTML (navigasi halaman): coba network dulu supaya shell
-  // app selalu sefresh mungkin, baru fallback ke cache kalau offline/gagal.
-  if (e.request.mode === 'navigate' || e.request.destination === 'document') {
+  // HTML + JS/CSS inti: stale-while-revalidate. Tampilkan dari cache SEKETIKA (tanpa
+  // menunggu download ~650KB script.js tiap buka), lalu update cache di background
+  // untuk pembukaan berikutnya. Fallback ke network bila belum ada di cache.
+  if (e.request.mode === 'navigate' || e.request.destination === 'document' || /\.(js|css)$/.test(url.pathname)) {
     e.respondWith(
-      fetch(e.request, { cache: 'no-store' })
-        .then((response) => {
-          if (response && response.status === 200) {
-            const clone = response.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(e.request, clone));
-          }
-          return response;
+      caches.open(CACHE_NAME).then((cache) =>
+        cache.match(e.request).then((cached) => {
+          const network = fetch(e.request, { cache: 'no-cache' })
+            .then((response) => {
+              if (response && response.status === 200 && !response.redirected) cache.put(e.request, response.clone());
+              return response;
+            })
+            .catch(() => cached || cache.match('/index.html'));
+          return (cached && !cached.redirected) ? cached : network;
         })
-        .catch(() => caches.match(e.request).then((c) => c || caches.match('/index.html')))
-    );
-    return;
-  }
-
-  // JS/CSS inti: network-first supaya perbaikan langsung terbaca
-  // (sebelumnya cache-first membuat script.js lama tetap dipakai -> highlight nav salah).
-  if (/\.(js|css)$/.test(url.pathname)) {
-    e.respondWith(
-      fetch(e.request, { cache: 'no-store' })
-        .then((response) => {
-          if (response && response.status === 200 && !response.redirected) {
-            const clone = response.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(e.request, clone));
-          }
-          return response;
-        })
-        .catch(() => caches.match(e.request))
+      )
     );
     return;
   }

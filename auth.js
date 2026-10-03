@@ -897,14 +897,16 @@ document.getElementById('authPage').addEventListener('click', function(e) {
   if (e.target === this) closeAuthModal();
 });
 
-// BUG FIX #8: Polling fallback — pull setiap 15 detik sebagai safety net
+// BUG FIX #8: Polling fallback — pull setiap 60 detik sebagai safety net
 // kalau Realtime channel miss event (Safari → Chrome sering bermasalah)
 let _pollTimer = null;
 function _startPolling() {
   if (_pollTimer) clearInterval(_pollTimer);
+  // 60 detik & hanya saat tab terlihat: pullAll mengunduh semua row (termasuk logo/nota),
+  // jadi polling 15 detik membuat HP terasa berat. Realtime + visibilitychange tetap jalan.
   _pollTimer = setInterval(() => {
-    if (_authUser) CloudDB.pullAll().catch(() => {});
-  }, 15000);
+    if (_authUser && document.visibilityState === 'visible') CloudDB.pullAll().catch(() => {});
+  }, 60000);
 }
 function _stopPolling() {
   if (_pollTimer) { clearInterval(_pollTimer); _pollTimer = null; }
