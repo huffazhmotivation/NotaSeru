@@ -35,6 +35,36 @@ function togglePass(inputId, btn) {
   btn.innerHTML = isHidden ? EYE_OPEN : EYE_CLOSED;
 }
 
+// ── Status sinkronisasi lokal ──
+// PERLINDUNGAN DATA: sebelumnya data cloud SELALU menimpa data lokal saat
+// pullAll(), dan snapshot nota ditandai "sudah terkirim" SEBELUM upload benar2
+// berhasil. Akibatnya perubahan yang belum sempat naik ke cloud (sinyal jelek,
+// app ditutup, sesi login kadaluarsa, ganti versi app) bisa hilang tertimpa.
+// Sekarang:
+//  - key yang push-nya belum berhasil ditandai di PENDING_KEY → tidak ditimpa
+//    cloud, dan dikirim ulang begitu online/login lagi;
+//  - snapshot nota (SNAP_KEY) hanya diisi nota yang BENAR2 sudah sukses
+//    terkirim, jadi nota baru/diedit yang belum naik selalu dipertahankan.
+const PENDING_KEY = 'ns3_syncPending';
+const SNAP_KEY    = 'ns3_invoicesCloudSnapV2'; // V2: V1 lama bisa berisi nota yang sebenarnya gagal terkirim
+const OWNER_KEY   = 'ns3_ownerId';             // id akun pemilik data lokal saat ini
+const SYNC_KEYS   = ['settings','expenses','incomes','products','ekspedisi','warehouses','stockLog'];
+
+function _getPending() { try { return JSON.parse(localStorage.getItem(PENDING_KEY) || '{}') || {}; } catch { return {}; } }
+function _setPending(k, on) {
+  try {
+    const p = _getPending();
+    if (on) p[k] = 1; else delete p[k];
+    localStorage.setItem(PENDING_KEY, JSON.stringify(p));
+  } catch {}
+}
+function _readSnap() { try { return JSON.parse(localStorage.getItem(SNAP_KEY) || '{}') || {}; } catch { return {}; } }
+function _snapUpdate(fn) {
+  // Baca ulang tiap kali supaya beberapa push yang jalan bersamaan tidak saling timpa
+  try { const snap = _readSnap(); fn(snap); localStorage.setItem(SNAP_KEY, JSON.stringify(snap)); } catch {}
+}
+function _isSyncKey(k) { return SYNC_KEYS.includes(k) || k.startsWith('grup_') || k.startsWith('inv_profit_'); }
+
 // ── CloudDB ──
 const CloudDB = {
   get(k, def = null) { return DB.get(k, def); },
@@ -43,7 +73,8 @@ const CloudDB = {
     if (_authUser) CloudDB._push(k, v);
   },
   async _push(k, v) {
-    const sb = getSB(); if (!sb || !_authUser) return;
+    const sb = getSB(); if (!sb || !_authUser) { if (k !== 'invoices') _setPending(k, true); return; }
+    const uid = _authUser.id;
     const now = new Date().toISOString();
     const rows = [];
 
@@ -52,68 +83,92 @@ const CloudDB = {
       const slim = Object.assign({}, v);
       const logo      = slim.logo;      delete slim.logo;
       const signature = slim.signature; delete slim.signature;
-      rows.push({ user_id: _authUser.id, key: 'settings', value: slim, updated_at: now });
-      if (logo      !== undefined) rows.push({ user_id: _authUser.id, key: 'logo',          value: logo,      updated_at: now });
-      if (signature !== undefined) rows.push({ user_id: _authUser.id, key: 'signature',     value: signature, updated_at: now });
+      rows.push({ user_id: uid, key: 'settings', value: slim, updated_at: now });
+      if (logo      !== undefined) rows.push({ user_id: uid, key: 'logo',      value: logo,      updated_at: now });
+      if (signature !== undefined) rows.push({ user_id: uid, key: 'signature', value: signature, updated_at: now });
     } else if (k === 'invoices') {
-      // BUG FIX (kuota Supabase & performa): dulu SETIAP kali 1 nota disimpan/
-      // diubah, SELURUH riwayat nota (bisa ribuan) ikut diupload ulang sebagai
-      // satu blob JSONB — makin lama makin berat & boros kuota. Sekarang tiap
-      // nota disimpan sebagai row TERSENDIRI (key: "invoice:<id>"), dan di sini
-      // kita diff dulu terhadap snapshot nota terakhir yang berhasil dikirim,
-      // supaya HANYA nota yang baru/berubah yang benar-benar di-upload.
+      // Tiap nota = 1 row (key "invoice:<id>"). Diff terhadap snapshot nota yang
+      // SUDAH sukses terkirim, jadi hanya nota baru/berubah yang di-upload.
       const arr = Array.isArray(v) ? v : [];
-      let prevSnap = {};
-      try { prevSnap = JSON.parse(localStorage.getItem('ns3_invoicesCloudSnap') || '{}'); } catch {}
-      const nextSnap = {};
+      const prevSnap = _readSnap();
+      const localIds = {};
       for (const inv of arr) {
         if (!inv || !inv.id) continue;
+        localIds[inv.id] = 1;
         const sig = JSON.stringify(inv);
-        nextSnap[inv.id] = sig;
         if (prevSnap[inv.id] !== sig) {
-          rows.push({ user_id: _authUser.id, key: 'invoice:' + inv.id, value: inv, updated_at: now });
+          rows.push({ row: { user_id: uid, key: 'invoice:' + inv.id, value: inv, updated_at: now }, id: inv.id, sig });
         }
       }
       // Nota yang hilang dari array (dihapus user) → hapus juga row-nya di cloud
-      const removedIds = Object.keys(prevSnap).filter(id => !(id in nextSnap));
-      try { localStorage.setItem('ns3_invoicesCloudSnap', JSON.stringify(nextSnap)); } catch {}
-      if (removedIds.length) {
-        (async () => {
-          for (const id of removedIds) {
-            try {
-              const { error } = await sb.from('userdata').delete().eq('user_id', _authUser.id).eq('key', 'invoice:' + id);
-              if (error) console.warn('CloudDB delete invoice err', id, error);
-            } catch(e) { console.warn('CloudDB delete invoice err', id, e); }
-          }
-        })();
+      let removedIds = Object.keys(prevSnap).filter(id => !localIds[id]);
+      // PENGAMAN: kalau daftar nota lokal tiba-tiba KOSONG padahal sebelumnya
+      // ada banyak nota tersinkron, hampir pasti itu data lokal yang rusak/
+      // ter-reset (bukan user menghapus satu per satu). Jangan ikut hapus
+      // semua nota di cloud — nanti nota-nota itu kembali lewat pullAll().
+      if (!arr.length && removedIds.length >= 3) {
+        console.warn('[NS] daftar nota lokal kosong, batal menghapus', removedIds.length, 'nota di cloud');
+        removedIds = [];
       }
+      for (const id of removedIds) {
+        try {
+          const { error } = await sb.from('userdata').delete().eq('user_id', uid).eq('key', 'invoice:' + id);
+          if (error) console.warn('CloudDB delete invoice err', id, error);
+          else _snapUpdate(snap => { delete snap[id]; });
+        } catch(e) { console.warn('CloudDB delete invoice err', id, e); }
+      }
+      for (const r of rows) {
+        try {
+          const { error } = await sb.from('userdata').upsert(r.row, { onConflict: 'user_id,key' });
+          if (error) console.warn('CloudDB push err', r.row.key, error);
+          else _snapUpdate(snap => { snap[r.id] = r.sig; });
+        } catch(e) { console.warn('CloudDB push err', r.row.key, e); }
+      }
+      return;
     } else {
-      rows.push({ user_id: _authUser.id, key: k, value: v, updated_at: now });
+      rows.push({ user_id: uid, key: k, value: v, updated_at: now });
     }
 
+    // Tandai "belum terkirim" dulu; baru dihapus tandanya kalau SEMUA row sukses
+    _setPending(k, true);
+    let ok = true;
     for (const row of rows) {
       try {
         const { error } = await sb.from('userdata').upsert(row, { onConflict: 'user_id,key' });
-        if (error) console.warn('CloudDB push err', row.key, error);
-      } catch(e) { console.warn('CloudDB push err', row.key, e); }
+        if (error) { ok = false; console.warn('CloudDB push err', row.key, error); }
+      } catch(e) { ok = false; console.warn('CloudDB push err', row.key, e); }
     }
+    // Hanya hapus tanda pending kalau yang barusan dikirim memang nilai terbaru
+    if (ok && JSON.stringify(DB.get(k, null)) === JSON.stringify(v)) _setPending(k, false);
+  },
+  // Kirim ulang semua perubahan lokal yang belum sempat naik ke cloud
+  async flushPending() {
+    if (!_authUser) return;
+    const pending = _getPending();
+    for (const k of Object.keys(pending)) {
+      if (k === 'invoices') { _setPending(k, false); continue; }
+      await CloudDB._push(k, DB.get(k, null));
+    }
+    await CloudDB._push('invoices', DB.get('invoices', []));
   },
   async pullAll() {
     const sb = getSB(); if (!sb || !_authUser) return;
     try {
       const { data, error } = await sb.from('userdata').select('key, value, updated_at').eq('user_id', _authUser.id);
       if (error) throw error;
-      if (!data?.length) return;
-      // BUG FIX #3: Tulis langsung ke localStorage (bypass patched DB.set)
-      // agar tidak trigger push balik ke cloud (infinite push loop)
+      const rowsData = data || [];
+      // Tulis langsung ke localStorage (bypass patched DB.set) agar tidak
+      // trigger push balik ke cloud (infinite push loop)
       let changed = false;
+      const pending = _getPending();
+      const cloudKeys = {};
       // Kumpulkan logo & signature dulu sebelum proses settings
       let incomingLogo = undefined, incomingSign = undefined;
-      // Nota: kumpulkan row lama (blob "invoices", format sebelum bug fix ini)
-      // dan row baru (satu row per nota, key "invoice:<id>") — digabung setelah loop.
+      // Nota: row lama (blob "invoices") + row baru (satu row per nota, key "invoice:<id>")
       let legacyInvoices = undefined;
       const invoiceRowMap = {};
-      for (const row of data) {
+      for (const row of rowsData) {
+        cloudKeys[row.key] = 1;
         if (row.key === 'logo')      { incomingLogo = row.value; continue; }
         if (row.key === 'signature') { incomingSign = row.value; continue; }
         if (row.key === 'invoices')  { legacyInvoices = row.value; continue; }
@@ -122,11 +177,11 @@ const CloudDB = {
           if (row.value) invoiceRowMap[id] = row.value;
           continue;
         }
+        // Perubahan lokal yang belum terkirim → JANGAN ditimpa data cloud yang lebih lama
+        if (pending[row.key]) continue;
         if (row.key === 'settings') {
-          // Merge: settings dari cloud (slim) + logo/signature dari cloud/lokal
           try {
             const slim = Object.assign({}, row.value);
-            // Logo & signature akan digabungkan setelah loop selesai
             const current = localStorage.getItem('ns3_settings');
             const currentObj = current ? JSON.parse(current) : {};
             // Pertahankan logo/signature lokal dulu, nanti di-override kalau ada dari cloud
@@ -147,63 +202,97 @@ const CloudDB = {
           changed = true;
         }
       }
-      // Gabungkan nota: mulai dari blob lama (kalau akun ini masih menyimpan format
-      // sebelum bug fix ini), lalu timpa/tambah dengan row per-nota yang baru —
-      // itu yang jadi sumber kebenaran saat ini.
-      if (legacyInvoices !== undefined || Object.keys(invoiceRowMap).length) {
-        const byId = {};
-        if (Array.isArray(legacyInvoices)) for (const inv of legacyInvoices) if (inv && inv.id) byId[inv.id] = inv;
-        for (const id in invoiceRowMap) byId[id] = invoiceRowMap[id];
-        const merged = Object.values(byId).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
-        const mergedStr = JSON.stringify(merged);
-        if (localStorage.getItem('ns3_invoices') !== mergedStr) {
-          try { localStorage.setItem('ns3_invoices', mergedStr); } catch {}
-          changed = true;
+
+      // ── Gabungkan nota (3 arah: cloud, lokal, snapshot terakhir yang tersinkron) ──
+      const cloudById = {};
+      if (Array.isArray(legacyInvoices)) for (const inv of legacyInvoices) if (inv && inv.id) cloudById[inv.id] = inv;
+      for (const id in invoiceRowMap) cloudById[id] = invoiceRowMap[id];
+      const localArr = DB.get('invoices', []);
+      const snap = _readSnap();
+      const byId = Object.assign({}, cloudById);
+      for (const inv of (Array.isArray(localArr) ? localArr : [])) {
+        if (!inv || !inv.id) continue;
+        const sig = JSON.stringify(inv);
+        if (!(inv.id in snap)) {
+          // Belum pernah sukses terkirim (nota baru / dibuat offline) → pertahankan
+          if (!(inv.id in cloudById)) byId[inv.id] = inv;
+        } else if (snap[inv.id] !== sig) {
+          // Diedit di perangkat ini tapi belum terkirim → versi lokal yang menang
+          byId[inv.id] = inv;
         }
-        // Simpan snapshot sebagai basis diff untuk push berikutnya (lihat CloudDB._push, k === 'invoices')
-        try {
-          const snap = {};
-          for (const inv of merged) if (inv && inv.id) snap[inv.id] = JSON.stringify(inv);
-          localStorage.setItem('ns3_invoicesCloudSnap', JSON.stringify(snap));
-        } catch {}
-        // Migrasi sekali jalan: kalau masih ada blob "invoices" lama, pecah jadi
-        // row per-nota lalu hapus blob lamanya, supaya tidak dobel makan kuota
-        // di database dan ke depannya semua device pakai format baru.
-        if (legacyInvoices !== undefined) {
-          (async () => {
-            try {
-              for (const inv of merged) {
-                if (!inv || !inv.id) continue;
-                await sb.from('userdata').upsert(
-                  { user_id: _authUser.id, key: 'invoice:' + inv.id, value: inv, updated_at: new Date().toISOString() },
-                  { onConflict: 'user_id,key' }
-                );
-              }
-              await sb.from('userdata').delete().eq('user_id', _authUser.id).eq('key', 'invoices');
-              console.log('[NS] migrasi nota ke format per-baris selesai (' + merged.length + ' nota)');
-            } catch(e) { console.warn('[NS] migrasi nota gagal', e); }
-          })();
-        }
+        // Selain itu: tidak berubah di lokal → cloud yang jadi acuan (termasuk kalau dihapus di device lain)
       }
-      // Sekarang gabungkan logo & signature ke settings
+      const merged = Object.values(byId).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+      const mergedStr = JSON.stringify(merged);
+      if (localStorage.getItem('ns3_invoices') !== mergedStr && (merged.length || localStorage.getItem('ns3_invoices'))) {
+        try { localStorage.setItem('ns3_invoices', mergedStr); } catch {}
+        changed = true;
+      }
+      // Snapshot = isi cloud saat ini, supaya push berikutnya tahu mana yang perlu di-upload
       try {
-        const settingsRaw = localStorage.getItem('ns3_settings');
-        const s = settingsRaw ? JSON.parse(settingsRaw) : {};
-        let settingsDirty = false;
-        if (incomingLogo !== undefined) {
-          localStorage.setItem('ns3_logo', JSON.stringify(incomingLogo));
-          if (incomingLogo) s.logo = incomingLogo; else delete s.logo;
-          settingsDirty = true; changed = true;
-        }
-        if (incomingSign !== undefined) {
-          localStorage.setItem('ns3_signature', JSON.stringify(incomingSign));
-          if (incomingSign) s.signature = incomingSign; else delete s.signature;
-          settingsDirty = true; changed = true;
-        }
-        if (settingsDirty) localStorage.setItem('ns3_settings', JSON.stringify(s));
+        const nextSnap = {};
+        for (const id in cloudById) nextSnap[id] = JSON.stringify(cloudById[id]);
+        localStorage.setItem(SNAP_KEY, JSON.stringify(nextSnap));
       } catch {}
-      console.log('[NS] pulled', data.length, 'keys, changed:', changed);
-      // BUG FIX: render UI kalau ada data yang berubah
+      // Migrasi sekali jalan: blob "invoices" lama → row per-nota, lalu hapus blob lamanya
+      if (legacyInvoices !== undefined) {
+        const uid = _authUser.id;
+        (async () => {
+          try {
+            let allOk = true;
+            for (const inv of merged) {
+              if (!inv || !inv.id) continue;
+              const { error } = await sb.from('userdata').upsert(
+                { user_id: uid, key: 'invoice:' + inv.id, value: inv, updated_at: new Date().toISOString() },
+                { onConflict: 'user_id,key' }
+              );
+              if (error) allOk = false;
+              else { const sig = JSON.stringify(inv); _snapUpdate(s => { s[inv.id] = sig; }); }
+            }
+            // Blob lama baru dihapus kalau SEMUA nota sudah pasti tersimpan per-baris
+            if (allOk) await sb.from('userdata').delete().eq('user_id', uid).eq('key', 'invoices');
+            console.log('[NS] migrasi nota ke format per-baris', allOk ? 'selesai' : 'tertunda', '(' + merged.length + ' nota)');
+          } catch(e) { console.warn('[NS] migrasi nota gagal', e); }
+        })();
+      }
+
+      // Sekarang gabungkan logo & signature ke settings (kecuali settings lokal masih pending)
+      if (!pending.settings) {
+        try {
+          const settingsRaw = localStorage.getItem('ns3_settings');
+          const s = settingsRaw ? JSON.parse(settingsRaw) : {};
+          let settingsDirty = false;
+          if (incomingLogo !== undefined && localStorage.getItem('ns3_logo') !== JSON.stringify(incomingLogo)) {
+            localStorage.setItem('ns3_logo', JSON.stringify(incomingLogo));
+            changed = true;
+          }
+          if (incomingLogo !== undefined && s.logo !== (incomingLogo || undefined)) {
+            if (incomingLogo) s.logo = incomingLogo; else delete s.logo;
+            settingsDirty = true; changed = true;
+          }
+          if (incomingSign !== undefined && localStorage.getItem('ns3_signature') !== JSON.stringify(incomingSign)) {
+            localStorage.setItem('ns3_signature', JSON.stringify(incomingSign));
+            changed = true;
+          }
+          if (incomingSign !== undefined && s.signature !== (incomingSign || undefined)) {
+            if (incomingSign) s.signature = incomingSign; else delete s.signature;
+            settingsDirty = true; changed = true;
+          }
+          if (settingsDirty) localStorage.setItem('ns3_settings', JSON.stringify(s));
+        } catch {}
+      }
+
+      // Data yang ada di lokal tapi belum pernah ada di cloud → kirim, jangan dibiarkan cuma di HP
+      for (let i = 0; i < localStorage.length; i++) {
+        const lk = localStorage.key(i);
+        if (!lk || !lk.startsWith('ns3_')) continue;
+        const k = lk.slice(4);
+        if (_isSyncKey(k) && !cloudKeys[k] && localStorage.getItem(lk) !== 'null') _setPending(k, true);
+      }
+      // Termasuk nota lokal yang belum ada/berbeda di cloud (lewat diff snapshot)
+      if (legacyInvoices === undefined) CloudDB.flushPending().catch(() => {});
+
+      console.log('[NS] pulled', rowsData.length, 'keys, changed:', changed);
       if (changed) {
         if (typeof renderInvList       === 'function') renderInvList();
         if (typeof renderDashboard     === 'function') renderDashboard();
@@ -218,6 +307,7 @@ const CloudDB = {
   },
   async pushAll() {
     const sb = getSB(); if (!sb || !_authUser) return;
+    const uid = _authUser.id;
     const now = new Date().toISOString();
     const rows = [];
 
@@ -226,60 +316,54 @@ const CloudDB = {
     if (rawSettings !== null) {
       const slim = Object.assign({}, rawSettings);
       delete slim.logo; delete slim.signature;
-      rows.push({ user_id: _authUser.id, key: 'settings', value: slim, updated_at: now });
+      rows.push({ key: 'settings', row: { user_id: uid, key: 'settings', value: slim, updated_at: now } });
     }
 
     // --- Logo & Signature: ambil langsung dari localStorage (bukan DB.get) ---
     try {
       const logoVal = localStorage.getItem('ns3_logo');
-      if (logoVal) rows.push({ user_id: _authUser.id, key: 'logo', value: JSON.parse(logoVal), updated_at: now });
+      if (logoVal) rows.push({ key: 'settings', row: { user_id: uid, key: 'logo', value: JSON.parse(logoVal), updated_at: now } });
     } catch {}
     try {
       const signVal = localStorage.getItem('ns3_signature');
-      if (signVal) rows.push({ user_id: _authUser.id, key: 'signature', value: JSON.parse(signVal), updated_at: now });
+      if (signVal) rows.push({ key: 'settings', row: { user_id: uid, key: 'signature', value: JSON.parse(signVal), updated_at: now } });
     } catch {}
 
-    // --- Nota: satu row per nota (key: "invoice:<id>"), bukan satu blob besar —
-    // konsisten dengan CloudDB._push supaya format di cloud selalu seragam.
+    // --- Nota: satu row per nota (key: "invoice:<id>") ---
     try {
-      const invoicesArr = DB.get('invoices', []);
-      const snap = {};
-      for (const inv of invoicesArr) {
+      for (const inv of DB.get('invoices', [])) {
         if (!inv || !inv.id) continue;
-        rows.push({ user_id: _authUser.id, key: 'invoice:' + inv.id, value: inv, updated_at: now });
-        snap[inv.id] = JSON.stringify(inv);
+        rows.push({ inv: inv.id, sig: JSON.stringify(inv), row: { user_id: uid, key: 'invoice:' + inv.id, value: inv, updated_at: now } });
       }
-      localStorage.setItem('ns3_invoicesCloudSnap', JSON.stringify(snap));
     } catch {}
 
-    // --- Key lain ---
-    const OTHER_KEYS = ['expenses','products','ekspedisi','warehouses','stockLog'];
-    for (const k of OTHER_KEYS) {
-      const v = DB.get(k, null);
-      if (v !== null) rows.push({ user_id: _authUser.id, key: k, value: v, updated_at: now });
-    }
-
-    // --- grup_ dan inv_profit_ ---
+    // --- Key lain + grup_ dan inv_profit_ ---
     for (let i = 0; i < localStorage.length; i++) {
-      const k = localStorage.key(i);
-      if (!k?.startsWith('ns3_')) continue;
-      const clean = k.replace('ns3_','');
-      if (clean.startsWith('grup_') || clean.startsWith('inv_profit_')) {
-        try {
-          const v = JSON.parse(localStorage.getItem(k));
-          rows.push({ user_id: _authUser.id, key: clean, value: v, updated_at: now });
-        } catch {}
-      }
+      const lk = localStorage.key(i);
+      if (!lk?.startsWith('ns3_')) continue;
+      const k = lk.slice(4);
+      if (k === 'settings' || !_isSyncKey(k)) continue;
+      try {
+        const v = JSON.parse(localStorage.getItem(lk));
+        if (v !== null) rows.push({ key: k, row: { user_id: uid, key: k, value: v, updated_at: now } });
+      } catch {}
     }
 
     if (!rows.length) return;
     // Push per-row agar satu row gagal tidak blok semua
-    for (const row of rows) {
+    const failedKeys = {};
+    for (const r of rows) {
       try {
-        const { error } = await sb.from('userdata').upsert(row, { onConflict: 'user_id,key' });
-        if (error) console.warn('CloudDB pushAll row err', row.key, error);
-      } catch(e) { console.warn('CloudDB pushAll row err', row.key, e); }
+        const { error } = await sb.from('userdata').upsert(r.row, { onConflict: 'user_id,key' });
+        if (error) throw error;
+        if (r.inv) _snapUpdate(snap => { snap[r.inv] = r.sig; });
+      } catch(e) {
+        console.warn('CloudDB pushAll row err', r.row.key, e);
+        if (r.key) failedKeys[r.key] = 1;
+      }
     }
+    for (const r of rows) if (r.key && !failedKeys[r.key]) _setPending(r.key, false);
+    return !Object.keys(failedKeys).length;
   }
 };
 
@@ -312,6 +396,9 @@ function startRealtimeSync() {
           const k = newRow.key;
           const v = newRow.value;
 
+          // Ada perubahan lokal yang belum terkirim → jangan ditimpa versi cloud
+          const _pend = _getPending();
+          if (_pend[k] || ((k === 'logo' || k === 'signature') && _pend.settings)) return;
           if (k === 'settings') {
             // BUG FIX (logo/scale hilang sendiri): row 'settings' di cloud SELALU
             // "slim" (logo & signature sengaja dibuang sebelum push, lihat
@@ -348,9 +435,7 @@ function startRealtimeSync() {
               localStorage.setItem('ns3_invoices', JSON.stringify(arr));
               // Ikut update snapshot diff, supaya push berikutnya dari device ini
               // tidak salah kira nota ini "berubah" lalu upload ulang tanpa perlu.
-              const snap = JSON.parse(localStorage.getItem('ns3_invoicesCloudSnap') || '{}');
-              snap[v.id] = JSON.stringify(v);
-              localStorage.setItem('ns3_invoicesCloudSnap', JSON.stringify(snap));
+              _snapUpdate(snap => { snap[v.id] = JSON.stringify(v); });
             } catch {}
             _reRenderForKey('invoices');
             showSyncBadge('Tersinkron ✓');
@@ -383,15 +468,17 @@ function startRealtimeSync() {
             try {
               const arr = DB.get('invoices', []).filter(i => i.id !== id);
               localStorage.setItem('ns3_invoices', JSON.stringify(arr));
-              const snap = JSON.parse(localStorage.getItem('ns3_invoicesCloudSnap') || '{}');
-              delete snap[id];
-              localStorage.setItem('ns3_invoicesCloudSnap', JSON.stringify(snap));
+              _snapUpdate(snap => { delete snap[id]; });
             } catch {}
             _reRenderForKey('invoices');
             return;
           }
-          localStorage.removeItem('ns3_' + k);
-          _reRenderForKey(k);
+          // BUG FIX (DATA HILANG): row lain di cloud hanya pernah dihapus saat
+          // migrasi blob "invoices" lama → per-nota, atau saat hapus akun.
+          // Dulu event DELETE ini langsung menghapus key lokal yang sama —
+          // termasuk SELURUH daftar nota (ns3_invoices) tepat setelah migrasi
+          // jalan di update. Jangan pernah hapus data lokal dari event ini.
+          return;
         }
       }
     )
@@ -576,7 +663,6 @@ async function doDeleteAccount() {
     stopRealtimeSync();
     _stopPolling();
     _authUser = null;
-    _dbPatched = false;
     clearLocalData();
     localStorage.removeItem(GUEST_KEY);
     if (typeof loadSettingsUI  === 'function') loadSettingsUI();
@@ -609,6 +695,8 @@ function hideSyncBadge()    { const el = document.getElementById('syncBadge'); i
 
 // ── Hapus semua data lokal ns3_ (kecuali GUEST_KEY & USERNAME_KEY) ──
 function clearLocalData() {
+  // Simpan cadangan otomatis dulu (dibaca sinkron sebelum dihapus) — lihat script.js
+  if (typeof autoBackupLocal === 'function') autoBackupLocal('sebelum data perangkat dikosongkan', true);
   const preserve = [GUEST_KEY, USERNAME_KEY];
   const toRemove = [];
   for (let i = 0; i < localStorage.length; i++) {
@@ -714,17 +802,20 @@ function _suggestLogin(email, msg) {
 }
 
 // ── Logout ──
+let _explicitLogout = false;
 async function doLogout() {
   const sb = getSB();
   if (sb && _authUser) {
     showSyncBadge('Menyimpan...');
-    await CloudDB.pushAll().catch(() => {});
+    const allSaved = await CloudDB.pushAll().catch(() => false);
     hideSyncBadge();
+    // Jangan hapus data di HP kalau ada yang belum berhasil tersimpan di cloud
+    if (allSaved === false && !confirm('Sebagian data BELUM tersimpan ke cloud (cek koneksi internet).\n\nKalau tetap keluar, data yang belum tersimpan akan hilang dari perangkat ini. Tetap keluar?')) return;
     stopRealtimeSync();
+    _explicitLogout = true;
     await sb.auth.signOut().catch(() => {});
   }
   _authUser = null;
-  _dbPatched = false;
   _stopPolling();
   clearLocalData();
   localStorage.removeItem(GUEST_KEY);
@@ -744,6 +835,12 @@ async function doLogout() {
 
 // ── After sign-in ──
 async function onSignedIn(user, isNew) {
+  // Data lokal milik akun LAIN (mis. HP dipakai bergantian) → kosongkan dulu
+  // supaya tidak tercampur. Data milik akun yang sama / data tamu tetap dipakai
+  // dan digabung ke cloud, bukan dibuang.
+  const owner = localStorage.getItem(OWNER_KEY);
+  if (owner && owner !== user.id) clearLocalData();
+  localStorage.setItem(OWNER_KEY, user.id);
   _authUser = user;
   _patchDB();
   // Simpan username dari metadata kalau ada
@@ -785,6 +882,8 @@ function _patchDB() {
     orig(k, v);
     if (k === 'formDraft' || k === 'ibDismissed') return;
     if (_authUser) CloudDB._push(k, v);
+    // Sesi login sedang putus tapi data ini milik akun → tandai, dikirim saat login lagi
+    else if (k !== 'invoices' && _isSyncKey(k) && localStorage.getItem(OWNER_KEY)) _setPending(k, true);
   };
 }
 
@@ -817,12 +916,13 @@ document.addEventListener('visibilitychange', async () => {
 window.addEventListener('online', () => {
   if (_authUser) {
     startRealtimeSync();
-    CloudDB.pullAll().catch(() => {});
+    CloudDB.pullAll().catch(() => {}); // pullAll juga mengirim ulang data yang tertunda
   }
 });
 
 // ── Boot ──
 async function initAuth() {
+  _patchDB(); // aktif sejak awal supaya perubahan saat sesi putus tetap ditandai "belum terkirim"
   try {
     // Kalau sebelumnya pilih guest mode, langsung masuk
     if (localStorage.getItem(GUEST_KEY) === '1') {
@@ -862,14 +962,18 @@ async function initAuth() {
         stopRealtimeSync();
         _stopPolling();
         _authUser = null;
-        _dbPatched = false;
-        clearLocalData();
-        if (typeof loadSettingsUI  === 'function') loadSettingsUI();
-        if (typeof renderDashboard === 'function') renderDashboard();
-        if (typeof renderInvList   === 'function') renderInvList();
+        if (_explicitLogout) { _explicitLogout = false; return; } // doLogout() yang mengurus sisanya
+        // BUG FIX (DATA HILANG SETELAH UPDATE): SIGNED_OUT juga dipicu OTOMATIS
+        // oleh Supabase kalau refresh token gagal — mis. app dibuka ulang setelah
+        // update sementara tab lama masih hidup (token dipakai 2x), atau sinyal
+        // putus saat token diperbarui. Dulu di sini semua data lokal langsung
+        // dihapus, termasuk yang belum sempat naik ke cloud & pengaturan akun.
+        // Sekarang data di perangkat DIBIARKAN; user cukup login lagi dan
+        // datanya otomatis digabung ke cloud.
+        updateSettAkunRow();
         resetAuthModal();
         showAuthPage();
-        updateSettAkunRow();
+        showAuthErr('Sesi login berakhir. Silakan login lagi — data di perangkat ini tetap aman.');
       }
     });
 

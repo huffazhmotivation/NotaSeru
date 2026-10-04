@@ -216,6 +216,9 @@ const DB = {
 
 // ── Boot ───────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
+  // Minta browser TIDAK menghapus data app ini otomatis saat memori penuh
+  try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {}); } catch {}
+  autoBackupLocal('otomatis saat app dibuka');
   // Restore the user's standing default nota template/color so it keeps
   // applying until they actively choose a different one.
   const _bootSettings = DB.get('settings', {});
@@ -5612,6 +5615,95 @@ function handleRestore(input) {
   };
   r.readAsText(file); input.value='';
 }
+// ── Cadangan otomatis di perangkat (IndexedDB) ──
+// Jaring pengaman supaya data user tidak pernah hilang permanen karena update
+// app, sesi login putus, atau bug sinkron. Disimpan di IndexedDB (kuota jauh
+// lebih besar dari localStorage & tidak ikut terhapus oleh clearLocalData()).
+// Dibuat: saat app dibuka (maks. 1x / 12 jam), sebelum update, dan sebelum
+// data perangkat dikosongkan. Yang disimpan = 10 cadangan terakhir.
+const AUTO_BAK_DB = 'notaseru-autobackup';
+const AUTO_BAK_MAX = 10;
+const AUTO_BAK_SKIP = ['ns3_invoicesCloudSnap', 'ns3_invoicesCloudSnapV2', 'ns3_syncPending', 'ns3_guestMode', 'ns3_formDraft', 'ns3_settingsDraft'];
+function _bakOpen() {
+  return new Promise((resolve, reject) => {
+    if (!('indexedDB' in window)) return reject(new Error('IndexedDB tidak didukung'));
+    const req = indexedDB.open(AUTO_BAK_DB, 1);
+    req.onupgradeneeded = () => req.result.createObjectStore('snaps', { keyPath: 'at' });
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+function _bakCount(data) {
+  const n = (k) => { try { const v = JSON.parse(data[k] || '[]'); return Array.isArray(v) ? v.length : 0; } catch { return 0; } };
+  return { invoices: n('ns3_invoices'), expenses: n('ns3_expenses'), products: n('ns3_products') };
+}
+// `data` dikumpulkan SINKRON sebelum await pertama, jadi aman dipanggil tepat
+// sebelum localStorage dihapus.
+async function autoBackupLocal(reason, force) {
+  const data = {};
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && k.startsWith('ns3_') && !AUTO_BAK_SKIP.includes(k)) data[k] = localStorage.getItem(k);
+    }
+  } catch { return; }
+  const c = _bakCount(data);
+  let hasSettings = false;
+  try { hasSettings = Object.keys(JSON.parse(data.ns3_settings || '{}')).length > 0; } catch {}
+  // Jangan simpan cadangan kosong — nanti malah menggeser cadangan yang berisi
+  if (!c.invoices && !c.expenses && !c.products && !hasSettings) return;
+  try {
+    const db = await _bakOpen();
+    const all = await new Promise((res, rej) => { const r = db.transaction('snaps').objectStore('snaps').getAll(); r.onsuccess = () => res(r.result || []); r.onerror = () => rej(r.error); });
+    all.sort((a, b) => b.at - a.at);
+    const json = JSON.stringify(data);
+    if (all[0] && all[0].json === json) return; // sama persis dengan cadangan terakhir
+    if (!force && all[0] && Date.now() - all[0].at < 12 * 3600 * 1000) return;
+    await new Promise((res, rej) => {
+      const tx = db.transaction('snaps', 'readwrite');
+      const st = tx.objectStore('snaps');
+      st.put({ at: Date.now(), reason: reason || '', owner: data.ns3_ownerId || null, counts: c, json });
+      all.slice(AUTO_BAK_MAX - 1).forEach(old => st.delete(old.at));
+      tx.oncomplete = res; tx.onerror = () => rej(tx.error);
+    });
+  } catch (e) { console.warn('[NS] auto backup gagal', e); }
+}
+async function restoreAutoBackup() {
+  let all = [];
+  try {
+    const db = await _bakOpen();
+    all = await new Promise((res, rej) => { const r = db.transaction('snaps').objectStore('snaps').getAll(); r.onsuccess = () => res(r.result || []); r.onerror = () => rej(r.error); });
+  } catch { toast('Cadangan otomatis tidak tersedia di browser ini', 'err'); return; }
+  // Hanya tampilkan cadangan milik akun yang sedang login (atau data tamu kalau tidak login)
+  const me = (typeof _authUser !== 'undefined' && _authUser) ? _authUser.id : null;
+  const list = all.filter(b => (b.owner || null) === me).sort((a, b) => b.at - a.at);
+  if (!list.length) { toast(me ? 'Belum ada cadangan otomatis untuk akun ini' : 'Belum ada cadangan otomatis. Login dulu kalau datanya milik akun.', 'wrn'); return; }
+  const lines = list.map((b, i) => `${i + 1}. ${new Date(b.at).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })} — ${b.counts.invoices} nota, ${b.counts.expenses} pengeluaran, ${b.counts.products} produk`);
+  const pick = prompt('Pilih nomor cadangan yang mau dipulihkan:\n\n' + lines.join('\n') + '\n\nData yang ada sekarang tidak dihapus — nota dari cadangan digabung ke data saat ini.', '1');
+  if (pick === null) return;
+  const b = list[parseInt(pick, 10) - 1];
+  if (!b) { toast('Nomor tidak valid', 'err'); return; }
+  let data;
+  try { data = JSON.parse(b.json); } catch { toast('Cadangan rusak', 'err'); return; }
+  await autoBackupLocal('sebelum memulihkan cadangan', true);
+  // Nota digabung (bukan ditimpa) supaya nota yang dibuat setelah cadangan tidak hilang
+  try {
+    const cur = DB.get('invoices', []);
+    const ids = new Set(cur.map(i => i && i.id));
+    const fromBak = JSON.parse(data.ns3_invoices || '[]').filter(i => i && i.id && !ids.has(i.id));
+    data.ns3_invoices = JSON.stringify(cur.concat(fromBak).sort((x, y) => (y.createdAt || 0) - (x.createdAt || 0)));
+  } catch {}
+  delete data.ns3_ownerId;
+  for (const k in data) { try { localStorage.setItem(k, data[k]); } catch {} }
+  if (typeof CloudDB !== 'undefined' && typeof _authUser !== 'undefined' && _authUser) {
+    showSyncBadge('Menyimpan ke cloud...');
+    await CloudDB.pushAll().catch(() => {});
+    hideSyncBadge();
+  }
+  toast('Cadangan dipulihkan ✓', 'ok');
+  setTimeout(() => location.reload(), 800);
+}
+
 function confirmClear() {
   if (!confirm('HAPUS SEMUA DATA?\n\nTindakan ini TIDAK BISA dibatalkan!')) return;
   localStorage.clear(); toast('Data dihapus','ok'); setTimeout(()=>location.reload(),900);
@@ -6090,14 +6182,19 @@ function applyAppUpdate() {
   const btn = document.getElementById('updateModalReloadBtn');
   if (btn) { btn.disabled = true; btn.textContent = 'Memuat…'; }
 
-  // Fallback: kalau untuk alasan apapun reload normal tidak jalan dalam
-  // 1.2 detik (mis. dicegah browser), paksa navigasi ulang dengan cara lain.
-  const fallback = setTimeout(() => {
-    window.location.href = window.location.pathname + '?_swupdate=' + Date.now();
-  }, 1200);
-  window.addEventListener('pagehide', () => clearTimeout(fallback));
-
-  location.reload();
+  // Cadangkan data dulu sebelum pindah versi (maks. tunggu 1,5 detik)
+  Promise.race([
+    autoBackupLocal('sebelum update aplikasi', true).catch(() => {}),
+    new Promise(r => setTimeout(r, 1500))
+  ]).then(() => {
+    // Fallback: kalau untuk alasan apapun reload normal tidak jalan dalam
+    // 1.2 detik (mis. dicegah browser), paksa navigasi ulang dengan cara lain.
+    const fallback = setTimeout(() => {
+      window.location.href = window.location.pathname + '?_swupdate=' + Date.now();
+    }, 1200);
+    window.addEventListener('pagehide', () => clearTimeout(fallback));
+    location.reload();
+  });
 }
 function setupInstall() {
   window.addEventListener('beforeinstallprompt', e => {
