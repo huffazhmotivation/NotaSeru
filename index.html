@@ -443,6 +443,23 @@
           </div>
         </div>
         <div class="tot-row tot-grand"><span class="tot-label">Grand Total</span><span class="tot-val" id="grandDisplay">Rp 0</span></div>
+        <div class="tot-row">
+          <span class="tot-label">Wajib DP</span>
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;color:var(--txt-2)"><input type="checkbox" id="dpReqOn" onchange="toggleDpReq()" style="width:20px;height:20px;accent-color:var(--primary)">Aktifkan</label>
+        </div>
+        <div id="dpReqBox" style="display:none">
+          <div class="tot-row">
+            <div style="display:flex;align-items:center;gap:8px">
+              <span class="tot-label">DP yang harus dibayar</span>
+              <div class="disc-toggle">
+                <button class="disc-btn active" id="dpReqBtnPersen" onclick="setDpReqType('persen')">%</button>
+                <button class="disc-btn" id="dpReqBtnRupiah" onclick="setDpReqType('rupiah')">Rp</button>
+              </div>
+            </div>
+            <input type="text" class="inline-input" id="dpReqInput" placeholder="0" onfocus="dpReqFocus(this)" oninput="dpReqInput(this);recalc()">
+          </div>
+          <div class="tot-row" style="font-size:12px"><span class="tot-label">Nominal DP</span><span class="tot-val" id="dpReqDisplay">Rp 0</span></div>
+        </div>
         <div class="tot-row"><span class="tot-label">DP / Uang Muka</span><input type="text" class="inline-input dp-input-full" id="dpInput" placeholder="Rp 0" onfocus="fmtInlineFocus(this)" oninput="fmtInline(this);recalc()"></div>
         <div class="tot-row"><span class="tot-label">Pembayaran / Pelunasan</span><input type="text" class="inline-input dp-input-full" id="bayarInput" placeholder="Rp 0" onfocus="fmtInlineFocus(this)" oninput="fmtInline(this);recalc()"></div>
         <div class="tot-row" id="bayarDateRow" style="display:none"><span class="tot-label" style="font-size:12px">Tanggal Pembayaran</span><input type="date" class="inline-input" id="bayarDateInput" style="width:140px;text-align:right" onchange="recalc()"></div>
@@ -910,6 +927,7 @@
           <code style="background:var(--bg-input);padding:1px 5px;border-radius:4px">{nama}</code>
           <code style="background:var(--bg-input);padding:1px 5px;border-radius:4px">{pesanan}</code>
           <code style="background:var(--bg-input);padding:1px 5px;border-radius:4px">{total}</code>
+          <code style="background:var(--bg-input);padding:1px 5px;border-radius:4px">{dp}</code>
           <code style="background:var(--bg-input);padding:1px 5px;border-radius:4px">{toko}</code>
           <code style="background:var(--bg-input);padding:1px 5px;border-radius:4px">{tanggal}</code>
           <code style="background:var(--bg-input);padding:1px 5px;border-radius:4px">{alamat}</code>

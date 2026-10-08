@@ -297,6 +297,7 @@ function saveFormDraft() {
     ongkir: document.getElementById('ongkirInput')?.value || '',
     ekspedisi: document.getElementById('ekspedisiInput')?.value || '',
     dp: document.getElementById('dpInput')?.value || '',
+    dpReq: readDpReqForm(),
     bayar: document.getElementById('bayarInput')?.value || '',
     bayarDate: document.getElementById('bayarDateInput')?.value || '',
     notes: document.getElementById('invNotes')?.value || '',
@@ -322,6 +323,7 @@ function restoreFormDraft(draft) {
   document.getElementById('ongkirInput').value = draft.ongkir || '';
   if (draft.ekspedisi) document.getElementById('ekspedisiInput').value = draft.ekspedisi;
   document.getElementById('dpInput').value = draft.dp || '';
+  applyDpReqToForm(draft.dpReq);
   { const b = document.getElementById('bayarInput'); if (b) b.value = draft.bayar || ''; const bd = document.getElementById('bayarDateInput'); if (bd) bd.value = draft.bayarDate || ''; }
   document.getElementById('invNotes').value = draft.notes || '';
   if (draft.template) selectTemplate(draft.template, null, false);
@@ -635,6 +637,7 @@ function resetForm() {
   const eInp = document.getElementById('ekspedisiInput'); if (eInp) eInp.value = '';
   const eSel = document.getElementById('ekspedisiSelect'); if (eSel) eSel.value = '';
   document.getElementById('dpInput').value = '';
+  applyDpReqToForm(null);
   { const b = document.getElementById('bayarInput'); if (b) b.value = ''; const bd = document.getElementById('bayarDateInput'); if (bd) bd.value = ''; }
   document.getElementById('invNotes').value = '';
   selectTemplate(curTemplate || 'classic', null, false);
@@ -782,6 +785,69 @@ function updItemPrice(id, input) {
   recalc();
 }
 
+// ── DP yang harus dibayar (syarat DP, bisa nominal atau persen dari total nota) ──
+let curDpReqType = 'persen';
+function setDpReqType(type, keepVal) {
+  curDpReqType = type;
+  const bp = document.getElementById('dpReqBtnPersen'), br = document.getElementById('dpReqBtnRupiah');
+  if (bp) bp.classList.toggle('active', type === 'persen');
+  if (br) br.classList.toggle('active', type === 'rupiah');
+  const inp = document.getElementById('dpReqInput');
+  if (inp) { if (!keepVal) inp.value = ''; inp.placeholder = type === 'rupiah' ? curPh() : '0'; }
+  recalc();
+}
+function applyDpReqToForm(d) {
+  const chk = document.getElementById('dpReqOn');
+  if (chk) chk.checked = !!(d && d.dpReqOn);
+  const box = document.getElementById('dpReqBox');
+  if (box) box.style.display = (d && d.dpReqOn) ? '' : 'none';
+  setDpReqType((d && d.dpReqType) || 'persen', true);
+  const inp = document.getElementById('dpReqInput');
+  if (inp) inp.value = (d && d.dpReqVal > 0) ? (curDpReqType === 'rupiah' ? fmtRp(d.dpReqVal) : String(d.dpReqVal)) : '';
+}
+function toggleDpReq() {
+  const on = document.getElementById('dpReqOn')?.checked;
+  const box = document.getElementById('dpReqBox');
+  if (box) box.style.display = on ? '' : 'none';
+  recalc();
+}
+function dpReqFocus(input) {
+  if (curDpReqType === 'rupiah') { if (!parseMoney(input.value)) input.value = ''; }
+  else if (!parseFloat(input.value)) input.value = '';
+}
+function dpReqInput(input) {
+  if (curDpReqType === 'rupiah') { const r = parseMoney(input.value); input.value = r > 0 ? fmtRp(r) : ''; }
+}
+// Ambil pengaturan syarat DP dari form
+function readDpReqForm() {
+  const on = !!document.getElementById('dpReqOn')?.checked;
+  const raw = document.getElementById('dpReqInput')?.value || '';
+  const val = curDpReqType === 'rupiah' ? parseMoney(raw) : (parseFloat(String(raw).replace(',', '.')) || 0);
+  return { dpReqOn: on, dpReqType: curDpReqType, dpReqVal: val };
+}
+// Nominal DP wajib dari data nota (selalu ikut total nota; 0 kalau nonaktif)
+function dpReqAmt(inv) {
+  if (!inv || !inv.dpReqOn) return 0;
+  const val = Number(inv.dpReqVal) || 0;
+  const grand = Number(inv.grand) || 0;
+  const amt = inv.dpReqType === 'rupiah' ? val : Math.round(grand * val / 100);
+  return Math.max(0, Math.min(amt, grand));
+}
+// Teks untuk nota/WA, mis. "Rp 150.000 (30% dari total)"
+function dpReqText(inv) {
+  const amt = dpReqAmt(inv);
+  if (amt <= 0) return '';
+  const pct = inv.dpReqType === 'persen' ? ` (${Number(inv.dpReqVal)}% dari total)` : '';
+  return fmtRp(amt, inv.currency) + pct;
+}
+// Kotak "DP yang harus dibayar" untuk nota (disisipkan di atas info pembayaran)
+function dpReqBoxHTML(inv) {
+  const amt = dpReqAmt(inv);
+  if (amt <= 0) return '';
+  const sub = inv.dpReqType === 'persen' ? `<div style="font-size:11px;color:#92400E;margin-top:2px">${Number(inv.dpReqVal)}% dari total nota</div>` : '';
+  return `<div style="margin-top:16px;padding:12px 14px;background:#FFFBEB;border-radius:8px;border:1px solid #FCD34D"><div style="display:flex;justify-content:space-between;align-items:center"><span style="font-size:11px;font-weight:700;color:#92400E;text-transform:uppercase;letter-spacing:.08em">DP yang harus dibayar</span><span style="font-size:15px;font-weight:800;color:#92400E">${fmtRp(amt, inv.currency)}</span></div>${sub}</div>`;
+}
+
 function recalc() {
   const sub = items.reduce((s,i) => s + calcItemTotal(i), 0);
   const discRaw = document.getElementById('discInput')?.value || '';
@@ -802,6 +868,7 @@ function recalc() {
   const bdInp = document.getElementById('bayarDateInput');
   if (bdRow) bdRow.style.display = bayar > 0 ? '' : 'none';
   if (bdInp && bayar > 0 && !bdInp.value) bdInp.value = new Date().toISOString().split('T')[0];
+  { const r = readDpReqForm(); setText('dpReqDisplay', fmtRp(dpReqAmt({ ...r, grand }))); }
   renderPayNote(dp, bayar, grand);
   syncStatusFromDp(paid, grand);
 }
@@ -863,6 +930,7 @@ function saveInvoice() {
     sub, disc, discType: curDiscType, discAmt, ongkir,
     ekspedisi: document.getElementById('ekspedisiInput')?.value || '',
     dp, bayar, bayarDate, grand,
+    ...readDpReqForm(),
     sisa: Math.max(0, grand - dp - bayar),
     lebih: Math.max(0, dp + bayar - grand),
     currency: curCurrency,
@@ -1778,6 +1846,7 @@ function editInv(id) {
   document.getElementById('ongkirInput').value = inv.ongkir > 0 ? fmtRp(inv.ongkir) : '';
   const eInp = document.getElementById('ekspedisiInput'); if (eInp) eInp.value = inv.ekspedisi || '';
   document.getElementById('dpInput').value = inv.dp > 0 ? fmtRp(inv.dp) : '';
+  applyDpReqToForm(inv.dpReqOn ? { dpReqOn: true, dpReqType: inv.dpReqType, dpReqVal: inv.dpReqVal } : null);
   { const b = document.getElementById('bayarInput'); if (b) b.value = inv.bayar > 0 ? fmtRp(inv.bayar) : ''; const bd = document.getElementById('bayarDateInput'); if (bd) bd.value = inv.bayarDate || ''; }
   document.getElementById('invNotes').value = inv.notes || '';
   // BUG FIX: jangan timpa curTemplate/curTplColor dengan template lama milik
@@ -2565,8 +2634,8 @@ function buildPreview(inv, targetId = 'invoicePreview') {
     ? `${inv.dp > 0 ? `<div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;padding:10px 14px;background:${C.dark};border-radius:6px"><span style="font-size:13px;font-weight:700;color:${C.text}">DP / Uang Muka</span><span style="font-size:14px;font-weight:800;color:${C.text}">${fmtRp(inv.dp)}</span></div>` : ''}${inv.bayar > 0 ? `<div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;padding:10px 14px;background:${C.dark};border-radius:6px"><span style="font-size:13px;font-weight:700;color:${C.text}">Pembayaran</span><span style="font-size:14px;font-weight:800;color:${C.text}">${fmtRp(inv.bayar)}</span></div>` : ''}<div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;padding:12px 14px;background:${C.darker};border-radius:6px;border:2px solid ${C.darkest}"><span style="font-size:14px;font-weight:800;color:${C.soft}">${invEnd(inv).label}</span><span style="font-size:15px;font-weight:900;color:${C.soft}">${fmtRp(invEnd(inv).val)}</span></div>` : '';
 
   const bankLogoEl = (s.bankLogo || s.bankLogoImg) ? bankBadgeHTML(s.bankLogo, 26, s.bankLogoImg) : '';
-  const bankInfo = (s.bankName || s.bankNo)
-    ? `<div style="margin-top:16px;padding:12px 14px;background:#F8FAFC;border-radius:8px;border:1px solid #E5E7EB"><div style="font-size:11px;font-weight:700;color:#9CA3AF;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px">Info Pembayaran</div><div style="display:flex;align-items:center;gap:8px"><div style="font-size:13px;color:#374151">${bankLogoEl}</div><div style="font-size:13px;color:#374151">${xss(s.bankName||'')} &nbsp;·&nbsp; <strong style="color:#111827">${xss(s.bankNo||'')}</strong></div></div>${s.bankOwner ? `<div style="font-size:12px;color:#9CA3AF;margin-top:2px">a.n. ${xss(s.bankOwner)}</div>` : ''}${s.bankNote ? `<div style="font-size:12px;color:#6B7280;margin-top:5px;padding-top:5px;border-top:1px solid #E5E7EB;line-height:1.5">${xss(s.bankNote)}</div>` : ''}</div>` : '';
+  const bankInfo = dpReqBoxHTML(inv) + ((s.bankName || s.bankNo)
+    ? `<div style="margin-top:16px;padding:12px 14px;background:#F8FAFC;border-radius:8px;border:1px solid #E5E7EB"><div style="font-size:11px;font-weight:700;color:#9CA3AF;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px">Info Pembayaran</div><div style="display:flex;align-items:center;gap:8px"><div style="font-size:13px;color:#374151">${bankLogoEl}</div><div style="font-size:13px;color:#374151">${xss(s.bankName||'')} &nbsp;·&nbsp; <strong style="color:#111827">${xss(s.bankNo||'')}</strong></div></div>${s.bankOwner ? `<div style="font-size:12px;color:#9CA3AF;margin-top:2px">a.n. ${xss(s.bankOwner)}</div>` : ''}${s.bankNote ? `<div style="font-size:12px;color:#6B7280;margin-top:5px;padding-top:5px;border-top:1px solid #E5E7EB;line-height:1.5">${xss(s.bankNote)}</div>` : ''}</div>` : '');
 
   const notesRow = inv.notes
     ? `<div style="margin-top:12px;padding:12px 14px;background:#F8FAFC;border-radius:8px;border:1px solid #E5E7EB"><div style="font-size:11px;font-weight:700;color:#9CA3AF;text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px">Catatan</div><div style="font-size:13px;color:#6B7280;line-height:1.5">${xss(inv.notes)}</div></div>` : '';
@@ -4534,7 +4603,7 @@ function invFilename() {
 }
 
 // Template pesan WA default (dipakai kalau user belum custom di Pengaturan)
-const DEFAULT_WA_TEMPLATE = 'Halo kak, berikut invoice pesanan Anda 🙏\n\n📋 *{nomor}*\n👤 {nama}\n\n🛒 *Pesanan:*\n{pesanan}\n\n💰 Total: {total}\n\n_Terima kasih sudah berbelanja di {toko}_ ✨';
+const DEFAULT_WA_TEMPLATE = 'Halo kak, berikut invoice pesanan Anda 🙏\n\n📋 *{nomor}*\n👤 {nama}\n\n🛒 *Pesanan:*\n{pesanan}\n\n💰 Total: {total}\n💳 DP yang harus dibayar: {dp}\n\n_Terima kasih sudah berbelanja di {toko}_ ✨';
 
 // Helper: get WA message text — pakai template custom dari Pengaturan kalau ada
 function waMessage() {
@@ -4551,13 +4620,16 @@ function fillWaTemplate(tpl, inv, s) {
     nama: inv?.customer?.name || '',
     pesanan: (inv?.items || []).filter(i => i.name).map(i => `• ${i.name} — ${i.qty} pcs`).join('\n'),
     total: fmtRp(inv?.grand || 0, inv?.currency),
+    dp: dpReqText(inv),
     toko: s.storeName || 'toko kami',
     tanggal: inv?.date ? fmtDate(inv.date) : '',
     alamat: inv?.customer?.address || '',
     hp: inv?.customer?.phone || '',
     status: inv?.status === 'lunas' ? 'Lunas' : (inv?.status === 'dp' ? 'DP' : 'Belum Bayar')
   };
-  return tpl.replace(/\{(nomor|nama|pesanan|total|toko|tanggal|alamat|hp|status)\}/g, (_, key) => map[key]);
+  // Baris yang memuat {dp} dibuang kalau nota ini tidak mewajibkan DP
+  if (!map.dp) tpl = tpl.split('\n').filter(l => !l.includes('{dp}')).join('\n');
+  return tpl.replace(/\{(nomor|nama|pesanan|total|dp|toko|tanggal|alamat|hp|status)\}/g, (_, key) => map[key]);
 }
 
 // Helper: nomor WA pelanggan yang sudah dinormalisasi (awalan 0 -> 62), kosong kalau belum diisi di nota
