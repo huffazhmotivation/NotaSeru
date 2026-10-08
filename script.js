@@ -4534,7 +4534,7 @@ function invFilename() {
 }
 
 // Template pesan WA default (dipakai kalau user belum custom di Pengaturan)
-const DEFAULT_WA_TEMPLATE = 'Halo kak, berikut invoice pesanan Anda 🙏\n\n📋 *{nomor}*\n👤 {nama}\n💰 Total: {total}\n\n_Terima kasih sudah berbelanja di {toko}_ ✨';
+const DEFAULT_WA_TEMPLATE = 'Halo kak, berikut invoice pesanan Anda 🙏\n\n📋 *{nomor}*\n👤 {nama}\n\n🛒 *Pesanan:*\n{pesanan}\n\n💰 Total: {total}\n\n_Terima kasih sudah berbelanja di {toko}_ ✨';
 
 // Helper: get WA message text — pakai template custom dari Pengaturan kalau ada
 function waMessage() {
@@ -4549,6 +4549,7 @@ function fillWaTemplate(tpl, inv, s) {
   const map = {
     nomor: inv?.number || 'Invoice',
     nama: inv?.customer?.name || '',
+    pesanan: (inv?.items || []).filter(i => i.name).map(i => `• ${i.name} — ${i.qty} pcs`).join('\n'),
     total: fmtRp(inv?.grand || 0, inv?.currency),
     toko: s.storeName || 'toko kami',
     tanggal: inv?.date ? fmtDate(inv.date) : '',
@@ -4556,7 +4557,7 @@ function fillWaTemplate(tpl, inv, s) {
     hp: inv?.customer?.phone || '',
     status: inv?.status === 'lunas' ? 'Lunas' : (inv?.status === 'dp' ? 'DP' : 'Belum Bayar')
   };
-  return tpl.replace(/\{(nomor|nama|total|toko|tanggal|alamat|hp|status)\}/g, (_, key) => map[key]);
+  return tpl.replace(/\{(nomor|nama|pesanan|total|toko|tanggal|alamat|hp|status)\}/g, (_, key) => map[key]);
 }
 
 // Helper: nomor WA pelanggan yang sudah dinormalisasi (awalan 0 -> 62), kosong kalau belum diisi di nota
