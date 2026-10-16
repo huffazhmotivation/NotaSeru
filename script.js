@@ -4758,27 +4758,64 @@ function fallbackCopy(text) {
   document.body.removeChild(ta);
 }
 
-// Kirim via WhatsApp — auto-target nomor pelanggan (kalau ada), sekaligus sertakan
-// gambar nota (PNG). Catatan teknis: WhatsApp tidak mengizinkan file dilampirkan
-// otomatis lewat link (wa.me) — itu batasan dari WhatsApp sendiri, bukan app ini.
-// PENTING: window.open harus dipanggil LANGSUNG di awal klik (bukan di dalam setTimeout/
-// setelah await), karena browser mobile memblokir window.open yang dianggap bukan lagi
-// bagian dari user-gesture asli — itu penyebab WA tidak kebuka otomatis sebelumnya.
+// Kirim via WhatsApp — pesan teks + gambar nota (PNG) dikirim SEBAGAI SATU PAKET lewat
+// share sheet bawaan HP: user tinggal pilih WhatsApp lalu pilih kontak/grup tujuan
+// (teks otomatis jadi keterangan gambar). Kalau perangkat/browser tidak mendukung
+// berbagi file (mis. desktop), jalankan alur lama persis seperti sebelumnya:
+// buka chat WA dengan teks (+ otomatis ke nomor pelanggan) lalu unduh PNG-nya.
+// PENTING: window.open harus dipanggil LANGSUNG di awal klik (bukan setelah await),
+// karena browser mobile memblokir popup yang bukan lagi bagian dari user-gesture asli.
+function _canShareImageFile() {
+  try {
+    if (!(navigator.share && navigator.canShare)) return false;
+    return navigator.canShare({ files: [new File([new Blob(['x'])], 'x.png', { type: 'image/png' })] });
+  } catch (e) { return false; }
+}
+
+async function _invoicePngBlob() {
+  const canvas = await renderCanvas();
+  return await new Promise((resolve, reject) => {
+    try { canvas.toBlob(b => b ? resolve(b) : reject(new Error('Gagal membuat gambar')), 'image/png'); }
+    catch (e) { reject(e); }
+  });
+}
+
 async function sendWA() {
+  const text = waMessage();
+
+  // ── Jalur baru: teks + PNG satu paket lewat share sheet ──────────────
+  if (_canShareImageFile()) {
+    // Salinan teks ke clipboard sebagai jaring pengaman: sebagian versi iOS membuang
+    // teks kalau ada gambar, jadi user masih bisa tempel manual di chat.
+    try { navigator.clipboard && navigator.clipboard.writeText(text).catch(() => {}); } catch (e) {}
+    toast('Menyiapkan nota...');
+    try {
+      const blob = await _invoicePngBlob();
+      const fname = invFilename();
+      const file = new File([blob], `${fname}.png`, { type: 'image/png' });
+      if (navigator.canShare({ files: [file] })) {
+        await navigator.share({ files: [file], title: fname, text });
+        toast('Pilih WhatsApp & tujuan ✓', 'ok');
+        return;
+      }
+    } catch (e) {
+      if (e && e.name === 'AbortError') { toast('Dibatalkan', ''); return; }
+      console.warn('Share WA (teks+PNG) gagal, pakai cara lama:', e && e.name, e && e.message);
+    }
+    // Gagal selain dibatalkan user -> lanjut ke alur lama di bawah
+  }
+
+  // ── Alur lama (tidak diubah): buka WA dengan teks, lalu unduh PNG ────
   const waNum = custWaNumber();
   // Buka WA duluan, sinkron, di awal klik — supaya tidak diblokir sebagai popup
-  window.open(waURL(waMessage()), '_blank');
+  window.open(waURL(text), '_blank');
   if (!waNum) return; // tidak ada nomor pelanggan -> cukup teks, selesai
 
   // Baru render & download gambar nota di belakang layar (tidak perlu window.open lagi)
   toast('Menyiapkan gambar nota...');
   try {
-    const canvas = await renderCanvas();
+    const blob = await _invoicePngBlob();
     const fname = invFilename();
-    const blob = await new Promise((resolve, reject) => {
-      try { canvas.toBlob(b => b ? resolve(b) : reject(new Error('Gagal membuat gambar')), 'image/png'); }
-      catch (e) { reject(e); }
-    });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.download = `${fname}.png`;
