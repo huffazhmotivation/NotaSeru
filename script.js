@@ -4758,27 +4758,18 @@ function fallbackCopy(text) {
   document.body.removeChild(ta);
 }
 
-// Kirim via WhatsApp:
-// • Nota PUNYA nomor HP pelanggan -> langsung buka ruang chat nomor itu dengan pesan
-//   sudah terisi (user tinggal tekan Kirim). Gambar nota (PNG) otomatis DISALIN ke
-//   clipboard, jadi di chat cukup tekan lama kolom ketik -> Tempel. (WhatsApp tidak
-//   mengizinkan file dilampirkan otomatis lewat link chat — batasan WhatsApp sendiri.)
-//   Kalau browser tidak mendukung salin gambar, PNG diunduh seperti cara lama.
-// • Nota TANPA nomor -> teks + PNG satu paket lewat share sheet bawaan HP, lalu user
-//   pilih WhatsApp & kontak tujuan. Perangkat tanpa dukungan berbagi file (mis.
-//   desktop) cukup dibukakan WA dengan teks.
-// PENTING: window.open & clipboard.write harus dipanggil LANGSUNG di awal klik (bukan
-// setelah await), karena browser memblokirnya kalau sudah lepas dari user-gesture asli.
+// Kirim via WhatsApp — pesan teks + gambar nota (PNG) dikirim SEBAGAI SATU PAKET lewat
+// share sheet bawaan HP: user tinggal pilih WhatsApp lalu pilih kontak/grup tujuan
+// (teks otomatis jadi keterangan gambar). Kalau perangkat/browser tidak mendukung
+// berbagi file (mis. desktop), jalankan alur lama persis seperti sebelumnya:
+// buka chat WA dengan teks (+ otomatis ke nomor pelanggan) lalu unduh PNG-nya.
+// PENTING: window.open harus dipanggil LANGSUNG di awal klik (bukan setelah await),
+// karena browser mobile memblokir popup yang bukan lagi bagian dari user-gesture asli.
 function _canShareImageFile() {
   try {
     if (!(navigator.share && navigator.canShare)) return false;
     return navigator.canShare({ files: [new File([new Blob(['x'])], 'x.png', { type: 'image/png' })] });
   } catch (e) { return false; }
-}
-
-function _canCopyImage() {
-  try { return !!(navigator.clipboard && navigator.clipboard.write && window.ClipboardItem); }
-  catch (e) { return false; }
 }
 
 async function _invoicePngBlob() {
@@ -4789,49 +4780,10 @@ async function _invoicePngBlob() {
   });
 }
 
-async function _downloadInvoicePng(okMsg) {
-  try {
-    const blob = await _invoicePngBlob();
-    const fname = invFilename();
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.download = `${fname}.png`;
-    a.href = url; a.click();
-    setTimeout(() => URL.revokeObjectURL(url), 5000);
-    toast(okMsg, 'ok');
-  } catch (e) {
-    toast('WA sudah dibuka, tapi gagal menyiapkan gambar: ' + e.message, 'err');
-  }
-}
-
 async function sendWA() {
   const text = waMessage();
-  const waNum = custWaNumber();
 
-  // ── Ada nomor pelanggan: langsung ke ruang chat nomor itu ─────────────
-  if (waNum) {
-    // 1) Salin gambar nota — dipanggil sinkron; isi PNG menyusul lewat Promise.
-    let copied = null;
-    if (_canCopyImage()) {
-      try {
-        copied = navigator.clipboard
-          .write([new ClipboardItem({ 'image/png': _invoicePngBlob() })])
-          .then(() => true, () => false);
-      } catch (e) { copied = null; }
-    }
-    // 2) Buka chat nomor pelanggan dengan pesan terisi — juga sinkron di awal klik.
-    window.open(waURL(text), '_blank');
-    if (copied && await copied) {
-      toast('Chat dibuka & gambar nota disalin — tekan lama kolom chat → Tempel ✓', 'ok');
-      return;
-    }
-    // 3) Salin gambar tidak didukung -> cara lama: unduh PNG
-    toast('Menyiapkan gambar nota...');
-    await _downloadInvoicePng('Gambar nota diunduh — tinggal lampirkan di chat WA yang sudah terbuka ✓');
-    return;
-  }
-
-  // ── Tanpa nomor: teks + PNG satu paket lewat share sheet ─────────────
+  // ── Jalur baru: teks + PNG satu paket lewat share sheet ──────────────
   if (_canShareImageFile()) {
     // Salinan teks ke clipboard sebagai jaring pengaman: sebagian versi iOS membuang
     // teks kalau ada gambar, jadi user masih bisa tempel manual di chat.
@@ -4848,12 +4800,31 @@ async function sendWA() {
       }
     } catch (e) {
       if (e && e.name === 'AbortError') { toast('Dibatalkan', ''); return; }
-      console.warn('Share WA (teks+PNG) gagal, buka WA teks saja:', e && e.name, e && e.message);
+      console.warn('Share WA (teks+PNG) gagal, pakai cara lama:', e && e.name, e && e.message);
     }
+    // Gagal selain dibatalkan user -> lanjut ke alur lama di bawah
   }
 
-  // ── Cadangan: buka WA dengan teks, user pilih kontak sendiri ──────────
+  // ── Alur lama (tidak diubah): buka WA dengan teks, lalu unduh PNG ────
+  const waNum = custWaNumber();
+  // Buka WA duluan, sinkron, di awal klik — supaya tidak diblokir sebagai popup
   window.open(waURL(text), '_blank');
+  if (!waNum) return; // tidak ada nomor pelanggan -> cukup teks, selesai
+
+  // Baru render & download gambar nota di belakang layar (tidak perlu window.open lagi)
+  toast('Menyiapkan gambar nota...');
+  try {
+    const blob = await _invoicePngBlob();
+    const fname = invFilename();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.download = `${fname}.png`;
+    a.href = url; a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
+    toast('Gambar nota diunduh — tinggal lampirkan di chat WA yang sudah terbuka ✓', 'ok');
+  } catch (e) {
+    toast('WA sudah dibuka, tapi gagal menyiapkan gambar: ' + e.message, 'err');
+  }
 }
 
 

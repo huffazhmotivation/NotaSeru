@@ -1,4 +1,4 @@
-const CACHE_NAME = 'notaseru-v5.4';
+const CACHE_NAME = 'notaseru-v5.5';
 const ASSETS = [
   '/index.html',
   '/style.css',
