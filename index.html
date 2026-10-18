@@ -17,11 +17,13 @@
   <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
   <link rel="preconnect" href="https://ytevfhexismbfbqtynyk.supabase.co" crossorigin>
   <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="kasir.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" defer></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" defer></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <script src="config.js"></script>
+  <script>try{if(localStorage.getItem('ns3_appMode')==='kasir')document.documentElement.classList.add('kasir-boot')}catch(e){}</script>
 </head>
 <body>
 <!-- AMBIENT GLOW ORBS — fixed, blurred color blobs sitting behind everything.
@@ -223,7 +225,7 @@
   <div class="install-banner gone" id="installBanner" onclick="triggerInstall()">
     <div class="ib-ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></div>
     <div class="ib-txt"><div class="ibt">Install NotaSeru</div><div class="ibs">Tambah ke layar utama</div></div>
-    <button class="ib-close" onclick="dismissInstall(event)">✕</button>
+    <button class="ib-close" onclick="dismissInstall(event)" aria-label="Tutup"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg></button>
   </div>
 
   <!-- Quick menu -->
@@ -339,7 +341,7 @@
   </div>
   <div style="padding-bottom:20px">
     <div id="draftBanner" style="display:none;margin:12px 20px 0;padding:10px 14px;background:var(--warning-soft);border-radius:var(--r-md);display:flex;align-items:center;justify-content:space-between;gap:10px">
-      <span style="font-size:12px;color:var(--warning);font-weight:600">📝 Form belum disimpan – dilanjutkan dari sebelumnya</span>
+      <span style="font-size:12px;color:var(--warning);font-weight:600"><span style="display:inline-flex;vertical-align:-3px;margin-right:6px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></span>Form belum disimpan – dilanjutkan dari sebelumnya</span>
       <button onclick="resetForm();document.getElementById('draftBanner').style.display='none'" style="font-size:11px;padding:4px 10px;border-radius:var(--r-full);background:var(--warning);color:#fff;border:none;cursor:pointer;font-family:var(--font);font-weight:600;white-space:nowrap">Buat Baru</button>
     </div>
     <div class="form-wrap" style="padding-bottom:8px">
@@ -409,6 +411,10 @@
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
             Item Pesanan
           </span>
+          <button class="btn btn-secondary btn-sm" onclick="openColsSheet()" style="padding:6px 12px;font-size:12px;gap:6px" title="Atur kolom nota">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="9" y1="4" x2="9" y2="20"/><line x1="15" y1="4" x2="15" y2="20"/></svg>
+            Kolom: <span id="colsBtnLabel">Barang</span>
+          </button>
         </div>
         <div class="card-body" id="itemsContainer"></div>
         <div style="padding:0 16px 14px">
@@ -1302,7 +1308,7 @@
     <div class="as-item" onclick="exportPDF()"><div class="as-ic" style="background:var(--danger-soft);color:var(--danger)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div><div><div class="as-label">Simpan PDF</div><div class="as-sub">Format A4 siap cetak</div></div></div>
     <div class="as-item" onclick="exportPNG()"><div class="as-ic" style="background:var(--primary-soft);color:var(--primary)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></div><div><div class="as-label">Simpan PNG</div><div class="as-sub">Gambar resolusi tinggi</div></div></div>
     <div class="as-div"></div>
-    <div class="as-item" onclick="sendWA();closeSheets()"><div class="as-ic" style="background:#dcfce7;color:#16a34a"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div><div><div class="as-label">Kirim WhatsApp</div><div class="as-sub">Buka WA dengan pesan otomatis</div></div></div>
+    <div class="as-item" onclick="sendWA();closeSheets()"><div class="as-ic" style="background:#dcfce7;color:#16a34a"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div><div><div class="as-label">Kirim WhatsApp</div><div class="as-sub">Kirim pesan + gambar nota sekaligus</div></div></div>
   </div>
   <div style="height:16px"></div>
 </div>
@@ -1376,6 +1382,32 @@
 </div>
 
 <!-- Product Picker Sheet -->
+<div class="sheet" id="colsSheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-hd">
+    <div class="sheet-title">Atur Kolom Nota</div>
+    <button class="sheet-close" onclick="closeSheets()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="6" y1="18" x2="18" y2="6"/></svg></button>
+  </div>
+  <div class="cs-live" id="colsLive">
+    <div class="cs-live-hd">
+      <span class="t">Pratinjau nota <span class="src" id="colsLiveSrc">data contoh</span></span>
+      <button type="button" onclick="toggleColsPreview()" id="colsLiveToggle">Sembunyikan</button>
+    </div>
+    <div class="cs-live-box" id="colsLiveBox"><div class="cs-live-scaler" id="colsLiveScaler"><div id="colsLivePrev"></div></div></div>
+  </div>
+  <div class="sheet-body" id="colsSheetBody"></div>
+</div>
+
+<!-- Kalender pilih tanggal (check-in / check-out) -->
+<div class="sheet" id="dateSheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-hd">
+    <div class="sheet-title" id="dateSheetTitle">Pilih Tanggal</div>
+    <button class="sheet-close" onclick="closeSheets()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="6" y1="18" x2="18" y2="6"/></svg></button>
+  </div>
+  <div class="sheet-body" id="dateSheetBody"></div>
+</div>
+
 <div class="sheet" id="productPickerSheet">
   <div class="sheet-handle"></div>
   <div class="sheet-hd">
@@ -1388,7 +1420,7 @@
       <input type="search" class="search-input" id="productSearch" placeholder="Cari nama produk..." oninput="renderProductPicker(this.value)" autocomplete="off">
     </div>
   </div>
-  <div id="productPickerList" style="max-height:50vh;overflow-y:auto"></div>
+  <div id="productPickerList" style="max-height:50vh;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;touch-action:pan-y"></div>
   <div style="padding:12px 20px 8px;border-top:1px solid var(--border-soft);display:flex;gap:8px">
     <button class="btn btn-primary" style="flex:1" onclick="openProductFormFromPicker()">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -1564,7 +1596,7 @@
   <div class="sheet-handle"></div>
   <div class="sheet-hd">
     <div class="sheet-title">Kalkulator</div>
-    <button class="sheet-close" onclick="closeCalcSheet()" title="Tutup">✕</button>
+    <button class="sheet-close" onclick="closeCalcSheet()" title="Tutup"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg></button>
   </div>
   <div class="sheet-body">
     <div class="calc-name-field">
@@ -1621,12 +1653,14 @@
 <script src="script.js"></script>
 <script src="gudang.js"></script>
 <script src="auth.js"></script>
+<script src="print.js"></script>
+<script src="kasir.js"></script>
 <!-- Custom Color Picker Modal -->
 <div id="customColorModal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.55);backdrop-filter:blur(4px);align-items:center;justify-content:center">
   <div style="background:var(--bg-card);border-radius:20px;padding:20px;width:300px;max-width:92vw;box-shadow:0 20px 60px rgba(0,0,0,0.3)">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
-      <div style="font-size:14px;font-weight:700;color:var(--txt-1)">🎨 Pilih Warna Custom</div>
-      <button onclick="closeCustomColorPicker()" style="width:28px;height:28px;border-radius:50%;border:none;background:var(--bg-input);color:var(--txt-2);cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center">×</button>
+      <div style="font-size:14px;font-weight:700;color:var(--txt-1);display:flex;align-items:center;gap:8px"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18c1.1 0 1.7-.8 1.7-1.7 0-.5-.2-.8-.4-1.1-.3-.3-.4-.7-.4-1.1 0-.9.8-1.7 1.7-1.7H16a5 5 0 0 0 5-5c0-3.9-4-7.4-9-7.4z"/><circle cx="7.5" cy="11" r="1"/><circle cx="10.5" cy="7" r="1"/><circle cx="15" cy="7.5" r="1"/></svg>Pilih Warna Custom</div>
+      <button onclick="closeCustomColorPicker()" style="width:28px;height:28px;border-radius:50%;border:none;background:var(--bg-input);color:var(--txt-2);cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg></button>
     </div>
     <!-- Hue-Saturation canvas -->
     <canvas id="colorPickerCanvas" width="260" height="160" style="border-radius:10px;cursor:crosshair;width:100%;touch-action:none"></canvas>
