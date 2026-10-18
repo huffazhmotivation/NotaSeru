@@ -1,12 +1,9 @@
-const CACHE_NAME = 'notaseru-v5.6-kolom-kasir';
+const CACHE_NAME = 'notaseru-v5.7';
 const ASSETS = [
   '/index.html',
   '/style.css',
   '/script.js',
   '/gudang.js',
-  '/kasir.css',
-  '/print.js',
-  '/kasir.js',
   '/auth.js',
   '/config.js',
   '/manifest.json'
